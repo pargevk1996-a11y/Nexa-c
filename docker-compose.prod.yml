@@ -1,0 +1,51 @@
+services:
+  postgres:
+    ports: []
+
+  redis:
+    ports: []
+
+  nginx:
+    restart: unless-stopped
+
+  api-gateway:
+    environment:
+      APP_ENV: production
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  auth-service:
+    restart: unless-stopped
+  user-service:
+    restart: unless-stopped
+  contact-service:
+    restart: unless-stopped
+  chat-service:
+    restart: unless-stopped
+  media-service:
+    restart: unless-stopped
+  story-service:
+    restart: unless-stopped
+  emoji-service:
+    restart: unless-stopped
+  notification-service:
+    restart: unless-stopped
+
+  ws-gateway:
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  presence-service:
+    restart: unless-stopped
+
+  call-service:
+    restart: unless-stopped

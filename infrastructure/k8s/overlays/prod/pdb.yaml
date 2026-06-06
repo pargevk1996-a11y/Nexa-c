@@ -1,0 +1,55 @@
+# PodDisruptionBudgets — ensure min availability during node drains / rolling deploys
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: nexa
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ws-gateway-pdb
+  namespace: nexa
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ws-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: chat-service-pdb
+  namespace: nexa
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: chat-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+  namespace: nexa
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auth-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: nexa
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service

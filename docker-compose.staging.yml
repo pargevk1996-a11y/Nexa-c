@@ -1,0 +1,85 @@
+# Staging overlay: production-like settings without full prod resource limits.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d
+
+x-staging-env: &staging-env
+  APP_ENV: staging
+  LOG_LEVEL: info
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+  PROMETHEUS_METRICS_ENABLED: "true"
+
+services:
+  postgres:
+    ports: []
+
+  redis:
+    ports: []
+
+  auth-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  user-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  contact-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  chat-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  media-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  story-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  emoji-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  notification-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  ws-gateway:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  presence-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  call-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  ai-service:
+    environment:
+      <<: *staging-env
+    restart: unless-stopped
+
+  api-gateway:
+    environment:
+      <<: *staging-env
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://staging.example.com}
+    restart: unless-stopped
+
+  nginx:
+    restart: unless-stopped

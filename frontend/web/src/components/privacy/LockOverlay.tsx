@@ -1,0 +1,153 @@
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { LogoAnimation } from "@/components/auth/LogoAnimation";
+import { getCachedSession } from "@/api/auth";
+import {
+  hasSignatureForUser,
+  storeSignatureForUser,
+  validateSignatureFormat,
+  verifySignatureForUser,
+} from "@/security/signaturePin";
+import { useLock, type LockState } from "@/store/LockContext";
+
+interface StateContent {
+  title: string;
+  body: string;
+  clickable: boolean;
+}
+
+const STATE_CONTENT: Record<Exclude<LockState, "active">, StateContent> = {
+  locked_click: {
+    title: "We care about your security.",
+    body: "To unlock, please click on the screen.",
+    clickable: true,
+  },
+  pin_required: {
+    title: "You have been inactive for more than 2 minutes.",
+    body: "To prevent data loss, please enter your PIN code.",
+    clickable: false,
+  },
+  screenshot_blocked: {
+    title: "Oops! Screenshots are not allowed.",
+    body: "To unlock, please click on the screen.",
+    clickable: true,
+  },
+};
+
+function PinForm({ onSuccess }: { onSuccess: () => void }) {
+  const session = getCachedSession();
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  // true = no PIN stored yet → setup mode; false = verify mode
+  const [setupMode, setSetupMode] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Random id each mount so browser can't correlate with saved credentials
+  const uid = useId();
+
+  useEffect(() => {
+    if (!session) return;
+    void hasSignatureForUser(session.user.id).then((has) => setSetupMode(!has));
+    inputRef.current?.focus();
+  }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submit() {
+    if (!session || submitting) return;
+    const err = validateSignatureFormat(pin);
+    if (err) { setError(err); return; }
+    setSubmitting(true);
+    try {
+      if (setupMode) {
+        await storeSignatureForUser(session.user.id, pin);
+        onSuccess();
+      } else {
+        const ok = await verifySignatureForUser(session.user.id, pin);
+        if (ok) {
+          onSuccess();
+        } else {
+          setError("Incorrect PIN. Try again.");
+          setPin("");
+        }
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // No <form> element — prevents browser from triggering "Save password?" dialog.
+  // type="text" + CSS masking instead of type="password" avoids the password-manager
+  // heuristic entirely. autoComplete="off" + data-lpignore cover extension managers.
+  return (
+    <div
+      className="lock-overlay__pin-form"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <input
+        ref={inputRef}
+        id={uid}
+        className="lock-overlay__pin-input lock-overlay__pin-input--masked"
+        type="text"
+        inputMode="numeric"
+        maxLength={6}
+        value={pin}
+        onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(""); }}
+        onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+        placeholder={setupMode ? "Create a 4–6 digit PIN" : "Enter PIN"}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        data-lpignore="true"
+        data-1p-ignore="true"
+        data-form-type="other"
+        aria-label="PIN code"
+      />
+      {error && <p className="lock-overlay__pin-error">{error}</p>}
+      <button
+        type="button"
+        className="btn btn--primary lock-overlay__pin-btn"
+        disabled={submitting || pin.length < 4}
+        onClick={() => void submit()}
+      >
+        {submitting ? "Verifying…" : setupMode ? "Set PIN & Unlock" : "Unlock"}
+      </button>
+    </div>
+  );
+}
+
+export function LockOverlay() {
+  const { lockState, unlock } = useLock();
+
+  if (lockState === "active") return null;
+
+  const { title, body, clickable } = STATE_CONTENT[lockState];
+  const isPinRequired = lockState === "pin_required";
+
+  function handleOverlayClick() {
+    if (!clickable) return;
+    unlock();
+  }
+
+  return createPortal(
+    <div
+      className={`lock-overlay${clickable ? " lock-overlay--clickable" : ""}`}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={handleOverlayClick}
+      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") handleOverlayClick(); } : undefined}
+      aria-label={clickable ? "Click to unlock" : undefined}
+    >
+      {/* Stop propagation only for pin_required so clicks on content don't bubble up */}
+      <div
+        className="lock-overlay__inner"
+        onClick={isPinRequired ? (e) => e.stopPropagation() : undefined}
+      >
+        <LogoAnimation size={160} />
+        <p className="lock-overlay__title">{title}</p>
+        {body && <p className="lock-overlay__body">{body}</p>}
+        {isPinRequired && <PinForm onSuccess={unlock} />}
+      </div>
+    </div>,
+    document.body,
+  );
+}

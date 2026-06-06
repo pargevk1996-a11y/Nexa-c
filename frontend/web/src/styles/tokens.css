@@ -1,0 +1,138 @@
+:root {
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Outfit", var(--font);
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  /* Typography — readability first */
+  --leading-tight: 1.3;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.7;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+  --tracking-brand: 0.14em;
+
+  /* Security-oriented accent (shield / trust) */
+  --secure-teal: #5eead4;
+  --secure-teal-muted: rgba(94, 234, 212, 0.12);
+  --secure-border: rgba(94, 234, 212, 0.22);
+
+  /* NEXA — refined premium palette */
+  --neon-purple: #a855f7;
+  --neon-violet: #8b5cf6;
+  --neon-blue: #3b82f6;
+  --neon-cyan: #22d3ee;
+  --electric-blue: #2563eb;
+
+  --bg-root: #050508;
+  --bg-gradient-1: #0a0618;
+  --bg-gradient-2: #060612;
+  --bg-gradient-3: #0c1028;
+
+  --glass-bg: rgba(12, 14, 28, 0.55);
+  --glass-bg-strong: rgba(16, 18, 36, 0.72);
+  --glass-border: rgba(139, 92, 246, 0.18);
+  --glass-blur: 20px;
+
+  --bg-surface: rgba(10, 12, 24, 0.85);
+  --bg-elevated: rgba(18, 20, 40, 0.9);
+  --bg-hover: rgba(99, 102, 241, 0.12);
+  --bg-input: rgba(255, 255, 255, 0.04);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: var(--neon-cyan);
+
+  --text: #f6f6fa;
+  --text-muted: #a8a3bc;
+  --text-faint: #6e6a82;
+
+  --accent: var(--neon-violet);
+  --accent-hover: #c4b5fd;
+  --accent-strong: var(--neon-purple);
+  --accent-muted: rgba(168, 85, 247, 0.14);
+  --accent-glow: rgba(59, 130, 246, 0.45);
+  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #6366f1 42%, #3b82f6 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(59, 130, 246, 0.9));
+  --bubble-out-gradient: linear-gradient(135deg, #6d28d9 0%, #4f46e5 50%, #2563eb 100%);
+  --bubble-in-bg: rgba(255, 255, 255, 0.06);
+  --bubble-in-border: rgba(255, 255, 255, 0.1);
+
+  --danger: #f43f5e;
+  --danger-muted: rgba(244, 63, 94, 0.15);
+  --warning: #fbbf24;
+  --success: #34d399;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 14px rgba(0, 0, 0, 0.16);
+  --shadow-sm: var(--shadow-subtle);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.14);
+  --shadow-glow: 0 8px 28px rgba(99, 102, 241, 0.18);
+  --shadow-neu: 0 4px 20px rgba(0, 0, 0, 0.24);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --sidebar-w: 300px;
+  --profile-w: 280px;
+  --header-h: 64px;
+  --top-nav-h: 52px;
+  --app-pad: 0.5rem;
+  --app-gap: 0.5rem;
+  --panel-gap: 8px;
+  --resize-handle-w: 4px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur: 200ms;
+  --dur-slow: 380ms;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 2rem;
+  --space-8: 2.5rem;
+  --space-9: 3rem;
+
+  --panel-pad: 1.15rem;
+  --panel-pad-lg: 1.5rem;
+  --read-max-ch: 42rem;
+  --bubble-pad-x: 0.95rem;
+  --bubble-pad-y: 0.65rem;
+
+  --surface-elevated: var(--bg-elevated);
+  --tap-min: 44px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-root: #f0f2fa;
+  --bg-gradient-1: #e8ecff;
+  --bg-gradient-2: #f5f3ff;
+  --bg-gradient-3: #dde4ff;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(99, 102, 241, 0.12);
+  --bg-surface: rgba(255, 255, 255, 0.82);
+  --bg-elevated: rgba(255, 255, 255, 0.95);
+  --bg-hover: rgba(99, 102, 241, 0.08);
+  --bg-input: rgba(255, 255, 255, 0.9);
+  --border: rgba(15, 23, 42, 0.08);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --bubble-in-bg: rgba(255, 255, 255, 0.9);
+  --bubble-in-border: rgba(99, 102, 241, 0.12);
+}

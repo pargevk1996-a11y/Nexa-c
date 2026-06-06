@@ -1,0 +1,433 @@
+name: nexa
+
+x-service-env: &service-env
+  APP_ENV: ${APP_ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  REDIS_URL: redis://:${REDIS_PASSWORD:-change-me-redis-password}@redis:6379/0
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-securechat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-postgres-password}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/postgres/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-securechat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD:-change-me-redis-password}
+    volumes:
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change-me-redis-password}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - internal
+    profiles:
+      - nats
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    networks:
+      - internal
+    ports:
+      - "8025:8025"
+    profiles:
+      - dev
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: backend/auth-service/Dockerfile
+    environment:
+      <<: *service-env
+      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  user-service:
+    build:
+      context: .
+      dockerfile: backend/user-service/Dockerfile
+    environment:
+      <<: *service-env
+      USER_DATABASE_URL: ${USER_DATABASE_URL}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  contact-service:
+    build:
+      context: .
+      dockerfile: backend/contact-service/Dockerfile
+    environment:
+      <<: *service-env
+      CONTACT_DATABASE_URL: ${CONTACT_DATABASE_URL}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  chat-service:
+    build:
+      context: .
+      dockerfile: backend/chat-service/Dockerfile
+    environment:
+      <<: *service-env
+      CHAT_DATABASE_URL: ${CHAT_DATABASE_URL}
+      AI_SERVICE_URL: http://ai-service:8012
+      AI_MODERATION_ENABLED: ${AI_MODERATION_ENABLED:-true}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+      NOTIFICATION_SERVICE_URL: http://notification-service:8008
+      NATS_URL: ${NATS_URL:-}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  media-service:
+    build:
+      context: .
+      dockerfile: backend/media-service/Dockerfile
+    environment:
+      <<: *service-env
+      MEDIA_DATABASE_URL: ${MEDIA_DATABASE_URL}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  story-service:
+    build:
+      context: .
+      dockerfile: backend/story-service/Dockerfile
+    environment:
+      <<: *service-env
+      STORY_DATABASE_URL: ${STORY_DATABASE_URL}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  emoji-service:
+    build:
+      context: .
+      dockerfile: backend/emoji-service/Dockerfile
+    environment:
+      <<: *service-env
+      EMOJI_DATABASE_URL: ${EMOJI_DATABASE_URL}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8007/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ws-gateway:
+    build:
+      context: .
+      dockerfile: backend/ws-gateway/Dockerfile
+    environment:
+      <<: *service-env
+      CHAT_SERVICE_URL: http://chat-service:8004
+      PRESENCE_SERVICE_URL: http://presence-service:8010
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      NATS_URL: ${NATS_URL:-}
+    networks:
+      - internal
+      - gateway
+    depends_on:
+      redis:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8009/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  presence-service:
+    build:
+      context: .
+      dockerfile: backend/presence-service/Dockerfile
+    environment:
+      <<: *service-env
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+    networks:
+      - internal
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  call-service:
+    build:
+      context: .
+      dockerfile: backend/call-service/Dockerfile
+    environment:
+      <<: *service-env
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      STUN_URLS: ${STUN_URLS:-stun:stun.l.google.com:19302}
+      TURN_URLS: ${TURN_URLS:-}
+      TURN_SECRET: ${TURN_SECRET:-}
+    networks:
+      - internal
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: backend/ai-service/Dockerfile
+    environment:
+      <<: *service-env
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-gpt-4o-mini}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: backend/notification-service/Dockerfile
+    environment:
+      <<: *service-env
+      NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: backend/api-gateway/Dockerfile
+    environment:
+      <<: *service-env
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,https://localhost}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      AUTH_SERVICE_URL: http://auth-service:8001
+      USER_SERVICE_URL: http://user-service:8002
+      CONTACT_SERVICE_URL: http://contact-service:8003
+      CHAT_SERVICE_URL: http://chat-service:8004
+      MEDIA_SERVICE_URL: http://media-service:8005
+      STORY_SERVICE_URL: http://story-service:8006
+      EMOJI_SERVICE_URL: http://emoji-service:8007
+      NOTIFICATION_SERVICE_URL: http://notification-service:8008
+      PRESENCE_SERVICE_URL: http://presence-service:8010
+      CALL_SERVICE_URL: http://call-service:8011
+      AI_SERVICE_URL: http://ai-service:8012
+    networks:
+      - gateway
+      - internal
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      contact-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      media-service:
+        condition: service_healthy
+      story-service:
+        condition: service_healthy
+      emoji-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      presence-service:
+        condition: service_healthy
+      ws-gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infrastructure/tls/dev:/etc/nginx/certs:ro
+    networks:
+      - edge
+      - gateway
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    volumes:
+      - ./frontend/web:/app
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: https://localhost/api/v1
+      VITE_OAUTH_ENABLED: ${OAUTH_ENABLED:-true}
+    networks:
+      - edge
+    profiles:
+      - dev
+
+networks:
+  edge:
+    driver: bridge
+  gateway:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:

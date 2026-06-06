@@ -1,0 +1,156 @@
+/* Production realtime messenger — performance, mobile, receipts */
+
+:root {
+  --keyboard-inset: 0px;
+}
+
+/* Mobile-first full-bleed chats */
+@media (max-width: 768px) {
+  .app-shell--nexa-chats .app-shell__frame {
+    padding: 0;
+    gap: 0;
+  }
+
+  .app-shell--nexa-chats .chat-shell {
+    min-height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .app-shell--nexa-chats .glass-panel {
+    border-radius: 0;
+  }
+
+  .chat-main {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+.chat-composer {
+  padding-bottom: calc(0.65rem + var(--keyboard-inset) + var(--safe-bottom));
+  transition: padding-bottom 120ms var(--ease);
+}
+
+/* Message receipt checkmarks */
+.chat-bubble__time {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.35rem;
+}
+
+.chat-bubble-row--out .chat-bubble__time {
+  justify-content: flex-end;
+}
+
+.msg-receipt {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.15rem;
+  color: rgba(255, 255, 255, 0.65);
+  flex-shrink: 0;
+}
+
+.chat-bubble-row--out .msg-receipt--read {
+  color: #a5f3fc;
+}
+
+.chat-bubble-row--out .msg-receipt--delivered {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.msg-receipt--sending .msg-receipt__clock {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.chat-bubble__status--failed {
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.chat-bubble__retry {
+  border: none;
+  background: var(--danger-muted);
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: filter var(--dur) var(--ease);
+}
+
+.chat-bubble__retry:hover {
+  filter: brightness(1.1);
+}
+
+.chat-bubble-row--failed .chat-bubble {
+  opacity: 0.92;
+  outline: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+/* In-thread typing indicator */
+.chat-typing-bar__dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.chat-typing-bar__dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--neon-violet);
+  animation: typing-dot 1.2s var(--ease) infinite;
+}
+
+.chat-typing-bar__dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-typing-bar__dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.chat-header__theme-sys {
+  font-size: 1.05rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+/* Instant panel transitions on chat switch */
+.chat-main {
+  transition: opacity 160ms var(--ease);
+}
+
+@media (max-width: 768px) {
+  .chat-shell--conversation-open .chat-shell__panel--sidebar {
+    display: none;
+  }
+}
+
+[data-theme="light"] .chat-bubble-row--out .msg-receipt {
+  color: rgba(255, 255, 255, 0.85);
+}

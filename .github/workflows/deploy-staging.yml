@@ -1,0 +1,34 @@
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Container image tag (default git SHA)
+        required: false
+        type: string
+  push:
+    branches: [develop]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.example.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set image tag
+        id: tag
+        run: echo "tag=${{ inputs.image_tag || github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Build stack (smoke)
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.staging.yml build api-gateway auth-service
+      - name: Deploy placeholder
+        run: |
+          echo "Wire this job to your cluster (kubectl apply -k infrastructure/k8s/overlays/staging)"
+          echo "or: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d"
+          echo "Image tag: ${{ steps.tag.outputs.tag }}"

@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+.env/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Environment secrets — never commit these
+.env
+.env.local
+.env.production
+.env.staging
+!.env.example
+!.env.prod.example
+!.env.staging.example
+
+# Node / frontend
+node_modules/
+frontend/web/dist/
+frontend/web/.vite/
+frontend/web/coverage/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Docker runtime
+*.pid
+*.log
+
+# Keys & secrets
+*.pem
+*.key
+*.crt
+*.p12
+
+# Local dev runtime data
+.dev/pgdata/
+.dev/pg-run/
+.dev/redis-data/
+.dev/logs/
+.dev/pids/
+
+# Nested dev runtime dirs in services
+**/.dev/
+
+# Local dev tools (PostgreSQL, Redis, Node binaries — not for version control)
+.tools/

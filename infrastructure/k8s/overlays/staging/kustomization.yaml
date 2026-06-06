@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: nexa-staging
+namePrefix: staging-
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: ConfigMap
+      name: nexa-env
+    patch: |-
+      - op: replace
+        path: /data/APP_ENV
+        value: staging

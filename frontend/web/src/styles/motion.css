@@ -1,0 +1,164 @@
+/* Nexa motion layer — instant feel, premium micro-interactions */
+
+/* Remove 300ms tap delay on touch devices */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+.top-nav__icon-btn,
+.side-nav__item,
+.chat-conv-item {
+  touch-action: manipulation;
+}
+
+/* Press feedback — use on buttons and icon controls */
+.btn,
+.top-nav__icon-btn,
+.side-nav__item {
+  transform: translateZ(0);
+}
+
+.btn:active:not(:disabled),
+.top-nav__icon-btn:active,
+.side-nav__item:active {
+  transform: scale(0.97);
+  transition-duration: 80ms;
+}
+
+/* Long lists: skip off-screen paint cost */
+.chat-bubble-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+.chat-conv-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+
+/* Enter animations */
+@keyframes motion-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.motion-fade-up {
+  animation: motion-fade-up var(--dur) var(--ease) both;
+}
+
+.motion-scale-in {
+  animation: motion-scale-in var(--dur) var(--ease) both;
+}
+
+/* Premium microinteractions */
+.glass-panel,
+.auth-card,
+.chat-composer {
+  transition:
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.chat-conv-item {
+  transition:
+    background var(--dur) var(--ease),
+    transform 80ms var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.chat-conv-item:hover {
+  box-shadow: var(--shadow-subtle);
+}
+
+.chat-conv-item--active {
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.2);
+}
+
+.chat-bubble {
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.chat-bubble-row:hover .chat-bubble {
+  box-shadow: var(--shadow-md);
+}
+
+@keyframes motion-shield-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.motion-shield-pulse {
+  animation: motion-shield-pulse 2.4s var(--ease) infinite;
+}
+
+.chat-bubble-row--sending .chat-bubble {
+  animation: motion-pulse-send 1.2s var(--ease) infinite;
+}
+
+@keyframes motion-pulse-send {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.88;
+  }
+}
+
+/* GPU-friendly scroll regions */
+.chat-messages,
+.chat-sidebar__list,
+.page-shell__inner {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-fade-up,
+  .motion-scale-in {
+    animation: none !important;
+  }
+
+  .chat-bubble-row--sending .chat-bubble {
+    animation: none !important;
+  }
+
+  .logo--animated .logo__img,
+  .logo__aura,
+  .logo__ring,
+  .auth-layout::before,
+  .bootstrap-screen__backdrop {
+    animation: none !important;
+  }
+
+  .btn:active:not(:disabled),
+  .top-nav__icon-btn:active,
+  .side-nav__item:active {
+    transform: none;
+  }
+}

@@ -1,0 +1,36 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from app.api.routes import router
+from app.core.config import settings
+from nexa_shared.observability import setup_observability
+from nexa_shared.schemas.common import HealthResponse
+
+
+async def _init_postgres() -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.db.repository import PostgresProfileStore
+    from app.services.profile_store import profile_store
+
+    engine = create_async_engine(settings.database_url, pool_size=10, max_overflow=20, pool_pre_ping=True)
+    sm = async_sessionmaker(engine, expire_on_commit=False)
+    profile_store._switch_to_postgres(PostgresProfileStore(sm))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if settings.database_url:
+        await _init_postgres()
+    yield
+
+
+app = FastAPI(title=settings.service_name, version="0.1.0", lifespan=lifespan)
+setup_observability(app, settings.service_name)
+app.include_router(router)
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    return HealthResponse(status="ok", service=settings.service_name)

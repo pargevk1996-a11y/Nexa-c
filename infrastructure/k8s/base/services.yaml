@@ -1,0 +1,783 @@
+# Nexa microservice Deployments + Services (all except api-gateway which is in api-gateway-deployment.yaml)
+# Port map: auth=8001, user=8002, contact=8003, chat=8004, media=8005, story=8006,
+#           emoji=8007, notification=8008, ws-gateway=8009, presence=8010, call=8011, ai=8012
+
+# ── auth-service ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: nexa
+  labels:
+    app: auth-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8001"
+    spec:
+      containers:
+        - name: auth-service
+          image: ghcr.io/example/nexa-auth-service:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: nexa
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 8001
+      targetPort: 8001
+---
+# ── user-service ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: nexa
+  labels:
+    app: user-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8002"
+    spec:
+      containers:
+        - name: user-service
+          image: ghcr.io/example/nexa-user-service:latest
+          ports:
+            - containerPort: 8002
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: nexa
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 8002
+      targetPort: 8002
+---
+# ── contact-service ───────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contact-service
+  namespace: nexa
+  labels:
+    app: contact-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contact-service
+  template:
+    metadata:
+      labels:
+        app: contact-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8003"
+    spec:
+      containers:
+        - name: contact-service
+          image: ghcr.io/example/nexa-contact-service:latest
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: contact-service
+  namespace: nexa
+spec:
+  selector:
+    app: contact-service
+  ports:
+    - port: 8003
+      targetPort: 8003
+---
+# ── chat-service ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: nexa
+  labels:
+    app: chat-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8004"
+    spec:
+      containers:
+        - name: chat-service
+          image: ghcr.io/example/nexa-chat-service:latest
+          ports:
+            - containerPort: 8004
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: nexa
+spec:
+  selector:
+    app: chat-service
+  ports:
+    - port: 8004
+      targetPort: 8004
+---
+# ── media-service ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-service
+  namespace: nexa
+  labels:
+    app: media-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: media-service
+  template:
+    metadata:
+      labels:
+        app: media-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8005"
+    spec:
+      containers:
+        - name: media-service
+          image: ghcr.io/example/nexa-media-service:latest
+          ports:
+            - containerPort: 8005
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-service
+  namespace: nexa
+spec:
+  selector:
+    app: media-service
+  ports:
+    - port: 8005
+      targetPort: 8005
+---
+# ── story-service ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: story-service
+  namespace: nexa
+  labels:
+    app: story-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: story-service
+  template:
+    metadata:
+      labels:
+        app: story-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8006"
+    spec:
+      containers:
+        - name: story-service
+          image: ghcr.io/example/nexa-story-service:latest
+          ports:
+            - containerPort: 8006
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8006
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8006
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: story-service
+  namespace: nexa
+spec:
+  selector:
+    app: story-service
+  ports:
+    - port: 8006
+      targetPort: 8006
+---
+# ── emoji-service ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: emoji-service
+  namespace: nexa
+  labels:
+    app: emoji-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: emoji-service
+  template:
+    metadata:
+      labels:
+        app: emoji-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8007"
+    spec:
+      containers:
+        - name: emoji-service
+          image: ghcr.io/example/nexa-emoji-service:latest
+          ports:
+            - containerPort: 8007
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8007
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8007
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: emoji-service
+  namespace: nexa
+spec:
+  selector:
+    app: emoji-service
+  ports:
+    - port: 8007
+      targetPort: 8007
+---
+# ── notification-service ──────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: nexa
+  labels:
+    app: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8008"
+    spec:
+      containers:
+        - name: notification-service
+          image: ghcr.io/example/nexa-notification-service:latest
+          ports:
+            - containerPort: 8008
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8008
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8008
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: nexa
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8008
+      targetPort: 8008
+---
+# ── ws-gateway ────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ws-gateway
+  namespace: nexa
+  labels:
+    app: ws-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ws-gateway
+  template:
+    metadata:
+      labels:
+        app: ws-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8009"
+    spec:
+      containers:
+        - name: ws-gateway
+          image: ghcr.io/example/nexa-ws-gateway:latest
+          ports:
+            - containerPort: 8009
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8009
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8009
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ws-gateway
+  namespace: nexa
+spec:
+  selector:
+    app: ws-gateway
+  ports:
+    - port: 8009
+      targetPort: 8009
+---
+# ── presence-service ──────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: presence-service
+  namespace: nexa
+  labels:
+    app: presence-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: presence-service
+  template:
+    metadata:
+      labels:
+        app: presence-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8010"
+    spec:
+      containers:
+        - name: presence-service
+          image: ghcr.io/example/nexa-presence-service:latest
+          ports:
+            - containerPort: 8010
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8010
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8010
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: presence-service
+  namespace: nexa
+spec:
+  selector:
+    app: presence-service
+  ports:
+    - port: 8010
+      targetPort: 8010
+---
+# ── call-service ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: call-service
+  namespace: nexa
+  labels:
+    app: call-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: call-service
+  template:
+    metadata:
+      labels:
+        app: call-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8011"
+    spec:
+      containers:
+        - name: call-service
+          image: ghcr.io/example/nexa-call-service:latest
+          ports:
+            - containerPort: 8011
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8011
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8011
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: call-service
+  namespace: nexa
+spec:
+  selector:
+    app: call-service
+  ports:
+    - port: 8011
+      targetPort: 8011
+---
+# ── ai-service ────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: nexa
+  labels:
+    app: ai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8012"
+    spec:
+      containers:
+        - name: ai-service
+          image: ghcr.io/example/nexa-ai-service:latest
+          ports:
+            - containerPort: 8012
+          envFrom:
+            - configMapRef:
+                name: nexa-env
+            - secretRef:
+                name: nexa-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8012
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8012
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: nexa
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - port: 8012
+      targetPort: 8012

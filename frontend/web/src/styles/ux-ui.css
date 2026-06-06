@@ -1,0 +1,209 @@
+/* UX/UI — minimalist Telegram + Apple, glass accents, mobile-first */
+
+.chat-page {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-shell--telegram {
+  --ux-panel-radius: var(--radius-2xl);
+  --ux-float-gap: 0.75rem;
+}
+
+/* Three-panel glass surfaces */
+.chat-shell--telegram .chat-left-panel,
+.chat-shell--telegram .chat-main,
+.chat-shell--telegram .profile-panel {
+  transition:
+    opacity var(--dur) var(--ease),
+    transform var(--dur-slow) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.chat-shell--telegram .chat-main {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--ux-panel-radius);
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.85));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.85));
+  overflow: hidden;
+}
+
+.chat-shell--telegram .chat-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--glass-bg-strong) 88%, transparent);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Message area — room for floating composer */
+.chat-shell--telegram .chat-messages {
+  flex: 1;
+  min-height: 0;
+  padding: 0.5rem 0.85rem 5.5rem;
+  scroll-behavior: smooth;
+}
+
+/* Floating composer (glass card) */
+.chat-shell--telegram .chat-composer {
+  position: absolute;
+  left: var(--ux-float-gap);
+  right: var(--ux-float-gap);
+  bottom: calc(var(--ux-float-gap) + var(--keyboard-inset, 0px) + var(--safe-bottom, 0px));
+  z-index: 24;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--glass-bg-strong) 94%, transparent);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    bottom var(--dur) var(--ease);
+}
+
+.chat-shell--telegram .chat-composer:focus-within {
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 2px rgba(59, 130, 246, 0.22);
+}
+
+.chat-shell--telegram .chat-composer__inner {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Selection bar above composer */
+.chat-shell--telegram .msg-selection-bar {
+  position: absolute;
+  left: var(--ux-float-gap);
+  right: var(--ux-float-gap);
+  bottom: calc(4.25rem + var(--keyboard-inset, 0px) + var(--safe-bottom, 0px));
+  z-index: 23;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Typing indicator — plain text only, no background or container */
+.chat-shell--telegram .chat-typing-bar {
+  position: absolute;
+  left: var(--ux-float-gap);
+  right: var(--ux-float-gap);
+  bottom: calc(var(--ux-float-gap) + 3.75rem + 0.75rem + var(--keyboard-inset, 0px) + var(--safe-bottom, 0px));
+  z-index: 23;
+  background: none;
+  border: none;
+  backdrop-filter: none;
+}
+
+/* Profile panel slide on desktop */
+.chat-shell--resizable.chat-shell--profile-open .chat-shell__panel--profile {
+  animation: ux-panel-in var(--dur-slow) var(--ease) both;
+}
+
+.chat-shell--resizable:not(.chat-shell--profile-open) .chat-shell__panel--profile {
+  display: none;
+  width: 0 !important;
+}
+
+.chat-shell--resizable:not(.chat-shell--profile-open) .resize-handle--profile {
+  display: none;
+}
+
+@keyframes ux-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Context menus — crisp glass */
+.chat-context-menu,
+.message-context-menu {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--glass-bg-strong) 96%, transparent);
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px));
+  box-shadow: var(--shadow-lg);
+  animation: motion-scale-in var(--dur) var(--ease) both;
+}
+
+/* Drop zone — subtle, no clutter */
+.chat-drop-zone--active {
+  outline: 2px dashed rgba(59, 130, 246, 0.45);
+  outline-offset: -6px;
+  border-radius: var(--ux-panel-radius);
+  background: rgba(59, 130, 246, 0.06);
+  transition: background var(--dur) var(--ease);
+}
+
+/* Conv list — fast tap, minimal chrome */
+.chat-conv-item {
+  border-radius: var(--radius-md);
+  transition:
+    background var(--dur) var(--ease),
+    transform 80ms var(--ease);
+}
+
+.chat-conv-item--active {
+  background: var(--accent-muted);
+}
+
+/* Reduce clutter: hide redundant filter row when search active */
+.chat-left-panel:has(.chat-left-panel__search input:focus) .chat-folders--categories {
+  opacity: 0.65;
+}
+
+/* Mobile-first: full-bleed panels */
+@media (max-width: 768px) {
+  .chat-shell--telegram .chat-composer {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: calc(0.5rem + var(--keyboard-inset, 0px) + var(--safe-bottom, 0px));
+    border-radius: var(--radius-xl);
+  }
+
+  .chat-shell--telegram .chat-messages {
+    padding-bottom: 5rem;
+  }
+
+  .app-shell--nexa-chats .app-shell__frame {
+    padding: 0;
+  }
+
+  .app-shell--nexa-chats .chat-shell {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+@media (min-width: 1025px) {
+  .chat-shell--telegram .chat-main {
+    min-width: 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-shell--telegram .chat-composer,
+  .chat-shell--telegram .chat-left-panel,
+  .chat-shell--telegram .chat-main,
+  .chat-shell--telegram .profile-panel {
+    transition: none;
+  }
+}

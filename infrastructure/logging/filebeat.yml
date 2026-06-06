@@ -1,0 +1,15 @@
+# Filebeat stub for Docker log shipping to Elasticsearch (optional logging profile).
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata: ~
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "nexa-logs-%{+yyyy.MM.dd}"
+
+setup.ilm.enabled: false
+setup.template.name: nexa
+setup.template.pattern: nexa-*

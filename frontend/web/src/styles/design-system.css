@@ -1,0 +1,198 @@
+/**
+ * Nexa design system — premium, readable, security-oriented.
+ * Tokens in tokens.css; layout in ux-ui.css / telegram-layout.css.
+ */
+
+/* —— Typography & readability —— */
+body {
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+.chat-left-panel__title,
+.auth-card__title,
+.page-shell h1 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+p,
+.chat-bubble,
+.formatted-msg,
+.field__hint {
+  line-height: var(--leading-relaxed);
+}
+
+/* —— Glass panels: subtle depth, generous radius —— */
+.glass-panel {
+  box-shadow: var(--shadow-md), var(--shadow-inset);
+  border-radius: var(--radius-2xl);
+}
+
+.app-shell--nexa-chats .chat-shell {
+  box-shadow: var(--shadow-lg);
+}
+
+/* —— Spacing rhythm —— */
+.chat-left-panel__head {
+  padding: var(--panel-pad) var(--panel-pad) var(--space-3);
+}
+
+.chat-left-panel__search {
+  margin: 0 var(--panel-pad);
+  padding: 0.65rem 1rem;
+}
+
+.chat-conv-item {
+  padding: 0.85rem var(--panel-pad);
+  margin: 0 var(--space-2);
+  gap: 0.85rem;
+}
+
+.chat-header {
+  padding: var(--space-4) var(--panel-pad-lg);
+  min-height: var(--header-h);
+}
+
+.chat-bubble {
+  padding: var(--bubble-pad-y) var(--bubble-pad-x);
+  border-radius: var(--radius-lg);
+  line-height: var(--leading-relaxed);
+  max-width: min(88%, var(--read-max-ch));
+  box-shadow: var(--shadow-subtle);
+}
+
+.chat-bubble-row {
+  margin-bottom: var(--space-3);
+  padding: 0 var(--panel-pad);
+}
+
+.chat-empty {
+  padding: var(--space-8) var(--space-6);
+  gap: var(--space-4);
+}
+
+.profile-panel__scroll {
+  padding: var(--space-4) 0 var(--space-6);
+}
+
+.profile-panel__hero {
+  padding: var(--space-5) var(--panel-pad-lg) var(--space-4);
+}
+
+.settings-page-layout {
+  padding: var(--panel-pad-lg);
+  gap: var(--space-6);
+}
+
+.auth-card {
+  padding: var(--space-7) var(--space-6);
+}
+
+/* —— Security branding (minimal) —— */
+.auth-brand__tagline,
+.auth-brand__content > p {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: var(--leading-relaxed);
+  letter-spacing: 0.01em;
+}
+
+.auth-brand__wordmark {
+  letter-spacing: var(--tracking-brand);
+}
+
+.auth-security-pill,
+.realtime-status {
+  border-radius: var(--radius-full);
+  border: 1px solid var(--secure-border);
+  background: var(--secure-teal-muted);
+  color: var(--secure-teal);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* —— Buttons & fields —— */
+.btn {
+  padding: 0.8rem 1.4rem;
+  border-radius: var(--radius-lg);
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-subtle);
+}
+
+.btn--primary {
+  box-shadow: var(--shadow-sm), var(--shadow-glow);
+}
+
+.field__input {
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-lg);
+  line-height: var(--leading-normal);
+}
+
+/* —— Elegant icons —— */
+.icon-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-lg);
+}
+
+.icon-btn svg {
+  transition:
+    transform var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+.icon-btn:hover:not(:disabled) svg {
+  transform: scale(1.06);
+}
+
+.icon-btn:active:not(:disabled) svg {
+  transform: scale(0.92);
+}
+
+.top-nav__icon-btn svg,
+.chat-header__profile-trigger svg {
+  transition: transform var(--dur) var(--ease);
+}
+
+/* —— Context menus —— */
+.chat-context-menu button,
+.message-context-menu button {
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+/* —— Premium empty states —— */
+.chat-empty p {
+  letter-spacing: 0.01em;
+}
+
+/* —— Reduced neon clutter on primary chrome —— */
+.chat-left-panel__unread-total {
+  box-shadow: var(--shadow-subtle);
+}
+
+.chat-left-panel__new-btn {
+  box-shadow: var(--shadow-sm), var(--shadow-glow);
+}
+
+@media (max-width: 768px) {
+  .chat-conv-item {
+    padding: 1rem var(--panel-pad);
+  }
+
+  .chat-bubble-row {
+    padding: 0 var(--space-3);
+  }
+}

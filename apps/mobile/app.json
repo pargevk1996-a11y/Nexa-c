@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Nexa",
+    "slug": "nexa-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "nexa",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f13"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.nexa.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Nexa uses the camera for video calls and profile photos.",
+        "NSMicrophoneUsageDescription": "Nexa uses the microphone for voice and video calls."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f0f13"
+      },
+      "package": "app.nexa.mobile",
+      "permissions": ["CAMERA", "RECORD_AUDIO", "VIBRATE", "RECEIVE_BOOT_COMPLETED"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:8000"
+    }
+  }
+}

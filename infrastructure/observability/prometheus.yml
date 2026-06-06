@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: nats
+    static_configs:
+      - targets: ["nats:8222"]
+
+  - job_name: nexa-services
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - api-gateway:8000
+          - auth-service:8001
+          - user-service:8002
+          - contact-service:8003
+          - chat-service:8004
+          - media-service:8005
+          - story-service:8006
+          - emoji-service:8007
+          - notification-service:8008
+          - ws-gateway:8009
+          - presence-service:8010
+          - call-service:8011
+          - ai-service:8012
