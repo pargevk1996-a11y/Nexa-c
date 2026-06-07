@@ -139,11 +139,12 @@ export async function registerAccount(
   email: string,
   password: string,
   username: string,
+  phone?: string,
 ): Promise<RegisterResult> {
   try {
     const data = await apiFetch<{ message: string }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, username }),
+      body: JSON.stringify({ email, password, username, ...(phone ? { phone } : {}) }),
     });
     return { ok: true, message: data.message };
   } catch (e) {

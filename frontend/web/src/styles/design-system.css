@@ -132,7 +132,7 @@ p,
 }
 
 .field__input {
-  padding: 0.8rem 1rem;
+  padding: 0.55rem 0.85rem;
   border-radius: var(--radius-lg);
   line-height: var(--leading-normal);
 }

@@ -14,7 +14,7 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d
       - ./infrastructure/postgres/migrations:/docker-entrypoint-initdb.d/migrations:ro
     networks:
       - internal
@@ -163,6 +163,9 @@ services:
     environment:
       <<: *service-env
       MEDIA_DATABASE_URL: ${MEDIA_DATABASE_URL}
+      MEDIA_STORAGE_ROOT: /data/media
+    volumes:
+      - media_data:/data/media
     networks:
       - internal
     depends_on:
@@ -396,6 +399,7 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./infrastructure/tls/dev:/etc/nginx/certs:ro
+      - ./frontend/web/dist:/usr/share/nginx/html:ro
     networks:
       - edge
       - gateway
@@ -431,3 +435,4 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  media_data:

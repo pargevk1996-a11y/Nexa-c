@@ -4,11 +4,11 @@ import uuid
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_REPO_ENV = Path(__file__).resolve().parents[4] / ".env"
+_REPO_ENV = next((str(p / ".env") for p in Path(__file__).resolve().parents if (p / ".env").exists()), None)
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=str(_REPO_ENV), extra="ignore")
+    model_config = SettingsConfigDict(env_file=_REPO_ENV, extra="ignore")
 
     service_name: str = "ws-gateway"
     app_env: str = "development"

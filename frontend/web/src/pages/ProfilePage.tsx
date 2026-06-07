@@ -30,6 +30,7 @@ export function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [secureMode, setSecureMode] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -38,7 +39,9 @@ export function ProfilePage() {
     setBio(profile.bio);
     setStatusText(profile.status_text);
     setIsOnline(profile.is_online);
-    setPrivacy(profile.privacy ?? DEFAULT_PROFILE_PRIVACY);
+    const p = profile.privacy ?? DEFAULT_PROFILE_PRIVACY;
+    setPrivacy(p);
+    setSecureMode(p.secure_mode ?? false);
   }, [profile]);
 
   async function handleSave(e: FormEvent) {
@@ -51,7 +54,7 @@ export function ProfilePage() {
         nickname: nickname.trim(),
         bio: bio.trim(),
         status_text: statusText.trim(),
-        privacy,
+        privacy: { ...privacy, secure_mode: secureMode },
       });
       setMessage("Profile saved");
     } catch (err) {
@@ -116,6 +119,10 @@ export function ProfilePage() {
 
   function togglePrivacy(key: keyof ProfilePrivacy) {
     setPrivacy((p) => ({ ...p, [key]: !p[key] }));
+  }
+
+  function toggleSecureMode() {
+    setSecureMode((v) => !v);
   }
 
   if (!session) {
@@ -222,6 +229,9 @@ export function ProfilePage() {
               <p className="profile-page__handle">${username.replace(/^\$/, "")}</p>
               <p className="profile-page__presence">{presenceLine({ ...profile, is_online: isOnline, status_text: statusText })}</p>
               <p className="profile-page__uid">UID {profile.uid}</p>
+              {profile.phone_number ? (
+                <p className="profile-page__phone">{profile.phone_number}</p>
+              ) : null}
               {profile.last_seen_at && !isOnline ? (
                 <p className="profile-page__last-seen">{formatLastSeen(profile.last_seen_at)}</p>
               ) : null}
@@ -285,6 +295,29 @@ export function ProfilePage() {
               <p className="profile-page__your-badge">
                 Your badge: <VerificationBadge badge={profile.verification_badge} />
               </p>
+            ) : null}
+          </section>
+
+          <section className="profile-page__section">
+            <h3>Secure Mode</h3>
+            <p className="field__hint">
+              When enabled, only your User ID and username are visible to others. All other profile
+              fields — avatar, bio, status, online status — are hidden.
+            </p>
+            <label className="profile-secure-mode__toggle">
+              <input
+                type="checkbox"
+                checked={secureMode}
+                onChange={toggleSecureMode}
+              />
+              <span className={`profile-secure-mode__label${secureMode ? " profile-secure-mode__label--on" : ""}`}>
+                {secureMode ? "Secure mode is ON — profile is hidden" : "Secure mode is OFF"}
+              </span>
+            </label>
+            {secureMode ? (
+              <div className="profile-secure-mode__notice">
+                Only visible to others: <strong>User ID</strong> and <strong>@{username}</strong>
+              </div>
             ) : null}
           </section>
 

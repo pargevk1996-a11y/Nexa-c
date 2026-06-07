@@ -23,6 +23,11 @@ let lockedAt = 0;
 /** Shield stays until user explicitly clicks — set on every activation. */
 let requiresExplicitUnlock = false;
 
+/** Timestamp of last explicit unlock — suppresses blur-triggered re-sealing on mobile. */
+let lastUnlockAt = 0;
+/** How long after unlock to ignore isAwayFromApp() — covers keyboard dismiss on iOS/Android. */
+const UNLOCK_GRACE_MS = 1500;
+
 /**
  * Pre-created instant blackout overlay — appended to <body> once so it's always
  * in the DOM. Showing it is a single style mutation, no React or CSS-class delays.
@@ -88,6 +93,9 @@ function mustStaySealed(): boolean {
   if (requiresExplicitUnlock) return true;
   if (Date.now() < shieldUntil) return true;
   if (isGuestAuthPath()) return false;
+  // Grace window after explicit unlock: don't re-seal due to blur/focus loss
+  // caused by the virtual keyboard dismissing on iOS/Android.
+  if (Date.now() - lastUnlockAt < UNLOCK_GRACE_MS) return false;
   return isAwayFromApp();
 }
 
@@ -172,6 +180,14 @@ export function sealContent(latchMs = 0): void {
       // Only broadcast a real lock (not a temporary screenshot latch) to other tabs.
       if (latchMs === 0) localStorage.removeItem(storageKeys.globalUnlocked);
     } catch { /* storage unavailable */ }
+  } else {
+    // Lock overlay is already rendered — fade the instant blackout overlay so the
+    // lock UI (PIN form, logo) is visible. The lock overlay's own background keeps
+    // app content hidden; the instant overlay is only needed for the initial flash.
+    if (instantOverlay) {
+      instantOverlay.style.transition = "opacity 200ms";
+      instantOverlay.style.opacity = "0";
+    }
   }
   document.body.classList.add(SHIELD_CLASS);
   applyRootHidden(true);
@@ -180,6 +196,7 @@ export function sealContent(latchMs = 0): void {
 
 /** Unlock only when user explicitly clicks — called from PrivacyShield component. */
 export function explicitUnlock(): void {
+  lastUnlockAt = Date.now();
   shieldUntil = 0;
   lockedAt = 0;
   requiresExplicitUnlock = false;
@@ -344,11 +361,24 @@ export function installPrivacySeal(): void {
 
   function onAway() {
     if (isScreenshotAllowed() || isGuestAuthPath()) return;
+    // Don't re-seal while the PIN lock overlay is showing — on mobile the virtual
+    // keyboard gaining/losing focus fires window.blur, which must not cover the PIN form.
+    if (document.querySelector(".lock-overlay__pin-form")) return;
+    // Don't re-seal immediately after an explicit unlock (keyboard dismiss timing on iOS/Android).
+    if (Date.now() - lastUnlockAt < UNLOCK_GRACE_MS) return;
     immediateBlackout();
     sealContent(0);
     dispatchAway();
     void navigator.clipboard?.writeText("").catch(() => {});
     clearSelectionOutsideFields();
+    // Give React ~150 ms to render the lock overlay, then fade the instant blackout
+    // so the lock UI (logo, title, PIN form) is actually visible to the user.
+    setTimeout(() => {
+      if (instantOverlay && requiresExplicitUnlock) {
+        instantOverlay.style.transition = "opacity 250ms";
+        instantOverlay.style.opacity = "0";
+      }
+    }, 150);
   }
 
   function onCopy(e: ClipboardEvent) {

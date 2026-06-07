@@ -149,6 +149,19 @@
   .chat-shell--conversation-open .chat-shell__panel--sidebar {
     display: none;
   }
+
+  /* Full-height sidebar when showing chat list on mobile */
+  .chat-shell__panel--sidebar {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    border-radius: 0;
+  }
+
+  .chat-left-panel {
+    border-radius: 0;
+    border: none;
+  }
 }
 
 [data-theme="light"] .chat-bubble-row--out .msg-receipt {

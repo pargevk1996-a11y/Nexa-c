@@ -241,6 +241,40 @@
   padding: 1.5rem;
 }
 
+.profile-page__phone {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.profile-secure-mode__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.profile-secure-mode__label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.profile-secure-mode__label--on {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.profile-secure-mode__notice {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
 .profile-page__back-btn {
   display: inline-flex;
   align-items: center;

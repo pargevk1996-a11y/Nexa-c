@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { getCachedSession } from "@/api/auth";
+import { verifySignatureForUser } from "@/security/signaturePin";
 import { sendMessageRest } from "@/api/chat";
 import type { DemoGif, DemoSticker } from "@/data/mockMedia";
 import { uploadFileResumable } from "@/media/resumableUpload";
@@ -83,6 +84,8 @@ interface ChatContextValue {
   setActiveCategory: (c: ChatCategory) => void;
   activeFolder: ChatFolderId | "all";
   setActiveFolder: (f: ChatFolderId | "all") => void;
+  drafts: Record<string, string>;
+  setDraft: (conversationId: string, text: string) => void;
   replyingTo: Message | null;
   cancelReply: () => void;
   selectConversation: (id: string) => void;
@@ -141,6 +144,7 @@ interface ChatContextValue {
   offlineQueueCount: number;
   offlineMode: boolean;
   syncing: boolean;
+  pinUnlocked: boolean;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -329,13 +333,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [liveMode, setLiveMode] = useState(false);
   const [apiMessages, setApiMessages] = useState<Record<string, Message[]>>({});
   const [conversations, setConversations] = useState<Conversation[]>(cloneConversations);
-  const [activeId, setActiveId] = useState<string | null>(MOCK_CONVERSATIONS[0]?.id ?? null);
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) return null;
+    return MOCK_CONVERSATIONS[0]?.id ?? null;
+  });
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ChatCategory>("all");
   const [activeFolder, setActiveFolder] = useState<ChatFolderId | "all">("all");
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [drafts, setDraftsState] = useState<Record<string, string>>({});
   const [hiddenChatIds, setHiddenChatIds] = useState<Set<string>>(() => new Set());
   const [extraMessages, setExtraMessages] = useState<Record<string, Message[]>>({});
   const [mutations, setMutations] = useState<MessageMutations>(emptyMutations);
@@ -348,6 +357,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     () => useRealtimeStore.getState().connectionState,
   );
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+  const [pinUnlocked, setPinUnlocked] = useState(false);
 
   const patchMessageStatus = useCallback(
     (messageId: string, status: NonNullable<Message["status"]>) => {
@@ -416,9 +426,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       // Preserve locally-cleared unread counts so opening a chat doesn't re-show badge
       // when the server sends stale counts before read receipts are processed.
       const locallyRead = new Set(prev.filter((c) => c.unread === 0).map((c) => c.id));
-      return base.map((c) => ({ ...c, unread: locallyRead.has(c.id) ? 0 : c.unread }));
+      // Preserve local-only mutations (pin, archive, hide, folder) that the server
+      // doesn't track — without this, every reconnect wipes out user actions.
+      const prevById = new Map(prev.map((c) => [c.id, c]));
+      return base.map((c) => {
+        const local = prevById.get(c.id);
+        return {
+          ...c,
+          unread: locallyRead.has(c.id) ? 0 : c.unread,
+          pinned: local?.pinned ?? c.pinned,
+          archived: local?.archived ?? c.archived,
+          hidden: local?.hidden ?? c.hidden,
+          folderId: local?.folderId ?? c.folderId,
+        };
+      });
     });
-    setActiveId((prev) => prev ?? base.find((c) => c.id !== SAVED_MESSAGES_ID)?.id ?? null);
+    setActiveId((prev) => {
+      const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+      if (isMobile) return null;
+      return prev ?? base.find((c) => c.id !== SAVED_MESSAGES_ID)?.id ?? null;
+    });
   }, []);
 
   const onLiveMessages = useCallback((conversationId: string, messages: Message[]) => {
@@ -434,7 +461,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setConversations((prev) =>
       prev.map((c) =>
         c.id === conversationId
-          ? { ...c, lastMessage: message.text.slice(0, 80), lastAt: message.sentAt }
+          ? { ...c, lastMessage: message.text.slice(0, 80), lastAt: message.sentAt, lastAtTs: Date.now() }
           : c,
       ),
     );
@@ -539,6 +566,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                   ...c,
                   lastMessage: msg.text.slice(0, 80),
                   lastAt: msg.sentAt,
+                  lastAtTs: Date.now(),
                   unread: convId === activeId ? 0 : (c.unread ?? 0) + 1,
                 }
               : c,
@@ -601,7 +629,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return { ...loaded, pinnedByConversation: pins };
       });
       setHiddenChatIds(new Set(hiddenIdsFromConversations(merged)));
-      if (vault.activeId) setActiveId(vault.activeId);
+      if (vault.activeId) {
+        const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+        if (!isMobile) setActiveId(vault.activeId);
+      }
       setVaultReady(true);
     });
     return () => {
@@ -650,6 +681,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     hiddenChatIds,
     activeId,
   ]);
+
+  useEffect(() => {
+    if (!search.startsWith("#")) {
+      if (pinUnlocked) setPinUnlocked(false);
+      return;
+    }
+    const candidate = search.slice(1);
+    if (!/^\d{4,6}$/.test(candidate)) return;
+    const s = getCachedSession();
+    if (!s) return;
+    void verifySignatureForUser(s.user.id, candidate).then((ok) => {
+      setPinUnlocked(ok);
+    });
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const savedConversation = useMemo(() => {
     const found = conversations.find((c) => c.id === SAVED_MESSAGES_ID);
@@ -718,6 +763,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const cancelReply = useCallback(() => setReplyingTo(null), []);
 
+  const setDraft = useCallback((conversationId: string, text: string) => {
+    setDraftsState((prev) => {
+      if (!text) {
+        if (!(conversationId in prev)) return prev;
+        const { [conversationId]: _, ...rest } = prev;
+        return rest;
+      }
+      if (prev[conversationId] === text) return prev;
+      return { ...prev, [conversationId]: text };
+    });
+  }, []);
+
   const messagesLoading = Boolean(
     liveChatEnabled && activeId && apiMessages[activeId] === undefined,
   );
@@ -778,7 +835,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (cid === activeId) {
         setConversations((prev) =>
           prev.map((c) =>
-            c.id === cid ? { ...c, lastMessage: preview, lastAt: msg.sentAt, unread: 0 } : c,
+            c.id === cid ? { ...c, lastMessage: preview, lastAt: msg.sentAt, lastAtTs: Date.now(), unread: 0 } : c,
           ),
         );
       }
@@ -861,6 +918,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ephemeral: options?.ephemeral,
         silent: options?.silent,
         scheduledAt: options?.scheduledAt,
+        secureMode: activeConversation.isSuperSecret ? true : undefined,
         linkPreview: url ? mockLinkPreview(url) : undefined,
         mentions: extractMentions(trimmed),
         hashtags: extractHashtags(trimmed),
@@ -1010,6 +1068,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           voiceUrl: blobUrl || undefined,
           voiceWaveform: peaks,
           ephemeral,
+          secureMode: activeConversation.isSuperSecret ? true : undefined,
         },
         ephemeral ? "Disappearing voice" : "Voice message",
       );
@@ -1521,6 +1580,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setActiveCategory,
       activeFolder,
       setActiveFolder,
+      drafts,
+      setDraft,
       replyingTo,
       cancelReply,
       selectConversation,
@@ -1571,6 +1632,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       offlineQueueCount,
       offlineMode,
       syncing,
+      pinUnlocked,
     }),
     [
       conversations,
@@ -1584,6 +1646,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       savedConversation,
       activeCategory,
       activeFolder,
+      drafts,
+      setDraft,
       replyingTo,
       cancelReply,
       selectConversation,
@@ -1632,6 +1696,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       offlineQueueCount,
       offlineMode,
       syncing,
+      pinUnlocked,
     ],
   );
 

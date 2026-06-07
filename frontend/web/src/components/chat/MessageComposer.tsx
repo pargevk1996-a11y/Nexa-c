@@ -45,9 +45,12 @@ interface MessageComposerProps {
   onSendFile?: (file: File, options?: SendOptions) => void;
   recentMessages?: ContextMessage[];
   isSecret?: boolean;
+  secureMode?: boolean;
   disabled?: boolean;
   /** Shown when composer is read-only (e.g. broadcast channel) */
   readOnlyHint?: string;
+  initialText?: string;
+  onDraftChange?: (text: string) => void;
   selectionMode?: boolean;
   editingText?: string | null;
   onSaveEdit?: (text: string) => void;
@@ -66,8 +69,11 @@ export function MessageComposer({
   onSendFile,
   recentMessages = [],
   isSecret,
+  secureMode,
   disabled,
   readOnlyHint,
+  initialText,
+  onDraftChange,
   selectionMode,
   editingText,
   onSaveEdit,
@@ -85,7 +91,10 @@ export function MessageComposer({
     chat?.sendTyping,
     Boolean(features.chat.realtime && !disabled && !isSecret),
   );
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+  useEffect(() => { onDraftChangeRef.current?.(text); }, [text]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [pickerSection, setPickerSection] = useState<"emoji" | "gif" | "sticker">("emoji");
   const [recordingMode, setRecordingMode] = useState(false);
@@ -292,12 +301,18 @@ export function MessageComposer({
               ) : null}
               {!isSecret && onSendFile ? (
                 <FileAttachButton
-                  label="Attach photo, video, or file"
-                  accept={COMPOSER_ATTACH_ACCEPT}
+                  label={secureMode ? "Attach photo, video or audio (SecureChat)" : "Attach photo, video, or file"}
+                  accept={secureMode ? "image/*,video/*,audio/*" : COMPOSER_ATTACH_ACCEPT}
                   disabled={disabled || isEditing}
                   multiple
                   onFiles={(list) => {
-                    Array.from(list).forEach((file) => onSendFile(file, sendOpts()));
+                    Array.from(list).forEach((file) => {
+                      if (secureMode) {
+                        const ok = file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/");
+                        if (!ok) return;
+                      }
+                      onSendFile(file, sendOpts());
+                    });
                   }}
                   className="icon-btn icon-btn--ghost"
                 >
@@ -338,7 +353,9 @@ export function MessageComposer({
                         ? "Disappearing message…"
                         : isSecret
                           ? "Secret message (text only)…"
-                          : "Type a message…"
+                          : secureMode
+                            ? "SecureChat — no copy, no download…"
+                            : "Type a message…"
                 }
                 value={text}
                 onChange={(e) => {

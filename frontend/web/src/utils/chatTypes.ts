@@ -21,11 +21,9 @@ export type ChatFolderId = "personal" | "work" | "groups" | "channels" | "unread
 export const SAVED_MESSAGES_ID = "saved";
 
 export const CHAT_CATEGORIES: { id: ChatCategory; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "private", label: "Private" },
-  { id: "groups", label: "Groups" },
+  { id: "all",      label: "All" },
+  { id: "groups",   label: "Groups" },
   { id: "channels", label: "Channels" },
-  { id: "saved", label: "Saved" },
 ];
 
 export const CHAT_FOLDERS: { id: ChatFolderId; label: string }[] = [
@@ -102,12 +100,15 @@ export function isBroadcastChannel(c: Conversation): boolean {
   return resolveChatType(c) === "channel" && c.canPost !== true;
 }
 
-/** Sidebar order: higher unread first, then name (pinned split handled by caller). */
-export function sortChatList(items: Conversation[]): Conversation[] {
+/** Sidebar order: draft first, then newest lastAtTs, then name (pinned split handled by caller). */
+export function sortChatList(items: Conversation[], drafts: Record<string, string> = {}): Conversation[] {
   return [...items].sort((a, b) => {
-    const ua = a.unread ?? 0;
-    const ub = b.unread ?? 0;
-    if (ua !== ub) return ub - ua;
+    const da = drafts[a.id] ? 1 : 0;
+    const db = drafts[b.id] ? 1 : 0;
+    if (da !== db) return db - da;
+    const ta = a.lastAtTs ?? 0;
+    const tb = b.lastAtTs ?? 0;
+    if (ta !== tb) return tb - ta;
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 }

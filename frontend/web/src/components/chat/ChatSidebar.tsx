@@ -30,6 +30,7 @@ interface ChatSidebarProps {
   folder: ChatFolderId | "all";
   onSelect: (id: string) => void;
   onChatMenuAction: (conversation: Conversation, action: ChatMenuAction) => void;
+  drafts: Record<string, string>;
 }
 
 interface MenuState {
@@ -110,6 +111,7 @@ function applyFilters(
   category: ChatCategory,
   folder: ChatFolderId | "all",
   search: string,
+  drafts: Record<string, string>,
 ) {
   return sortChatList(
     list
@@ -117,6 +119,7 @@ function applyFilters(
       .filter((c) => matchesCategory(c, category))
       .filter((c) => matchesFolder(c, folder))
       .filter((c) => conversationMatchesSearch(c, search)),
+    drafts,
   );
 }
 
@@ -133,6 +136,7 @@ export function ChatSidebar({
   folder,
   onSelect,
   onChatMenuAction,
+  drafts,
 }: ChatSidebarProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -142,22 +146,20 @@ export function ChatSidebar({
     conversationMatchesSearch(savedConversation, search);
 
   const pinned = useMemo(
-    () => applyFilters(pinnedConversations, category, folder, search),
-    [pinnedConversations, category, folder, search],
+    () => applyFilters(pinnedConversations, category, folder, search, drafts),
+    [pinnedConversations, category, folder, search, drafts],
   );
   const regular = useMemo(
-    () => applyFilters(conversations, category, folder, search),
-    [conversations, category, folder, search],
+    () => applyFilters(conversations, category, folder, search, drafts),
+    [conversations, category, folder, search, drafts],
   );
   const archived = useMemo(
-    () =>
-      applyFilters(archivedConversations, category, folder, search),
-    [archivedConversations, category, folder, search],
+    () => applyFilters(archivedConversations, category, folder, search, drafts),
+    [archivedConversations, category, folder, search, drafts],
   );
   const hidden = useMemo(
-    () =>
-      applyFilters(hiddenConversations, category, folder, search),
-    [hiddenConversations, category, folder, search],
+    () => applyFilters(hiddenConversations, category, folder, search, drafts),
+    [hiddenConversations, category, folder, search, drafts],
   );
 
   const openMenu = useCallback((conversation: Conversation, e: React.MouseEvent) => {

@@ -77,7 +77,7 @@ export function ChatHeader({
   })();
 
   const showCalls = !isSecret && !isChannel && !isSaved;
-  const showSuperSecretToggle = !isGroupLike && !isChannel && !isSaved && onToggleSuperSecret;
+  const showSuperSecretToggle = !isChannel && !isSaved && onToggleSuperSecret;
 
   const themeCycle: ThemeMode[] = ["dark", "light", "system"];
 
@@ -129,8 +129,8 @@ export function ChatHeader({
             </span>
           ) : null}
           {isSuperSecret ? (
-            <span className="chat-header__supersecret-badge" title="Super Secret mode active">
-              🔒 Super Secret
+            <span className="chat-header__supersecret-badge" title="SecureChat mode active" aria-hidden>
+              🔒
             </span>
           ) : null}
           {chatType !== "private" ? (
@@ -176,14 +176,16 @@ export function ChatHeader({
           </>
         ) : null}
         {showSuperSecretToggle ? (
-          <IconButton
-            label={isSuperSecret ? "Super Secret on — click to disable" : "Enable Super Secret mode"}
-            variant="ghost"
-            active={isSuperSecret}
+          <button
+            type="button"
+            className={`chat-header__secure-btn ${isSuperSecret ? "chat-header__secure-btn--on" : ""}`}
             onClick={onToggleSuperSecret}
+            title={isSuperSecret ? "SecureChat ON — tap to disable" : "Enable SecureChat mode"}
+            aria-pressed={isSuperSecret}
           >
-            <IconShield size={20} />
-          </IconButton>
+            <IconShield size={16} />
+            <span>SecureChat</span>
+          </button>
         ) : null}
         <IconButton label="Chat menu" variant="ghost" onClick={() => onOpenProfile?.()}>
           <span className="chat-header__menu-icon" aria-hidden>

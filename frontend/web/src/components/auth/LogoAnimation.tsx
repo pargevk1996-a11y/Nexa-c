@@ -47,10 +47,20 @@ export function LogoAnimation({ size = 220 }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Scale the canvas buffer by devicePixelRatio so it renders crisp on high-DPI
+    // screens (3× on modern phones). CSS size stays at `size` px; buffer is size×dpr.
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width  = `${size}px`;
+    canvas.style.height = `${size}px`;
+
     const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
-    // All drawing is done in a virtual 220×220 space then scaled up
-    const s  = size / 220;
+    // All drawing is done in a virtual 220×220 space. The combined scale factor maps
+    // from virtual coords → physical canvas pixels (includes DPR boost).
+    const s  = (size / 220) * dpr;
     const cx = 110;
     const cy = 110;
 
@@ -263,8 +273,11 @@ export function LogoAnimation({ size = 220 }: Props) {
       ctx.fill();
     }
 
+    const bufW = canvas.width;
+    const bufH = canvas.height;
+
     function draw() {
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, bufW, bufH);
 
       ctx.save();
       ctx.scale(s, s);
@@ -371,7 +384,8 @@ export function LogoAnimation({ size = 220 }: Props) {
         off.width = 64; off.height = 64;
         const octx = off.getContext("2d");
         if (octx) {
-          octx.drawImage(canvas, 0, 0, 64, 64);
+          // canvas.width / canvas.height are the physical pixel dimensions
+          octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 64, 64);
           const dataUrl = off.toDataURL("image/png");
           let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
           if (!link) {

@@ -12,6 +12,10 @@ import {
 
 export const SAVED_CONVERSATION = createSavedMessagesConversation();
 
+const _now = Date.now();
+const _h = 3_600_000;
+const _d = 86_400_000;
+
 export const MOCK_CONVERSATIONS: Conversation[] = [
   SAVED_CONVERSATION,
   {
@@ -23,6 +27,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     peerUserId: "u-alex",
     lastMessage: "See you at 6pm!",
     lastAt: "2:32 PM",
+    lastAtTs: _now - 2 * _h,
     unread: 2,
     online: true,
     favorite: true,
@@ -38,6 +43,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     peerUserId: "u-maria",
     lastMessage: "typing…",
     lastAt: "12:05 PM",
+    lastAtTs: _now - 4 * _h,
     unread: 0,
     online: true,
     typing: true,
@@ -53,6 +59,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     peerUserId: "u-alex",
     lastMessage: "Secret chat — E2EE",
     lastAt: "1:15 PM",
+    lastAtTs: _now - 3 * _h,
     unread: 0,
     online: true,
   },
@@ -66,6 +73,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     memberIds: ["u1", "u2", "u3"],
     lastMessage: "Deploy went smoothly",
     lastAt: "Yesterday",
+    lastAtTs: _now - _d,
     unread: 0,
     online: false,
     folderId: "work",
@@ -80,6 +88,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     memberCount: 8420,
     lastMessage: "Welcome to the supergroup!",
     lastAt: "11:00 AM",
+    lastAtTs: _now - 5 * _h,
     unread: 3,
     online: false,
     folderId: "groups",
@@ -95,6 +104,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     isChannelAdmin: false,
     lastMessage: "v2.0 release notes published",
     lastAt: "9:30 AM",
+    lastAtTs: _now - 6.5 * _h,
     unread: 1,
     online: false,
     folderId: "channels",
@@ -110,6 +120,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     isChannelAdmin: true,
     lastMessage: "Draft: upcoming features",
     lastAt: "8:00 AM",
+    lastAtTs: _now - 8 * _h,
     unread: 0,
     online: false,
     folderId: "channels",
@@ -121,6 +132,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     chatType: "private",
     lastMessage: "Hidden chat example",
     lastAt: "Last week",
+    lastAtTs: _now - 7 * _d,
     unread: 0,
     online: false,
     hidden: true,
@@ -133,6 +145,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     isGroup: true,
     lastMessage: "Archived thread",
     lastAt: "Jan 2",
+    lastAtTs: _now - 155 * _d,
     unread: 0,
     online: false,
     archived: true,
@@ -145,6 +158,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     chatType: "private",
     lastMessage: "Encryption test passed",
     lastAt: "Mon",
+    lastAtTs: _now - 5 * _d,
     unread: 0,
     online: false,
   },

@@ -141,7 +141,7 @@ function MessageBody({
   }
   if (message.kind === "file") {
     return (
-      <FileMessage message={message} onOpen={onEphemeralOpen} onImageClick={onImageClick} isSuperSecret={isSuperSecret} />
+      <FileMessage message={message} onOpen={onEphemeralOpen} onImageClick={onImageClick} isSuperSecret={isSuperSecret || message.secureMode} />
     );
   }
   if (message.kind === "sticker") {
@@ -177,7 +177,7 @@ function MessageBody({
           <span className="chat-bubble__reply-text">{message.replyTo.text}</span>
         </blockquote>
       ) : null}
-      <div className={`chat-bubble ${isSecret ? "chat-bubble--secret" : ""}`}>
+      <div className={`chat-bubble ${isSecret ? "chat-bubble--secret" : ""} ${message.secureMode ? "chat-bubble--secure" : ""}`}>
         <FormattedMessageText text={message.text} />
       </div>
       {message.linkPreview ? <LinkPreview preview={message.linkPreview} /> : null}

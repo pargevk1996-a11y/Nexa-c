@@ -8,6 +8,8 @@ export interface ProfilePrivacy {
   show_status_text: boolean;
   show_avatar: boolean;
   allow_search_by_username: boolean;
+  /** When true, only uid and username are visible to others — overrides all other privacy fields */
+  secure_mode?: boolean;
 }
 
 export interface UserProfile {
@@ -23,6 +25,8 @@ export interface UserProfile {
   is_online: boolean;
   last_seen_at: string | null;
   verification_badge: VerificationBadge;
+  /** Phone number in E.164 format, e.g. +14155552671 */
+  phone_number?: string | null;
   privacy?: ProfilePrivacy;
 }
 
@@ -35,4 +39,5 @@ export const DEFAULT_PROFILE_PRIVACY: ProfilePrivacy = {
   show_status_text: true,
   show_avatar: true,
   allow_search_by_username: true,
+  secure_mode: false,
 };

@@ -16,6 +16,7 @@
 @import "./nexa.css";
 @import "./production-realtime.css";
 @import "./ux-ui.css";
+@import "./v2.css";
 
 *,
 *::before,
@@ -355,7 +356,7 @@ button {
 
 .field__input {
   width: 100%;
-  padding: 0.7rem 0.9rem;
+  padding: 0.55rem 0.85rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-input);
@@ -379,10 +380,10 @@ button {
 }
 
 .field__hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
   color: var(--text-faint);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .field__password-wrap {

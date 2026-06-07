@@ -68,9 +68,9 @@ export function ChatContextMenu({
   }
   if (!isSaved) {
     if (conversation.hidden) {
-      items.push({ label: "Unhide chat", action: { type: "unhide" } });
+      items.push({ label: "Unhide", action: { type: "unhide" } });
     } else {
-      items.push({ label: "Hide chat", action: { type: "hide" } });
+      items.push({ label: "Make invisible", action: { type: "hide" } });
     }
     if (conversation.archived) {
       items.push({ label: "Unarchive", action: { type: "unarchive" } });

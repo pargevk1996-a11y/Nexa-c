@@ -59,6 +59,8 @@ export interface UseRealtimeChatOptions {
   ) => void;
   /** When false, read receipts are not sent to peers. */
   readReceiptsEnabled?: boolean;
+  appSettings?: AppSettings;
+  currentUserId?: string;
 }
 
 export function useRealtimeChat({

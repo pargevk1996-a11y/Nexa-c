@@ -31,6 +31,8 @@ export interface Conversation {
   name: string;
   lastMessage: string;
   lastAt: string;
+  /** Unix ms timestamp for sort ordering — newer = higher */
+  lastAtTs?: number;
   unread: number;
   online: boolean;
   /** Explicit chat kind (derived from flags if omitted) */
@@ -139,6 +141,8 @@ export interface Message {
   hashtags?: string[];
   poll?: PollData;
   quiz?: QuizData;
+  /** Sent while SecureChat mode was active — no copy, no download, delete-for-both only */
+  secureMode?: boolean;
 }
 
 export interface StorySlide {

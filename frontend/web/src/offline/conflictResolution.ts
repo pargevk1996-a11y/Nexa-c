@@ -1,4 +1,4 @@
-import type { Message } from "@/types";
+import type { Conversation, Message } from "@/types";
 
 function messageOrderKey(m: Message): number {
   if (typeof m.seq === "number") return m.seq;

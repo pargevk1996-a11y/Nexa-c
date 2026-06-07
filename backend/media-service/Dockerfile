@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg62-turbo libwebp7 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 10001 appuser
+RUN mkdir -p /data/media && chown -R appuser:appuser /data/media
 WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin

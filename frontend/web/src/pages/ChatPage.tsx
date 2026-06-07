@@ -37,21 +37,17 @@ export function ChatPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const {
     visibleConversations,
-    archivedConversations,
     hiddenConversations,
     savedConversation,
     activeId,
     selectConversation,
     search,
     setSearch,
-    showArchived,
-    setShowArchived,
-    showHidden,
-    setShowHidden,
     activeCategory,
     setActiveCategory,
     activeFolder,
     setActiveFolder,
+    pinUnlocked,
     replyingTo,
     cancelReply,
     messagesForActive,
@@ -85,6 +81,8 @@ export function ChatPage() {
     markMessageDelivered,
     retryMessage,
     readReceiptsEnabled,
+    drafts,
+    setDraft,
   } = useChat();
 
   useKeyboardInset(Boolean(activeId));
@@ -260,7 +258,6 @@ export function ChatPage() {
             loading={conversationsLoading}
             savedConversation={savedConversation}
             conversations={visibleConversations}
-            archivedConversations={archivedConversations}
             hiddenConversations={hiddenConversations}
             activeId={activeId}
             search={search}
@@ -269,15 +266,11 @@ export function ChatPage() {
             onCategoryChange={setActiveCategory}
             folder={activeFolder}
             onFolderChange={setActiveFolder}
-            showArchived={showArchived}
-            onToggleArchived={() => setShowArchived(!showArchived)}
-            showHidden={showHidden}
-            onToggleHidden={() => setShowHidden(!showHidden)}
-            archivedCount={archivedConversations.length}
-            hiddenCount={hiddenConversations.length}
+            pinUnlocked={pinUnlocked}
             onSelect={selectConversation}
             onChatMenuAction={handleChatMenuAction}
             onCreateGroup={() => setCreateSpaceOpen(true)}
+            drafts={drafts}
           />
         }
         main={
@@ -356,6 +349,7 @@ export function ChatPage() {
                   key={activeId}
                   conversationId={activeId}
                   isSecret={isSecret}
+                  secureMode={isSuperSecret}
                   disabled={!canPost}
                   readOnlyHint={
                     !canPost && active.isChannel
@@ -363,6 +357,8 @@ export function ChatPage() {
                       : undefined
                   }
                   recentMessages={[]}
+                  initialText={activeId ? (drafts[activeId] ?? "") : ""}
+                  onDraftChange={(text) => activeId && setDraft(activeId, text)}
                   onSend={sendMessage}
                   onSendVoice={sendVoiceMessage}
                   onSendFile={sendFileMessage}

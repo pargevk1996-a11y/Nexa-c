@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useProfileOptional } from "@/store/ProfileContext";
 import { displayName, presenceLine } from "@/utils/presenceText";
 import { LogoAnimation } from "@/components/auth/LogoAnimation";
@@ -27,7 +27,6 @@ interface ChatLeftPanelProps {
   loading?: boolean;
   savedConversation: Conversation | null;
   conversations: Conversation[];
-  archivedConversations: Conversation[];
   hiddenConversations: Conversation[];
   activeId: string | null;
   search: string;
@@ -36,15 +35,11 @@ interface ChatLeftPanelProps {
   onCategoryChange: (c: ChatCategory) => void;
   folder: ChatFolderId | "all";
   onFolderChange: (f: ChatFolderId | "all") => void;
-  showArchived: boolean;
-  onToggleArchived: () => void;
-  showHidden: boolean;
-  onToggleHidden: () => void;
-  archivedCount: number;
-  hiddenCount: number;
+  pinUnlocked: boolean;
   onSelect: (id: string) => void;
   onChatMenuAction: (conversation: Conversation, action: ChatMenuAction) => void;
   onCreateGroup: () => void;
+  drafts: Record<string, string>;
 }
 
 const APP_NAV = [
@@ -58,7 +53,6 @@ export function ChatLeftPanel({
   loading,
   savedConversation,
   conversations,
-  archivedConversations,
   hiddenConversations,
   activeId,
   search,
@@ -67,35 +61,49 @@ export function ChatLeftPanel({
   onCategoryChange,
   folder,
   onFolderChange: _onFolderChange,
-  showArchived,
-  onToggleArchived,
-  showHidden,
-  onToggleHidden,
-  archivedCount,
-  hiddenCount,
+  pinUnlocked,
   onSelect,
   onChatMenuAction,
   onCreateGroup,
+  drafts,
 }: ChatLeftPanelProps) {
+  const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
   const session = getCachedSession();
   const myProfile = useProfileOptional()?.profile;
   const meLabel = myProfile ? displayName(myProfile) : session?.user.username ?? "You";
   const mePresence = myProfile ? presenceLine(myProfile) : "Online";
 
+  const effectiveSearch = pinUnlocked && search.startsWith("#") ? "" : search;
+
+  const allConversations = useMemo(
+    () => (pinUnlocked ? [...conversations, ...hiddenConversations] : conversations),
+    [conversations, hiddenConversations, pinUnlocked],
+  );
+
   const pinned = useMemo(
-    () => sortChatList(conversations.filter((c) => c.pinned)),
-    [conversations],
+    () => sortChatList(allConversations.filter((c) => c.pinned), drafts),
+    [allConversations, drafts],
   );
   const regular = useMemo(
-    () => sortChatList(conversations.filter((c) => !c.pinned)),
-    [conversations],
+    () => sortChatList(allConversations.filter((c) => !c.pinned), drafts),
+    [allConversations, drafts],
   );
   return (
     <aside className="chat-left-panel glass-panel" aria-label="Chat list">
       <header className="chat-left-panel__head">
         <div className="chat-left-panel__title-row">
-          <LogoAnimation size={112} />
+          <LogoAnimation size={44} />
+          <span className="chat-left-panel__wordmark">NEXA</span>
+          <button
+            type="button"
+            className="chat-left-panel__add-btn"
+            onClick={() => navigate("/app/contacts")}
+            title="Add contact"
+            aria-label="Add contact"
+          >
+            +
+          </button>
         </div>
         <label className="chat-left-panel__search">
           <IconSearch size={18} className="chat-left-panel__search-icon" />
@@ -123,41 +131,20 @@ export function ChatLeftPanel({
         ))}
       </nav>
 
-      <div className="chat-left-panel__toggles">
-        {archivedCount > 0 ? (
-          <button
-            type="button"
-            className="chat-sidebar__archived"
-            onClick={onToggleArchived}
-            aria-expanded={showArchived}
-          >
-            <span className="chat-sidebar__archived-icon" aria-hidden>
-              📦
-            </span>
-            {showArchived ? "Hide archived" : "Archived"}
-            <span className="chat-sidebar__archived-count">{archivedCount}</span>
-          </button>
-        ) : null}
-        {hiddenCount > 0 ? (
-          <button type="button" className="chat-left-panel__archived-toggle" onClick={onToggleHidden}>
-            {showHidden ? "Hide hidden chats" : `Hidden (${hiddenCount})`}
-          </button>
-        ) : null}
-      </div>
-
       <ChatSidebar
         loading={loading}
         savedConversation={savedConversation}
         pinnedConversations={pinned}
         conversations={regular}
-        archivedConversations={showArchived ? archivedConversations : []}
-        hiddenConversations={showHidden ? hiddenConversations : []}
+        archivedConversations={[]}
+        hiddenConversations={[]}
         activeId={activeId}
-        search={search}
+        search={effectiveSearch}
         category={category}
         folder={folder}
         onSelect={onSelect}
         onChatMenuAction={onChatMenuAction}
+        drafts={drafts}
       />
 
       <nav className="chat-left-panel__app-nav" aria-label="App">

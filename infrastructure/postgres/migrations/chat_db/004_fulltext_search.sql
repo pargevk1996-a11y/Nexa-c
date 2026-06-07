@@ -2,11 +2,21 @@
 -- search_text must be populated only for server-visible plaintext or hashed search tokens.
 
 ALTER TABLE messages
-  ADD COLUMN IF NOT EXISTS search_vector tsvector
-  GENERATED ALWAYS AS (
-    setweight(to_tsvector('english', coalesce(search_text, '')), 'A') ||
-    setweight(to_tsvector('simple', coalesce(array_to_string(hashtags, ' '), '')), 'B')
-  ) STORED;
+  ADD COLUMN IF NOT EXISTS search_vector tsvector;
+
+CREATE OR REPLACE FUNCTION messages_search_vector_update() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.search_vector :=
+    setweight(to_tsvector('english', coalesce(NEW.search_text, '')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(array_to_string(NEW.hashtags, ' '), '')), 'B');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_messages_search_vector
+  BEFORE INSERT OR UPDATE OF search_text, hashtags ON messages
+  FOR EACH ROW EXECUTE FUNCTION messages_search_vector_update();
 
 CREATE INDEX idx_messages_fts ON messages USING GIN (search_vector);
 

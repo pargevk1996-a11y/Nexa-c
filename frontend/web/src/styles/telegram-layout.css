@@ -384,6 +384,70 @@
   color: var(--text);
 }
 
+/* "+" add contact button in panel header */
+.chat-left-panel__add-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.chat-left-panel__add-btn:hover {
+  transform: scale(1.08);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .chat-left-panel__add-btn {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    font-size: 1.6rem;
+  }
+
+  .chat-left-panel__title-row {
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Compact logo on mobile */
+  .chat-left-panel__logo {
+    height: 4.5rem;
+  }
+
+  /* Bigger touch targets for bottom nav */
+  .chat-left-panel__app-nav {
+    padding: 0.6rem 0.5rem calc(0.6rem + var(--safe-bottom, 0px));
+  }
+
+  .chat-left-panel__app-nav-item {
+    padding: 0.55rem 0.25rem;
+    font-size: 0.7rem;
+    gap: 0.2rem;
+  }
+
+  /* Bigger conv items on mobile */
+  .chat-conv-item {
+    padding: 0.9rem 1rem;
+  }
+
+  /* Profile footer compact */
+  .chat-left-panel__footer {
+    padding: 0.5rem 0.75rem calc(0.5rem + var(--safe-bottom, 0px));
+  }
+}
+
 /* Message grouping */
 .chat-bubble-row--grouped .chat-bubble {
   margin-top: 2px;
