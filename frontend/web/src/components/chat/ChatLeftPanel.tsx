@@ -22,6 +22,7 @@ import {
 } from "@/utils/chatTypes";
 import type { Conversation } from "@/types";
 import type { ChatMenuAction } from "@/components/chat/ChatContextMenu";
+import { StoryPeek } from "@/components/stories/StoryPeek";
 
 interface ChatLeftPanelProps {
   loading?: boolean;
@@ -95,6 +96,7 @@ export function ChatLeftPanel({
         <div className="chat-left-panel__title-row">
           <LogoAnimation size={44} />
           <span className="chat-left-panel__wordmark">NEXA</span>
+          <StoryPeek />
           <button
             type="button"
             className="chat-left-panel__add-btn"
