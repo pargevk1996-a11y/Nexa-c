@@ -1,6 +1,15 @@
+/* Rosmatika — site-wide font */
+@font-face {
+  font-family: "Rosmatika";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/Rosmatika-Regular.ttf") format("truetype");
+}
+
 :root {
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-display: "Outfit", var(--font);
+  --font: "Rosmatika", system-ui, sans-serif;
+  --font-display: "Rosmatika", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 
   /* Typography — readability first */
@@ -31,29 +40,29 @@
 
   --glass-bg: rgba(12, 14, 28, 0.55);
   --glass-bg-strong: rgba(16, 18, 36, 0.72);
-  --glass-border: rgba(139, 92, 246, 0.18);
+  --glass-border: rgba(79, 124, 255, 0.18);
   --glass-blur: 20px;
 
   --bg-surface: rgba(10, 12, 24, 0.85);
   --bg-elevated: rgba(18, 20, 40, 0.9);
-  --bg-hover: rgba(99, 102, 241, 0.12);
+  --bg-hover: rgba(79, 124, 255, 0.12);
   --bg-input: rgba(255, 255, 255, 0.04);
 
   --border: rgba(255, 255, 255, 0.08);
-  --border-focus: var(--neon-cyan);
+  --border-focus: #4f7cff;
 
   --text: #f6f6fa;
   --text-muted: #a8a3bc;
   --text-faint: #6e6a82;
 
-  --accent: var(--neon-violet);
-  --accent-hover: #c4b5fd;
-  --accent-strong: var(--neon-purple);
-  --accent-muted: rgba(168, 85, 247, 0.14);
-  --accent-glow: rgba(59, 130, 246, 0.45);
-  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #6366f1 42%, #3b82f6 100%);
-  --accent-gradient-soft: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(59, 130, 246, 0.9));
-  --bubble-out-gradient: linear-gradient(135deg, #6d28d9 0%, #4f46e5 50%, #2563eb 100%);
+  --accent: #4f7cff;
+  --accent-hover: #93b4ff;
+  --accent-strong: #3b6dff;
+  --accent-muted: rgba(79, 124, 255, 0.14);
+  --accent-glow: rgba(70, 110, 255, 0.45);
+  --accent-gradient: linear-gradient(135deg, #4f7cff 0%, #3b6dff 50%, #6a5cff 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(79, 124, 255, 0.95), rgba(59, 109, 255, 0.9));
+  --bubble-out-gradient: linear-gradient(135deg, #3b6dff 0%, #4f6cff 50%, #5a4dff 100%);
   --bubble-in-bg: rgba(255, 255, 255, 0.06);
   --bubble-in-border: rgba(255, 255, 255, 0.1);
 
@@ -114,6 +123,25 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
+  /* Full dark token set so `data-theme="dark"` can force dark on a subtree
+     (e.g. the home page / auth modal) even when html is in light mode. */
+  --bg-root: #050508;
+  --bg-gradient-1: #0a0618;
+  --bg-gradient-2: #060612;
+  --bg-gradient-3: #0c1028;
+  --glass-bg: rgba(12, 14, 28, 0.55);
+  --glass-bg-strong: rgba(16, 18, 36, 0.72);
+  --glass-border: rgba(79, 124, 255, 0.18);
+  --bg-surface: rgba(10, 12, 24, 0.85);
+  --bg-elevated: rgba(18, 20, 40, 0.9);
+  --bg-hover: rgba(79, 124, 255, 0.12);
+  --bg-input: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #f6f6fa;
+  --text-muted: #a8a3bc;
+  --text-faint: #6e6a82;
+  --bubble-in-bg: rgba(255, 255, 255, 0.06);
+  --bubble-in-border: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme="light"] {

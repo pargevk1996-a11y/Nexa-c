@@ -23,7 +23,7 @@
       })();
     </script>
     <meta http-equiv="ScreenCapture" content="deny" />
-    <meta name="robots" content="noindex, noimageindex" />
+    <meta name="robots" content="index, follow" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta
@@ -40,115 +40,9 @@
     <title>Nexa — Secure Messenger</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body style="margin: 0; background: #050508; color: #f4f4f8">
-    <div id="privacy-shield-native" class="privacy-shield-native" hidden aria-hidden="true">
-      <div class="privacy-shield-native__inner">
-        <img
-          src="/nexa-logo.png"
-          alt=""
-          class="privacy-shield-native__logo-img"
-          width="192"
-          height="192"
-        />
-        <p class="privacy-shield-native__title">Nexa</p>
-        <p class="privacy-shield-native__text">Content hidden — screenshots are not allowed</p>
-      </div>
-    </div>
     <div id="root"></div>
-    <script>
-      (function () {
-        var root = document.getElementById("root");
-        var shield = document.getElementById("privacy-shield-native");
-        function isGuestAuthPath() {
-          var p = location.pathname;
-          if (!p || p === "/") return true;
-          return /^\/(login(?:\/qr)?|register|forgot-password|reset-password|verify-email|oauth\/callback)(?:\/|$)/.test(
-            p,
-          );
-        }
-        function seal() {
-          if (isGuestAuthPath()) return;
-          if (shield) {
-            shield.removeAttribute("hidden");
-            shield.setAttribute("aria-hidden", "false");
-          }
-          if (root) {
-            root.style.setProperty("visibility", "hidden", "important");
-            root.style.setProperty("opacity", "0", "important");
-            root.style.setProperty("pointer-events", "none", "important");
-          }
-          if (document.body) document.body.classList.add("privacy-shield-active");
-        }
-        function unsealIfAuth() {
-          if (!isGuestAuthPath()) return;
-          if (shield) {
-            shield.setAttribute("hidden", "");
-            shield.setAttribute("aria-hidden", "true");
-          }
-          if (root) {
-            root.style.removeProperty("visibility");
-            root.style.removeProperty("opacity");
-            root.style.removeProperty("pointer-events");
-          }
-          if (document.body) document.body.classList.remove("privacy-shield-active");
-        }
-        function isCaptureKey(e) {
-          return (
-            e.code === "PrintScreen" ||
-            e.key === "PrintScreen" ||
-            e.key === "Snapshot" ||
-            e.keyCode === 44
-          );
-        }
-        document.addEventListener(
-          "keydown",
-          function (e) {
-            if (isCaptureKey(e)) seal();
-          },
-          true,
-        );
-        document.addEventListener(
-          "keyup",
-          function (e) {
-            if (isCaptureKey(e)) seal();
-          },
-          true,
-        );
-        document.addEventListener("visibilitychange", function () {
-          if (isGuestAuthPath()) {
-            unsealIfAuth();
-            return;
-          }
-          if (document.hidden) seal();
-        });
-        window.addEventListener("blur", function () {
-          if (isGuestAuthPath()) {
-            unsealIfAuth();
-            return;
-          }
-          seal();
-        });
-        window.addEventListener("pagehide", function () {
-          if (!isGuestAuthPath()) seal();
-        });
-        setInterval(function () {
-          if (isGuestAuthPath()) {
-            unsealIfAuth();
-            return;
-          }
-          clearGuestAuthFlag();
-          if (document.hidden || !document.hasFocus()) seal();
-        }, 80);
-        unsealIfAuth();
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
