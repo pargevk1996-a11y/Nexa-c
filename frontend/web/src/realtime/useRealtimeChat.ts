@@ -26,19 +26,25 @@ import { removeOutbound } from "./offlineQueue";
 import { ensureNotificationPermission, notifyNewMessage } from "./notifications";
 import type { AppSettings } from "@/store/settings";
 import { useOfflineStore } from "@/store/zustand/offlineStore";
+import { getCachedPeer } from "@/utils/peerResolve";
 
-function mapConversation(c: ApiConversation): Conversation {
+export function mapApiConversation(c: ApiConversation): Conversation {
+  // DMs carry no title — resolve the peer's display name (synchronously from the
+  // process cache when already fetched; ChatContext fills the rest async).
+  const cachedPeer = getCachedPeer(c.peer_user_id);
   return {
     id: c.id,
     uid: c.id.slice(0, 8),
-    name: c.title ?? "Chat",
+    name: c.title ?? cachedPeer?.name ?? "Chat",
+    username: cachedPeer?.username,
     lastMessage: c.last_message_preview ?? "",
     lastAt: "",
     unread: c.unread_count,
-    online: false,
+    online: cachedPeer?.online ?? false,
     isGroup: c.type !== "dm" && c.type !== "channel" && c.type !== "broadcast",
     peerUserId: c.peer_user_id ?? undefined,
     memberIds: c.member_ids?.length ? c.member_ids : undefined,
+    isLocked: (c as any).is_locked ?? false,
   };
 }
 
@@ -83,6 +89,12 @@ export function useRealtimeChat({
   const pendingRef = useRef<Map<string, string>>(new Map());
   const seqByMessageId = useRef<Map<string, number>>(new Map());
   const deliveredMarked = useRef<Set<string>>(new Set());
+  const activeIdRef = useRef(activeId);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+
+  // Store event handler in a ref so the WS connection effect doesn't re-run when
+  // callbacks change — avoids the infinite reconnect loop caused by unstable cb refs.
+  const handleWsEventRef = useRef<(frame: WsFrame) => void>(() => undefined);
 
   const handleWsEvent = useCallback(
     (frame: WsFrame) => {
@@ -99,9 +111,9 @@ export function useRealtimeChat({
         onConversationActivity?.(msg.conversation_id, {
           lastMessage: ui.text.slice(0, 80),
           lastAt: ui.sentAt,
-          unread: msg.conversation_id === activeId ? 0 : 1,
+          unread: msg.conversation_id === activeIdRef.current ? 0 : 1,
         });
-        if (!ui.outgoing && msg.conversation_id !== activeId) {
+        if (!ui.outgoing && msg.conversation_id !== activeIdRef.current) {
           const convName =
             frame.payload.conversation_title as string | undefined;
           notifyNewMessage(
@@ -188,7 +200,7 @@ export function useRealtimeChat({
         void (async () => {
           try {
             const synced = await catchUpConversation(convId);
-            if (convId !== activeId) return;
+            if (convId !== activeIdRef.current) return;
             const historical = await listMessages(convId, { limit: 50 });
             const merged = new Map<string, ApiMessage>();
             for (const m of historical) merged.set(m.id, m);
@@ -207,7 +219,6 @@ export function useRealtimeChat({
       }
     },
     [
-      activeId,
       onAppendMessage,
       onPatchMessage,
       onMessageStatus,
@@ -216,6 +227,11 @@ export function useRealtimeChat({
       onConversationActivity,
     ],
   );
+
+  // Keep the ref in sync with the latest handler without triggering the WS effect.
+  useEffect(() => {
+    handleWsEventRef.current = handleWsEvent;
+  }, [handleWsEvent]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -241,13 +257,13 @@ export function useRealtimeChat({
     void ensureNotificationPermission();
 
     const client = new RealtimeWsClient({
-      onEvent: handleWsEvent,
+      onEvent: (frame) => handleWsEventRef.current(frame),
       onConnectionState,
       onConnected: async () => {
         const session = getCachedSession();
         const uid = session?.user.id;
         if (uid) {
-          await runReconnectSync(uid, activeId, {
+          await runReconnectSync(uid, activeIdRef.current, {
             onConversations,
             onMessages,
             onResolvePending: onPatchMessage,
@@ -255,7 +271,7 @@ export function useRealtimeChat({
         }
         try {
           const convs = await listConversations();
-          const mapped = convs.map(mapConversation);
+          const mapped = convs.map(mapApiConversation);
           onConversations(mapped);
           if (uid) await cacheConversationsList(uid, mapped);
           client.subscribe(convs.map((c) => c.id));
@@ -280,7 +296,7 @@ export function useRealtimeChat({
       client.disconnect();
       wsRef.current = null;
     };
-  }, [enabled, handleWsEvent, onConversations, onConnectionState, activeId, onMessages, onPatchMessage]);
+  }, [enabled, onConversations, onConnectionState, onMessages, onPatchMessage]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -310,25 +326,44 @@ export function useRealtimeChat({
 
     let cancelled = false;
     void (async () => {
+      const uid = session.user.id;
+      // Open at the LAST message: load the newest contiguous window. Older history
+      // is fetched lazily on scroll-up (loadOlderMessages / startReached), so big
+      // conversations open instantly and only pay for what the user actually views.
+      const PAGE = 50;
       try {
+        const { loadOfflineMessages } = await import("@/offline/chatOfflineCache");
+        const cached = (await loadOfflineMessages(uid, activeId)) ?? [];
+
         const synced = await catchUpConversation(activeId);
-        const historical = await listMessages(activeId, { limit: 50 });
+        const newest = await listMessages(activeId, { limit: PAGE });
         const merged = new Map<string, ApiMessage>();
-        for (const m of historical) merged.set(m.id, m);
+        for (const m of newest) merged.set(m.id, m);
         for (const m of synced) merged.set(m.id, m);
         const sorted = [...merged.values()].sort((a, b) => a.seq - b.seq);
-        const ui = sorted.map((m) => apiMessageToUi(m, session.user.id));
-        const { loadOfflineMessages } = await import("@/offline/chatOfflineCache");
-        const cached = (await loadOfflineMessages(session.user.id, activeId)) ?? [];
-        const resolved = mergeConversationMessages(cached, ui);
+        const ui = sorted.map((m) => apiMessageToUi(m, uid));
+
+        // Only the newest window is loaded right now. Drop cached rows OLDER than
+        // it so a stale/partial offline cache can't render a floating old message
+        // with an empty gap above the newest page (the bug from the screen
+        // recording). Older rows reload contiguously when the user scrolls up.
+        // Keep pending/unsent (optimistic) rows so in-flight sends survive.
+        const oldestLoadedSeq = sorted.length ? sorted[0].seq : 0;
+        const cachedToKeep = cached.filter((m) => {
+          if (m.id.startsWith("pending-")) return true;
+          if (typeof m.seq !== "number") return true;
+          return m.seq >= oldestLoadedSeq;
+        });
+        const resolved = mergeConversationMessages(cachedToKeep, ui);
+
         if (!cancelled) {
           for (const m of sorted) seqByMessageId.current.set(m.id, m.seq);
           onMessages(activeId, resolved);
-          await cacheConversationMessages(session.user.id, activeId, resolved);
+          await cacheConversationMessages(uid, activeId, resolved);
         }
       } catch {
         const cached = await import("@/offline/chatOfflineCache").then((m) =>
-          m.loadOfflineMessages(session.user.id, activeId),
+          m.loadOfflineMessages(uid, activeId),
         );
         if (!cancelled && cached?.length) onMessages(activeId, cached);
       }
@@ -369,14 +404,14 @@ export function useRealtimeChat({
   );
 
   const sendText = useCallback(
-    (conversationId: string, text: string): string => {
+    (conversationId: string, text: string, replyToId?: string): string => {
       const session = getCachedSession();
       const clientMsgId = crypto.randomUUID().replace(/-/g, "");
       pendingRef.current.set(clientMsgId, conversationId);
 
       const wsOpen = wsRef.current?.isOpen;
       if (wsOpen) {
-        wsRef.current?.sendMessage(conversationId, text, clientMsgId);
+        wsRef.current?.sendMessage(conversationId, text, clientMsgId, replyToId);
       } else {
         enqueueOutboundMessage({
           clientMsgId,
@@ -404,7 +439,7 @@ export function useRealtimeChat({
       }
 
       if (!wsOpen && navigator.onLine) {
-        void sendMessageRest(conversationId, { client_msg_id: clientMsgId, body: text })
+        void sendMessageRest(conversationId, { client_msg_id: clientMsgId, body: text, reply_to_id: replyToId })
           .then((apiMsg) => {
             if (!session?.user.id) return;
             removeOutbound(clientMsgId);
@@ -413,13 +448,8 @@ export function useRealtimeChat({
           .catch(() => {
             onMessageStatus?.(`pending-${clientMsgId}`, "failed");
           });
-      } else if (!wsOpen && !navigator.onLine) {
-        /* stays queued until reconnect */
-      } else if (wsOpen) {
-        void sendMessageRest(conversationId, { client_msg_id: clientMsgId, body: text }).catch(
-          () => onMessageStatus?.(`pending-${clientMsgId}`, "failed"),
-        );
       }
+      // When WS is open, the ws-gateway handles persistence; no REST call needed.
 
       return clientMsgId;
     },

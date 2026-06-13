@@ -57,6 +57,7 @@ class Conversation:
     banned_user_ids: set[str] = field(default_factory=set)
     muted_until: dict[str, datetime] = field(default_factory=dict)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    locked_for_user_id: str | None = None  # message content hidden for this user until unlocked
 
 
 @dataclass
@@ -119,6 +120,23 @@ class ChatStore:
         items = [a for a in self._mod_log if a.conversation_id == conv_id]
         return list(reversed(items[-limit:]))
 
+    async def unlock_conversation(self, conv_id: str) -> bool:
+        conv = self._conversations.get(conv_id)
+        if not conv:
+            return False
+        conv.locked_for_user_id = None
+        return True
+
+    async def archive_conversation(self, conv_id: str) -> bool:
+        """Remove a conversation entirely (used when a contact request is declined)."""
+        conv = self._conversations.pop(conv_id, None)
+        if not conv:
+            return False
+        # Clean up slug index if present
+        if conv.slug and conv.slug in self._slugs:
+            del self._slugs[conv.slug]
+        return True
+
     async def create_conversation(
         self,
         creator_id: str,
@@ -132,6 +150,7 @@ class ChatStore:
         parent_id: str | None = None,
         verified: bool = False,
         settings: SpaceSettings | None = None,
+        locked_for: str | None = None,
     ) -> Conversation:
         space_type = normalize_type(type, is_public=is_public)
         if slug:
@@ -168,6 +187,7 @@ class ChatStore:
             parent_id=parent_id,
             members=members,
             settings=settings or default_settings,
+            locked_for_user_id=locked_for,
         )
         if slug:
             self._slugs[slug] = conv.id
@@ -317,10 +337,10 @@ class ChatStore:
         e2ee_envelope: dict | None = None,
         expires_at: datetime | None = None,
         silent: bool = False,
-    ) -> Message:
+    ) -> tuple[Message, bool]:
         key = (conv_id, client_msg_id)
         if key in self._by_client_id:
-            return self._messages[self._by_client_id[key]]
+            return self._messages[self._by_client_id[key]], False
         conv = self._conversations.get(conv_id)
         if not conv:
             raise ValueError("NOT_FOUND")
@@ -358,7 +378,7 @@ class ChatStore:
         )
         self._messages[msg.id] = msg
         self._by_client_id[key] = msg.id
-        return msg
+        return msg, True
 
     async def list_messages(
         self,

@@ -181,6 +181,14 @@ export function notifyNewMessage(
     const sound =
       (c?.sound ?? g?.sound ?? settings.soundEnabled) && !payload.silent;
     if (sound) playMessageSound(true);
+    // Vibration on devices that support it (mobile browsers; ignored elsewhere).
+    if (sound && typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate(200);
+      } catch {
+        /* unsupported */
+      }
+    }
 
     if (mobile && mobileOn && pushOn) {
       showDesktopNotification(payload, settings);

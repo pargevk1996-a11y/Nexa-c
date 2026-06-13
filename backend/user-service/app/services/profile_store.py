@@ -1,11 +1,24 @@
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from nexa_shared.utils.uid import generate_public_uid
 
 VerificationBadge = Literal["none", "verified", "official", "bot"]
 AvatarKind = Literal["initial", "image", "animated"]
+
+# A client heartbeats presence every ~60s. Treat a user as online only while that
+# heartbeat is fresh: a sticky `is_online=True` left behind by a killed tab, crash
+# or dropped connection (no explicit offline ping) must NOT show green forever.
+ONLINE_TTL_SECONDS = 90
+
+
+def effective_online(is_online: bool, last_seen_at: datetime | None) -> bool:
+    """Online only if the flag is set AND the last activity is recent."""
+    if not is_online or last_seen_at is None:
+        return False
+    seen = last_seen_at if last_seen_at.tzinfo else last_seen_at.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - seen) < timedelta(seconds=ONLINE_TTL_SECONDS)
 
 
 @dataclass
@@ -142,8 +155,9 @@ class ProfileStore:
         p.is_online = is_online
         if status_text is not None:
             p.status_text = status_text
-        if not is_online:
-            p.last_seen_at = datetime.now(UTC)
+        # Always stamp last activity — every heartbeat (online) and the explicit
+        # offline ping. Reads derive freshness from this so presence self-expires.
+        p.last_seen_at = datetime.now(UTC)
         return p
 
     def apply_privacy_for_viewer(self, profile: Profile, viewer_id: str) -> Profile:
@@ -160,7 +174,7 @@ class ProfileStore:
             avatar_url=p.avatar_url if p.privacy.show_avatar else None,
             animated_avatar_url=p.animated_avatar_url if p.privacy.show_avatar else None,
             avatar_kind=p.avatar_kind if p.privacy.show_avatar else "initial",
-            is_online=p.is_online if p.privacy.show_online_status else False,
+            is_online=effective_online(p.is_online, p.last_seen_at) if p.privacy.show_online_status else False,
             last_seen_at=p.last_seen_at if p.privacy.show_last_seen else None,
             verification_badge=p.verification_badge,
             privacy=p.privacy,

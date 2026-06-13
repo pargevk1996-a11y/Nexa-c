@@ -12,7 +12,10 @@ export function AuthCard({ title, subtitle, children }: AuthCardProps) {
   return (
     <div className="auth-card">
       <header className="auth-card__header">
-        <h2 className={isBrandTitle ? "auth-card__title--brand" : undefined}>{title}</h2>
+        {/* Stable id so a wrapping dialog can reference it via aria-labelledby (BUG-009). */}
+        <h2 id="auth-card-title" className={isBrandTitle ? "auth-card__title--brand" : undefined}>
+          {title}
+        </h2>
         {subtitle ? <p>{subtitle}</p> : null}
       </header>
       {children}

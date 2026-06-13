@@ -64,7 +64,10 @@ p,
   padding: var(--bubble-pad-y) var(--bubble-pad-x);
   border-radius: var(--radius-lg);
   line-height: var(--leading-relaxed);
-  max-width: min(88%, var(--read-max-ch));
+  /* Fixed-length cap only — a `%` here is relative to the shrink-wrapped row
+     and, during intrinsic sizing, collapses the bubble (emoji stacking). The
+     row's own `max-width: 60%` already limits the width to the message area. */
+  max-width: var(--read-max-ch);
   box-shadow: var(--shadow-subtle);
 }
 

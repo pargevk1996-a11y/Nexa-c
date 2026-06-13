@@ -1,13 +1,16 @@
+import logging
 import secrets
 from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
+
+logger = logging.getLogger("oauth")
 from fastapi.responses import RedirectResponse
 
 from app.core.config import settings
 from app.schemas.auth import AuthResponse, OAuthExchangeRequest, UserResponse
-from app.api.session_routes import _set_refresh_cookie
+from app.api.session_routes import _set_access_cookie, _set_refresh_cookie
 from app.services.token_service import issue_tokens_for_user
 from app.services.user_store import store
 
@@ -144,6 +147,14 @@ async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
                 },
             )
             if token_res.is_error:
+                # Google's error body contains the reason (e.g. invalid_client,
+                # redirect_uri_mismatch) — no secrets — so log it for diagnosis.
+                logger.warning(
+                    "Google token exchange failed: status=%s redirect_uri=%s body=%s",
+                    token_res.status_code,
+                    redirect_uri,
+                    token_res.text,
+                )
                 raise HTTPException(
                     status_code=400,
                     detail={
@@ -175,6 +186,14 @@ async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
         token_res.raise_for_status()
         access_token = token_res.json().get("access_token")
     if not access_token:
+        # GitHub returns HTTP 200 with {"error": ...} on failure — log the body
+        # (error code/description only, no secret) so we can see the reason.
+        logger.warning(
+            "GitHub token exchange failed: status=%s redirect_uri=%s body=%s",
+            token_res.status_code,
+            redirect_uri,
+            token_res.text,
+        )
         raise HTTPException(status_code=400, detail={"error": {"code": "OAUTH_FAILED", "message": "Could not obtain access token"}})
     return await _fetch_github_user(access_token)
 
@@ -212,17 +231,26 @@ async def oauth_provider_callback(
             err = exc.detail.get("error", {})
             if isinstance(err, dict) and err.get("code"):
                 err_code = str(err["code"]).lower()
+        logger.warning("OAuth %s exchange HTTPException: %s", provider, exc.detail)
         return RedirectResponse(
             _frontend_callback_url({"error": err_code, "provider": provider}),
             status_code=302,
         )
     except Exception:
+        logger.exception("OAuth %s exchange unexpected error", provider)
         return RedirectResponse(
             _frontend_callback_url({"error": "oauth_failed", "provider": provider}),
             status_code=302,
         )
 
-    user = await store.get_or_create_oauth_user(provider, subject, email, username)
+    try:
+        user = await store.get_or_create_oauth_user(provider, subject, email, username)
+    except Exception:
+        logger.exception("OAuth %s get_or_create_oauth_user failed", provider)
+        return RedirectResponse(
+            _frontend_callback_url({"error": "oauth_user_failed", "provider": provider}),
+            status_code=302,
+        )
     exchange = secrets.token_urlsafe(32)
     _exchange_codes[exchange] = _to_user_response(user)
     return RedirectResponse(
@@ -261,4 +289,5 @@ async def oauth_exchange(
         request=request,
     )
     _set_refresh_cookie(response, raw_refresh)
+    _set_access_cookie(response, access)
     return AuthResponse(user=user_resp, access_token=access, expires_in=ttl)

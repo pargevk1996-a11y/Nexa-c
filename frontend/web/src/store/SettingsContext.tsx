@@ -13,8 +13,10 @@ import {
   applyFontSize,
   applyTheme,
   DEFAULT_SETTINGS,
+  getGlobalTheme,
   loadSettings,
   saveSettings,
+  setGlobalTheme,
   type AppSettings,
 } from "./settings";
 
@@ -28,19 +30,24 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const userId = getCachedSession()?.user.id;
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(() => ({
+    ...DEFAULT_SETTINGS,
+    theme: getGlobalTheme(),
+  }));
 
   useEffect(() => {
     if (!userId) {
-      setSettings(DEFAULT_SETTINGS);
-      applyTheme(DEFAULT_SETTINGS.theme);
+      setSettings({ ...DEFAULT_SETTINGS, theme: getGlobalTheme() });
+      applyTheme(getGlobalTheme());
       applyFontSize(DEFAULT_SETTINGS.fontSize);
       setScreenshotAllowed(DEFAULT_SETTINGS.allowScreenshots);
       return;
     }
     void loadSettings(userId).then((loaded) => {
-      setSettings(loaded);
-      applyTheme(loaded.theme);
+      // Theme is a device-wide preference — keep the choice the user already
+      // made (e.g. on the home screen) instead of the per-account value.
+      setSettings({ ...loaded, theme: getGlobalTheme() });
+      applyTheme(getGlobalTheme());
       applyFontSize(loaded.fontSize);
       setScreenshotAllowed(loaded.allowScreenshots);
     });
@@ -62,7 +69,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback(
     <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-      if (!userId) return;
+      // Theme is device-wide: persist it globally so it stays consistent
+      // across the home screen, auth, and every account on this device.
+      if (key === "theme") {
+        setGlobalTheme(value as AppSettings["theme"]);
+      }
+      if (!userId) {
+        if (key === "theme") {
+          setSettings((prev) => ({ ...prev, theme: value as AppSettings["theme"] }));
+        }
+        return;
+      }
       setSettings((prev) => {
         const next = { ...prev, [key]: value };
         if (key === "allowScreenshots") {

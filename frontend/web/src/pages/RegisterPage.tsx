@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { registerAccount } from "@/api/auth";
 import { storePendingSignatureForEmail, validateSignatureFormat } from "@/security/signaturePin";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthAlert } from "@/components/auth/AuthAlert";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -17,8 +18,12 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [signature, setSignature] = useState("");
-  const [dialCode, setDialCode] = useState("+1");
+  // Track the ISO country code (unique) rather than the dial code, because dial
+  // codes collide (+1 → US & Canada, +7 → Russia & Kazakhstan) and a duplicate
+  // <option value> makes the select impossible to control correctly (BUG-013).
+  const [countryCode, setCountryCode] = useState("US");
   const [phone, setPhone] = useState("");
+  const dialCode = COUNTRY_CODES.find((c) => c.code === countryCode)?.dial ?? "+1";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -32,30 +37,26 @@ export function RegisterPage() {
 
     const trimmedEmail = email.trim();
     const trimmedUsername = username.trim();
-    if (!trimmedEmail) {
-      setFieldErrors((prev) => ({ ...prev, email: "Email is required" }));
-      return;
-    }
-    if (!trimmedUsername) {
-      setFieldErrors((prev) => ({ ...prev, username: "Username is required" }));
-      return;
-    }
+
+    // Validate every field up front and surface all problems at once so the user
+    // can fix them in a single pass instead of one-error-at-a-time (BUG-006).
+    const errors: Record<string, string> = {};
+    if (!trimmedEmail) errors.email = "Email is required";
+    if (!trimmedUsername) errors.username = "Username is required";
     if (!password) {
-      setFieldErrors((prev) => ({ ...prev, password: "Password is required" }));
-      return;
+      errors.password = "Password is required";
+    } else {
+      const passwordErr = validateClientPassword(password);
+      if (passwordErr) errors.password = passwordErr;
     }
-    const passwordErr = validateClientPassword(password);
-    if (passwordErr) {
-      setFieldErrors((prev) => ({ ...prev, password: passwordErr }));
-      return;
-    }
-    if (password !== confirmPassword) {
-      setFieldErrors((prev) => ({ ...prev, confirmPassword: "Passwords do not match" }));
-      return;
+    if (password && password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
     }
     const sigErr = validateSignatureFormat(signature);
-    if (sigErr) {
-      setFieldErrors((prev) => ({ ...prev, signature: sigErr }));
+    if (sigErr) errors.signature = sigErr;
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -81,8 +82,8 @@ export function RegisterPage() {
 
   return (
     <AuthCard title="Create account">
-      {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
-      {success ? <div className="auth-alert auth-alert--success">{success}</div> : null}
+      <AuthAlert variant="error">{error}</AuthAlert>
+      <AuthAlert variant="success">{success}</AuthAlert>
 
       <OAuthButtons alwaysShow onError={(msg) => setError(msg || null)} />
 
@@ -142,22 +143,25 @@ export function RegisterPage() {
         />
 
         <div className="field">
-          <label className="field__label">Phone number (optional)</label>
+          <label className="field__label" htmlFor="register-phone">
+            Phone number (optional)
+          </label>
           <div className="phone-input">
             <select
               className="phone-input__dial"
-              value={dialCode}
-              onChange={(e) => setDialCode(e.target.value)}
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
               disabled={loading}
               aria-label="Country code"
             >
               {COUNTRY_CODES.map((c) => (
-                <option key={`${c.code}-${c.dial}`} value={c.dial}>
+                <option key={c.code} value={c.code}>
                   {c.name} ({c.dial})
                 </option>
               ))}
             </select>
             <input
+              id="register-phone"
               className="field__input phone-input__number"
               type="tel"
               name="phone"

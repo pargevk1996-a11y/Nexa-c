@@ -33,7 +33,10 @@ export function StoryPeek() {
     return () => document.removeEventListener("pointerdown", onPointer, true);
   }, [expanded]);
 
-  if (viewableStories.length === 0 && !yours) return null;
+  // With no stories to peek, the inline trigger would render as an empty
+  // (unlabeled) button — a stray "·" in the header. Only show it when there is
+  // at least one viewable story.
+  if (viewableStories.length === 0) return null;
 
   function openStory(story: StoryItem) {
     if (story.slides.length === 0) return;

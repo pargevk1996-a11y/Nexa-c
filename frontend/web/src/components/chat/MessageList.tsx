@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { buildMessageRows } from "@/utils/messageLayout";
 import { IconChats } from "@/components/icons/Icons";
@@ -40,6 +40,8 @@ interface MessageListProps {
   onIncomingVisible?: (messageId: string) => void;
   showReadReceipts?: boolean;
   onRetryMessage?: (messageId: string) => void;
+  onLoadOlder?: () => Promise<void>;
+  hasOlderMessages?: boolean;
 }
 
 interface ContextState {
@@ -47,6 +49,11 @@ interface ContextState {
   x: number;
   y: number;
 }
+
+// Virtuoso anchors prepended items relative to a large base index. When older
+// messages are loaded at the head, we decrement firstItemIndex by the number of
+// rows prepended so the viewport stays pinned to the same message (no jump).
+const START_INDEX = 1_000_000;
 
 function MessageBadges({ message }: { message: Message }) {
   const badges: string[] = [];
@@ -241,37 +248,119 @@ export function MessageList({
   onIncomingVisible,
   showReadReceipts = true,
   onRetryMessage,
+  onLoadOlder,
+  hasOlderMessages = false,
 }: MessageListProps) {
   const [menu, setMenu] = useState<ContextState | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  // Mirrors isAtBottom for use inside callbacks without re-subscribing.
+  const isAtBottomRef = useRef(true);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  // Virtuoso anchors prepended items via a large virtual index.
+  const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const scrollerRef = useRef<HTMLElement | null>(null);
+  // Disarmed when the user scrolls up; re-armed when they reach the bottom.
+  // Controls whether followOutput should scroll to new messages.
+  const stickToBottomRef = useRef(true);
   const prevConversationIdRef = useRef<string | undefined>(conversationId);
+  // Prepend-detection bookkeeping for stable firstItemIndex maintenance.
+  const prevRowsLenRef = useRef(0);
+  const oldestMsgIdRef = useRef<string | null>(null);
+  // True after Virtuoso's first render for this conversation is committed to
+  // the DOM. The scroll-up detector must not fire before this — during
+  // initialTopMostItemIndex positioning Virtuoso moves scrollTop internally,
+  // and treating that as user intent would permanently disarm stickToBottom.
+  const listReadyRef = useRef(false);
+  // Per-conversation guard: arm listReadyRef exactly once per chat open.
+  const readyConvRef = useRef<string | undefined>(undefined);
 
   const rows = useMemo(() => buildMessageRows(messages), [messages]);
   const galleryImages = useMemo(() => collectGalleryImages(messages), [messages]);
 
-  const openGallery = useCallback(
-    (messageId: string) => {
-      const idx = galleryImages.findIndex((g) => g.messageId === messageId);
-      if (idx >= 0) setGalleryIndex(idx);
-    },
-    [galleryImages],
-  );
-
+  // Reset all per-conversation state on conversation switch.
   useEffect(() => {
     setGalleryIndex(null);
-  }, [conversationId]);
-
-  // Scroll to bottom on conversation switch
-  useEffect(() => {
     if (conversationId === prevConversationIdRef.current) return;
     prevConversationIdRef.current = conversationId;
-    virtuosoRef.current?.scrollToIndex({ index: rows.length - 1, behavior: "auto" });
+    setIsLoadingOlder(false);
+    setIsAtBottom(true);
+    isAtBottomRef.current = true;
+    stickToBottomRef.current = true;
+    setFirstItemIndex(START_INDEX);
+    prevRowsLenRef.current = 0;
+    oldestMsgIdRef.current = null;
+    // Disable scroll-up detection until the new Virtuoso instance has
+    // finished its initial render at initialTopMostItemIndex.
+    listReadyRef.current = false;
+  }, [conversationId]);
+
+  // Arm the scroll-up detector after Virtuoso's first render with data.
+  // One requestAnimationFrame is enough — by then initialTopMostItemIndex
+  // positioning is committed and any Virtuoso-internal scrollTop adjustments
+  // are complete. Fires at most once per conversation (readyConvRef guard).
+  useEffect(() => {
+    if (rows.length === 0) return;
+    if (readyConvRef.current === conversationId) return;
+    readyConvRef.current = conversationId;
+    listReadyRef.current = false;
+    const raf = requestAnimationFrame(() => {
+      listReadyRef.current = true;
+    });
+    return () => cancelAnimationFrame(raf);
   }, [conversationId, rows.length]);
 
-  // Scroll to bottom when new messages arrive and user is already at bottom
+  // Detect genuine user scroll-up to disarm auto-follow. Gated on listReadyRef
+  // so Virtuoso's own initial positioning is never misread as user intent.
   useEffect(() => {
-    virtuosoRef.current?.scrollToIndex({ index: rows.length - 1, behavior: "smooth" });
+    const el = scrollerRef.current;
+    if (!el) return;
+    let lastTop = el.scrollTop;
+    const onScroll = () => {
+      const top = el.scrollTop;
+      if (listReadyRef.current && top < lastTop - 4) {
+        stickToBottomRef.current = false;
+      }
+      lastTop = top;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [conversationId]);
+
+  // Maintain Virtuoso's firstItemIndex when older messages are prepended at
+  // the head so the visible message stays anchored (no scroll jump).
+  useLayoutEffect(() => {
+    const oldestId = messages.length ? messages[0].id : null;
+    const grew = rows.length - prevRowsLenRef.current;
+    const prepended =
+      grew > 0 && oldestMsgIdRef.current != null && oldestId !== oldestMsgIdRef.current;
+    if (prepended) {
+      setFirstItemIndex((idx) => idx - grew);
+    }
+    prevRowsLenRef.current = rows.length;
+    oldestMsgIdRef.current = oldestId;
+  }, [rows, messages]);
+
+  // Mobile keyboard: snap back to last message when the keyboard shrinks the
+  // viewport, but only if the user is already at the bottom.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let lastHeight = vv.height;
+    const onResize = () => {
+      const shrank = vv.height < lastHeight - 60;
+      lastHeight = vv.height;
+      if (shrank && isAtBottomRef.current) {
+        virtuosoRef.current?.scrollToIndex({
+          index: rows.length - 1,
+          align: "end",
+          behavior: "auto",
+        });
+      }
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
   }, [rows.length]);
 
   useEffect(() => {
@@ -303,6 +392,12 @@ export function MessageList({
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
+  const handleStartReached = useCallback(() => {
+    if (isLoadingOlder || !hasOlderMessages || !onLoadOlder) return;
+    setIsLoadingOlder(true);
+    void onLoadOlder().finally(() => setIsLoadingOlder(false));
+  }, [isLoadingOlder, hasOlderMessages, onLoadOlder]);
+
   function renderContent(m: Message) {
     if (m.ephemeral && !m.recalled) {
       return (
@@ -317,11 +412,19 @@ export function MessageList({
     return <MessageBody message={m} isSecret={isSecret} isSuperSecret={isSuperSecret} onImageClick={openGallery} />;
   }
 
-  if (loading) {
-    return <MessageListSkeleton />;
-  }
+  const openGallery = useCallback(
+    (messageId: string) => {
+      const idx = galleryImages.findIndex((g) => g.messageId === messageId);
+      if (idx >= 0) setGalleryIndex(idx);
+    },
+    [galleryImages],
+  );
 
-  if (messages.length === 0) {
+  // Show skeleton while data is loading or not yet arrived — never mount
+  // Virtuoso with an empty array and then repopulate it, which would cause
+  // a visible render-at-top-then-scroll-to-bottom jump.
+  if (loading || messages.length === 0) {
+    if (loading) return <MessageListSkeleton />;
     return (
       <div className="chat-empty">
         <div className="chat-empty__icon-svg">
@@ -333,18 +436,42 @@ export function MessageList({
   }
 
   return (
-    <>
+    <div className="chat-messages-wrap">
+      {/*
+        key={conversationId} destroys and recreates the Virtuoso instance on
+        every conversation switch, giving each chat a clean slate with its own
+        firstItemIndex / scroll position / measured heights. Combined with
+        initialTopMostItemIndex={rows.length - 1}, Virtuoso starts its FIRST
+        render already at the last message — no scrollTo correction needed,
+        no visible jump.
+      */}
       <Virtuoso
+        key={conversationId ?? "none"}
         ref={virtuosoRef}
+        scrollerRef={(ref) => { scrollerRef.current = ref as HTMLElement | null; }}
         className={`chat-messages ${isSecret ? "chat-messages--secret" : "chat-messages--copy-ok"}`}
         role="log"
         aria-live="polite"
         data={rows}
+        firstItemIndex={firstItemIndex}
         initialTopMostItemIndex={rows.length - 1}
-        followOutput="smooth"
-        overscan={400}
+        alignToBottom={true}
+        followOutput={(atBottom) => (atBottom ? "auto" : false)}
+        overscan={600}
+        startReached={hasOlderMessages && !isLoadingOlder ? handleStartReached : undefined}
+        components={{
+          Header: isLoadingOlder ? () => <div className="chat-history-loading">Loading…</div> : undefined,
+          Footer: () => (
+            <div style={{ height: "calc(4.5rem + var(--keyboard-inset, 0px))" }} aria-hidden />
+          ),
+        }}
         atBottomStateChange={(atBottom) => {
-          if (atBottom) onAtBottom?.();
+          isAtBottomRef.current = atBottom;
+          setIsAtBottom(atBottom);
+          if (atBottom) {
+            stickToBottomRef.current = true;
+            onAtBottom?.();
+          }
         }}
         itemsRendered={(renderedItems) => {
           if (!onIncomingVisible) return;
@@ -368,6 +495,7 @@ export function MessageList({
           const selected = selectedMessageIds.has(m.id);
           const sending = m.outgoing && isSendingMessage(m);
           return (
+            <div className={m.outgoing ? "msg-row msg-row--out" : "msg-row msg-row--in"}>
             <div
               className={`chat-bubble-row ${m.outgoing ? "chat-bubble-row--out" : "chat-bubble-row--in"} ${row.grouped ? "chat-bubble-row--grouped" : ""} ${row.showTail ? "chat-bubble-row--tail" : ""} ${selected ? "chat-bubble-row--selected" : ""} ${m.ephemeral ? "chat-bubble-row--ephemeral" : ""} ${sending ? "chat-bubble-row--sending" : ""} ${m.status === "failed" ? "chat-bubble-row--failed" : ""} ${m.kind === "sticker" ? "chat-bubble-row--sticker" : ""} ${m.kind === "gif" ? "chat-bubble-row--gif" : ""}`}
               onContextMenu={(e) => openMenu(m, e)}
@@ -405,9 +533,27 @@ export function MessageList({
                 ) : null}
               </div>
             </div>
+            </div>
           );
         }}
       />
+      {!isAtBottom ? (
+        <button
+          className="chat-scroll-bottom"
+          onClick={() =>
+            virtuosoRef.current?.scrollToIndex({
+              index: rows.length - 1,
+              align: "end",
+              behavior: "smooth",
+            })
+          }
+          aria-label="Jump to latest message"
+        >
+          <svg width="22" height="13" viewBox="0 0 22 13" fill="none" aria-hidden>
+            <path d="M1 1L11 11L21 1" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      ) : null}
       {galleryIndex != null && galleryImages.length > 0 ? (
         <ImageGallery
           images={galleryImages}
@@ -428,6 +574,6 @@ export function MessageList({
           onAction={(action) => onMenuAction(menu.message, action)}
         />
       ) : null}
-    </>
+    </div>
   );
 }

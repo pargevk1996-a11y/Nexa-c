@@ -7,6 +7,4 @@ export const BRAND_MARK =
 
 export const BRAND_TAGLINE = "Private messaging with clarity and control";
 
-/** Served from `frontend/web/public/` */
-export const BRAND_LOGO_URL = "/nexa-logo.png";
 export const BRAND_FAVICON_URL = "/favicon.png";

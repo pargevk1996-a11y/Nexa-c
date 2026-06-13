@@ -11,8 +11,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CallsPage } from "@/pages/CallsPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { ContactsPage } from "@/pages/ContactsPage";
-import { LoginPage } from "@/pages/LoginPage";
-import { RegisterPage } from "@/pages/RegisterPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
@@ -22,6 +20,8 @@ import { PostsPage } from "@/pages/PostsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { UserProfilePage } from "@/pages/UserProfilePage";
+import { LandingPage } from "@/pages/LandingPage";
+import { LegalPage } from "@/pages/LegalPage";
 
 export default function App() {
   return (
@@ -31,16 +31,21 @@ export default function App() {
       <BrowserRouter>
       <PrivacyRouteSync />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Public legal/trust pages — reachable signed-in or out (BUG-023) */}
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
 
         <Route element={<GuestRoute />}>
+          {/* Login & Register render the home page with a floating auth modal */}
+          <Route path="/login" element={<LandingPage />} />
+          <Route path="/register" element={<LandingPage />} />
           <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
             <Route
               path="/login/qr"
               element={isQrLoginEnabled() ? <QrLoginPage /> : <Navigate to="/login" replace />}
             />
-            <Route path="/register" element={<RegisterPage />} />
             <Route
               path="/verify-email"
               element={

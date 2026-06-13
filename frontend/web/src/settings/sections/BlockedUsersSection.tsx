@@ -22,7 +22,7 @@ function saveDemoBlocks(list: BlockedUser[]) {
 
 export function BlockedUsersSection() {
   const session = getCachedSession();
-  const live = Boolean(session?.accessToken && !session.demoMode);
+  const live = Boolean(session?.user?.id && !session?.demoMode);
   const [blocks, setBlocks] = useState<BlockedUser[]>([]);
   const [userId, setUserId] = useState("");
   const [error, setError] = useState<string | null>(null);

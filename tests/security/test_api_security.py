@@ -47,7 +47,7 @@ def test_sql_injection_in_email_does_not_crash(auth_client) -> None:
 
 
 def test_token_type_must_be_access(contact_client) -> None:
-    from securechat_shared.security.jwt_keys import create_access_token
+    from nexa_shared.security.jwt_keys import create_access_token
 
     refresh_like = create_access_token(
         {"sub": "u1", "typ": "refresh"},

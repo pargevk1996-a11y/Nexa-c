@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.deps import get_current_user_id
+from app.core.deps import get_current_user_id, verify_internal_secret
 from app.schemas.chat import (
     ConversationResponse,
     CreateConversationRequest,
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/api/v1", tags=["chat"])
 async def _conv_response(c, user_id: str) -> ConversationResponse:
     last = await chat_store.get_last_message_preview(c.id)
     unread = await chat_store.get_unread_count(c.id, user_id)
+    is_locked = c.locked_for_user_id == user_id
     return ConversationResponse(
         id=c.id,
         type=c.type,
@@ -34,12 +35,13 @@ async def _conv_response(c, user_id: str) -> ConversationResponse:
         verified=c.verified,
         parent_id=c.parent_id,
         member_count=len(c.members),
-        last_message_preview=last,
+        last_message_preview=None if is_locked else last,
         unread_count=unread,
         pinned_message_ids=list(c.pinned_message_ids),
         my_role=group_service.get_member_role(c, user_id),
         peer_user_id=_peer_user_id(c, user_id),
         member_ids=[m.user_id for m in c.members if m.user_id != user_id],
+        is_locked=is_locked,
     )
 
 
@@ -105,6 +107,7 @@ async def create_conversation(
             parent_id=body.parent_id,
             verified=body.verified,
             settings=settings,
+            locked_for=body.locked_for,
         )
     except ValueError as e:
         if str(e) == "SLUG_TAKEN":
@@ -126,6 +129,8 @@ async def list_messages(
     limit: int = Query(default=50, le=100),
     user_id: str = Depends(get_current_user_id),
 ) -> list[MessageResponse]:
+    conv = await chat_store.get_conversation(conversation_id, user_id)
+    locked = conv is not None and conv.locked_for_user_id == user_id
     msgs = await chat_store.list_messages(
         conversation_id,
         user_id,
@@ -135,7 +140,31 @@ async def list_messages(
         main_timeline_only=main_timeline,
         limit=limit,
     )
-    return [await _msg_response(m) for m in msgs]
+    result = []
+    for m in msgs:
+        r = await _msg_response(m)
+        if locked and m.sender_id != user_id:
+            r.body = ""
+        result.append(r)
+    return result
+
+
+@router.patch("/conversations/{conversation_id}/unlock")
+async def unlock_conversation(
+    conversation_id: str,
+    _: None = Depends(verify_internal_secret),
+) -> dict[str, bool]:
+    ok = await chat_store.unlock_conversation(conversation_id)
+    return {"ok": ok}
+
+
+@router.patch("/conversations/{conversation_id}/archive")
+async def archive_conversation(
+    conversation_id: str,
+    _: None = Depends(verify_internal_secret),
+) -> dict[str, bool]:
+    ok = await chat_store.archive_conversation(conversation_id)
+    return {"ok": ok}
 
 
 @router.get("/messages/{message_id}/thread", response_model=list[MessageResponse])
@@ -174,11 +203,12 @@ async def sync_state(
     latest_seq = await chat_store.get_latest_seq(conversation_id)
     latest = max((m.seq for m in msgs), default=after_seq)
     latest = max(latest, latest_seq)
+    msg_responses = [await _msg_response(m) for m in msgs]
     payload = {
         "conversation_id": conversation_id,
         "after_seq": after_seq,
         "latest_seq": latest,
-        "messages": [await _msg_response(m) for m in msgs],
+        "messages": [r.model_dump() for r in msg_responses],
         "sync_required": len(msgs) >= 200,
     }
     await set_cached_sync(conversation_id, user_id, after_seq, payload)
@@ -232,7 +262,7 @@ async def send_message(
             )
 
     try:
-        msg = await chat_store.send_message(
+        msg, is_new = await chat_store.send_message(
             conversation_id,
             user_id,
             client_msg_id=body.client_msg_id,
@@ -271,23 +301,24 @@ async def send_message(
         )
 
     response = await _msg_response(msg)
-    await publish_message_event(
-        name="message.new",
-        conversation_id=conversation_id,
-        payload={"message": response.model_dump(), "seq": msg.seq, "conversation_title": conv.title},
-        sender_id=user_id,
-    )
-    targets = [m.user_id for m in conv.members if m.user_id != user_id]
-    await dispatch_push_for_message(
-        conversation_id=conversation_id,
-        message_id=msg.id,
-        sender_id=user_id,
-        sender_name=conv.title or "Chat",
-        body_preview=response.body,
-        silent=body.silent,
-        target_user_ids=targets,
-        conversation_title=conv.title,
-    )
+    if is_new:
+        await publish_message_event(
+            name="message.new",
+            conversation_id=conversation_id,
+            payload={"message": response.model_dump(), "seq": msg.seq, "conversation_title": conv.title},
+            sender_id=user_id,
+        )
+        targets = [m.user_id for m in conv.members if m.user_id != user_id]
+        await dispatch_push_for_message(
+            conversation_id=conversation_id,
+            message_id=msg.id,
+            sender_id=user_id,
+            sender_name=conv.title or "Chat",
+            body_preview=response.body,
+            silent=body.silent,
+            target_user_ids=targets,
+            conversation_title=conv.title,
+        )
     return response
 
 
@@ -377,7 +408,7 @@ async def read_receipt(
     await publish_message_event(
         name="receipt.read",
         conversation_id=conversation_id,
-        payload={"up_to_seq": body.up_to_seq, "user_id": user_id},
+        payload={"up_to_seq": body.up_to_seq, "user_id": user_id, "conversation_id": conversation_id},
         sender_id=user_id,
     )
     return {"ok": True}

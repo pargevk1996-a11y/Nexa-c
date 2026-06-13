@@ -4,12 +4,17 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { getCachedSession } from "@/api/auth";
+import { fetchPublicProfile } from "@/api/profile";
+import { resolvePeer } from "@/utils/peerResolve";
 import { verifySignatureForUser } from "@/security/signaturePin";
-import { sendMessageRest } from "@/api/chat";
+import { listConversations, listMessages, sendMessageRest } from "@/api/chat";
+import { mapApiConversation } from "@/realtime/useRealtimeChat";
+import { apiMessageToUi } from "@/realtime/mapMessage";
 import type { DemoGif, DemoSticker } from "@/data/mockMedia";
 import { uploadFileResumable } from "@/media/resumableUpload";
 import { cacheBlobPersistent, cachePreviewUrl, cacheSignedUrl } from "@/media/mediaCache";
@@ -52,7 +57,7 @@ import {
 } from "@/utils/chatTypes";
 import { replySenderLabel, replySnippet } from "@/utils/messageLayout";
 import { canRecallMessage } from "@/utils/messageStatus";
-import { filePreviewLabel, getFileCategory, readFileAsObjectUrl } from "@/utils/files";
+import { filePreviewLabel, getFileCategory } from "@/utils/files";
 import { extractFirstUrl, messageMatchesKeyword } from "@/utils/messageFormat";
 import type { LinkPreview, PollData, QuizData } from "@/types";
 
@@ -73,10 +78,6 @@ interface ChatContextValue {
   visibleConversations: Conversation[];
   activeId: string | null;
   activeConversation: Conversation | null;
-  showArchived: boolean;
-  setShowArchived: (v: boolean) => void;
-  showHidden: boolean;
-  setShowHidden: (v: boolean) => void;
   archivedConversations: Conversation[];
   hiddenConversations: Conversation[];
   savedConversation: Conversation | null;
@@ -145,6 +146,10 @@ interface ChatContextValue {
   offlineMode: boolean;
   syncing: boolean;
   pinUnlocked: boolean;
+  refreshConversations: () => Promise<Conversation[]>;
+  refreshMessagesForConversation: (conversationId: string) => Promise<void>;
+  loadOlderMessages: () => Promise<void>;
+  hasOlderMessages: boolean;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -328,10 +333,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const { settings } = useSettings();
   const session = getCachedSession();
   const userId = session?.user.id;
-  const liveChatEnabled = Boolean(session?.accessToken && !session.demoMode);
+  const liveChatEnabled = Boolean(session?.user?.id && !session?.demoMode);
   const [vaultReady, setVaultReady] = useState(false);
   const [liveMode, setLiveMode] = useState(false);
   const [apiMessages, setApiMessages] = useState<Record<string, Message[]>>({});
+  // Always-current snapshot of apiMessages so callbacks can read it without
+  // listing apiMessages as a dependency (keeps their identity stable).
+  const apiMessagesRef = useRef<Record<string, Message[]>>(apiMessages);
+  apiMessagesRef.current = apiMessages;
   const [conversations, setConversations] = useState<Conversation[]>(cloneConversations);
   const [activeId, setActiveId] = useState<string | null>(() => {
     const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
@@ -339,8 +348,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return MOCK_CONVERSATIONS[0]?.id ?? null;
   });
   const [search, setSearch] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ChatCategory>("all");
   const [activeFolder, setActiveFolder] = useState<ChatFolderId | "all">("all");
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -449,7 +456,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const onLiveMessages = useCallback((conversationId: string, messages: Message[]) => {
-    setApiMessages((prev) => ({ ...prev, [conversationId]: messages }));
+    setApiMessages((prev) => {
+      // Merge with any messages already in state (e.g. arrived via WS while fetch was in-flight)
+      const existing = prev[conversationId] ?? [];
+      const byId = new Map(messages.map((m) => [m.id, m]));
+      for (const m of existing) {
+        if (!byId.has(m.id)) byId.set(m.id, m);
+      }
+      const merged = [...byId.values()].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+      return { ...prev, [conversationId]: merged };
+    });
     if (userId) void cacheConversationMessages(userId, conversationId, messages);
   }, [userId]);
 
@@ -490,6 +506,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const onLiveTyping = useCallback(
+    (convId: string, _userId: string, isTyping: boolean) => {
+      onConversationActivity(convId, { typing: isTyping });
+    },
+    [onConversationActivity],
+  );
+
+  const onLivePresence = useCallback(
+    (uid: string, isOnline: boolean) => {
+      setConversations((prev) =>
+        prev.map((c) => (c.peerUserId === uid ? { ...c, online: isOnline } : c)),
+      );
+    },
+    [],
+  );
+
   const {
     sendText: liveSendText,
     sendTyping: liveSendTyping,
@@ -503,20 +535,88 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     onAppendMessage: onLiveAppend,
     onPatchMessage: onLivePatch,
     onMessageStatus: patchMessageStatus,
-    onTyping: (convId, _userId, isTyping) => {
-      onConversationActivity(convId, { typing: isTyping });
-    },
-    onPresence: (userId, isOnline) => {
-      setConversations((prev) =>
-        prev.map((c) => (c.peerUserId === userId ? { ...c, online: isOnline } : c)),
-      );
-    },
+    onTyping: onLiveTyping,
+    onPresence: onLivePresence,
     onConnectionState: setRealtimeState,
     onConversationActivity,
     readReceiptsEnabled: settings.readReceipts,
     appSettings: settings,
     currentUserId: userId,
   });
+
+  // Resolve DM peer display names. DM conversations carry no title, so the API
+  // mapping leaves the placeholder "Chat"; here we fetch each peer's public
+  // profile (cached) and patch the real name + online state into the list.
+  // Converges: once a name is filled, the conversation no longer matches the
+  // `needsName` filter, so no further setState occurs (no render loop).
+  useEffect(() => {
+    if (!liveChatEnabled) return;
+    const pending = conversations.filter(
+      (c) => c.peerUserId && (!c.name || c.name === "Chat"),
+    );
+    if (pending.length === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      pending.map(async (c) => {
+        const peer = await resolvePeer(c.peerUserId as string);
+        return peer
+          ? { id: c.id, name: peer.name, username: peer.username, online: peer.online }
+          : null;
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const patches = results.filter((r): r is NonNullable<typeof r> => r !== null);
+      if (patches.length === 0) return;
+      const byId = new Map(patches.map((p) => [p.id, p]));
+      setConversations((prev) =>
+        prev.map((c) => {
+          const patch = byId.get(c.id);
+          return patch
+            ? { ...c, name: patch.name, username: patch.username, online: patch.online }
+            : c;
+        }),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversations, liveChatEnabled]);
+
+  // Peer presence decays server-side (`effective_online` via a last_seen TTL),
+  // but the public-profile cache is process-lifetime and real-time presence.update
+  // events are routed to the subject's own devices — never to peers. So a peer's
+  // dot would otherwise freeze GREEN forever. Re-fetch the ACTIVE conversation
+  // peer's live presence on an interval and on tab focus, and drive it through
+  // state so the indicator correctly decays to gray when they go offline.
+  const activePeerId = useMemo(
+    () => conversations.find((c) => c.id === activeId)?.peerUserId,
+    [conversations, activeId],
+  );
+  useEffect(() => {
+    if (!liveChatEnabled || !activePeerId) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const p = await fetchPublicProfile(activePeerId);
+        if (!cancelled) onLivePresence(activePeerId, Boolean(p.is_online));
+      } catch {
+        /* transient failure — keep the last known state */
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 30_000);
+    const onVis = () => {
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [activePeerId, liveChatEnabled, onLivePresence]);
 
   const sendTyping = useCallback(
     (conversationId: string, isTyping: boolean) => {
@@ -792,15 +892,37 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const rawMessagesForActive = useMemo(() => {
     if (!activeId) return [];
+    let msgs: Message[];
     if (liveChatEnabled) {
       if (apiMessages[activeId] !== undefined) {
-        return applyMutations(withTextKind(apiMessages[activeId]), mutations, activeId);
+        msgs = applyMutations(withTextKind(apiMessages[activeId]), mutations, activeId);
+      } else if (messagesLoading && !offlineMode) {
+        return [];
+      } else {
+        const base = withTextKind(MOCK_MESSAGES[activeId] ?? []);
+        const extra = extraMessages[activeId] ?? [];
+        msgs = applyMutations([...base, ...extra], mutations, activeId);
       }
-      if (messagesLoading && !offlineMode) return [];
+    } else {
+      const base = withTextKind(MOCK_MESSAGES[activeId] ?? []);
+      const extra = extraMessages[activeId] ?? [];
+      msgs = applyMutations([...base, ...extra], mutations, activeId);
     }
-    const base = withTextKind(MOCK_MESSAGES[activeId] ?? []);
-    const extra = extraMessages[activeId] ?? [];
-    return applyMutations([...base, ...extra], mutations, activeId);
+    // Resolve replyToId → replyTo for messages that have a server-side reply reference
+    const byId = new Map(msgs.map((m) => [m.id, m]));
+    return msgs.map((m) => {
+      if (!m.replyToId || m.replyTo) return m;
+      const replied = byId.get(m.replyToId);
+      if (!replied) return m;
+      return {
+        ...m,
+        replyTo: {
+          id: replied.id,
+          text: replySnippet(replied, "Peer"),
+          senderLabel: replySenderLabel(replied, "Peer"),
+        },
+      };
+    });
   }, [activeId, apiMessages, extraMessages, liveChatEnabled, messagesLoading, mutations]);
 
   const messagesForActive = useMemo(() => {
@@ -892,8 +1014,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!activeId || !activeConversation || !canSendMessages(activeConversation)) return;
       const trimmed = text.trim();
       if (!trimmed) return;
-      if (liveChatEnabled) {
-        liveSendText(activeId, trimmed);
+      // Saved Messages is a client-side self-chat with no backend conversation —
+      // routing it through the live socket fails with "Not sent". Store it locally
+      // (persists in the encrypted vault via extraMessages) and mark it delivered.
+      const isSaved = activeId === SAVED_MESSAGES_ID;
+      if (liveChatEnabled && !isSaved) {
+        liveSendText(activeId, trimmed, options?.replyTo?.id);
+        setReplyingTo(null);
         return;
       }
       const preview = options?.ephemeral ? "Disappearing message" : trimmed;
@@ -914,7 +1041,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         text: trimmed,
         sentAt,
         outgoing: true,
-        status: "sending",
+        status: isSaved ? "sent" : "sending",
         ephemeral: options?.ephemeral,
         silent: options?.silent,
         scheduledAt: options?.scheduledAt,
@@ -938,7 +1065,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ]);
       } else {
         appendMessage(draft, preview);
-        if (!options?.scheduledAt) {
+        if (!options?.scheduledAt && !isSaved) {
           scheduleDemoReceipts(msgId, patchMessageStatus);
         }
       }
@@ -1048,7 +1175,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const label = formatVoiceDuration(durationSeconds);
       const pendingId = `voice-${Date.now()}`;
       const session = getCachedSession();
-      const useApi = Boolean(session?.accessToken && !session.demoMode && liveChatEnabled);
+      // Saved Messages is a client-side self-chat with no backend conversation —
+      // routing media through the REST API hits a non-existent "saved" conversation
+      // (→ "Not sent"). Keep it local (cached blob), exactly like the text path.
+      const isSaved = activeId === SAVED_MESSAGES_ID;
+      const useApi = Boolean(session?.user?.id && !session?.demoMode && liveChatEnabled) && !isSaved;
 
       let peaks: number[] | undefined;
       if (blob.size > 0) {
@@ -1127,7 +1258,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               : file.name;
       const pendingId = `file-${Date.now()}`;
       const session = getCachedSession();
-      const useMediaApi = Boolean(session?.accessToken && !session.demoMode);
+      // Saved Messages has no backend conversation — keep media local (cached blob)
+      // instead of POSTing to a non-existent "saved" conversation (→ "Not sent").
+      const isSaved = activeId === SAVED_MESSAGES_ID;
+      const useMediaApi = Boolean(session?.user?.id && !session?.demoMode) && !isSaved;
 
       if (useMediaApi) {
         const kind = category === "video" || videoNote ? "video" : "file";
@@ -1563,16 +1697,73 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [visibleConversations],
   );
 
+  const refreshConversations = useCallback(async (): Promise<Conversation[]> => {
+    if (!liveChatEnabled) return [];
+    try {
+      const raw = await listConversations();
+      const mapped = raw.map(mapApiConversation);
+      onLiveConversations(mapped);
+      return mapped;
+    } catch {
+      return [];
+    }
+  }, [liveChatEnabled, onLiveConversations]);
+
+  const refreshMessagesForConversation = useCallback(async (conversationId: string) => {
+    if (!liveChatEnabled || !userId) return;
+    try {
+      const msgs = await listMessages(conversationId, { limit: 50 });
+      const ui = msgs.map((m) => apiMessageToUi(m, userId));
+      setApiMessages((prev) => ({ ...prev, [conversationId]: ui }));
+    } catch {
+      // ignore
+    }
+  }, [liveChatEnabled, userId]);
+
+  const [hasOlderByConv, setHasOlderByConv] = useState<Record<string, boolean>>({});
+  const loadingOlderRef = useRef(false);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeId || !liveChatEnabled || !userId) return;
+    if (loadingOlderRef.current) return;
+    const msgs = apiMessagesRef.current[activeId] ?? [];
+    if (msgs.length === 0) return;
+    const LIMIT = 30;
+    const oldestSeq = msgs.reduce((min, m) => (m.seq != null && m.seq < min ? m.seq : min), Infinity);
+    if (oldestSeq <= 1 || oldestSeq === Infinity) {
+      setHasOlderByConv((prev) => ({ ...prev, [activeId]: false }));
+      return;
+    }
+    loadingOlderRef.current = true;
+    try {
+      const older = await listMessages(activeId, { before_seq: oldestSeq, limit: LIMIT });
+      if (older.length === 0) {
+        setHasOlderByConv((prev) => ({ ...prev, [activeId]: false }));
+        return;
+      }
+      const uiOlder = older.map((m) => apiMessageToUi(m, userId));
+      setApiMessages((prev) => {
+        const current = prev[activeId] ?? [];
+        const existingIds = new Set(current.map((m) => m.id));
+        const fresh = uiOlder.filter((m) => !existingIds.has(m.id));
+        return { ...prev, [activeId]: [...fresh, ...current] };
+      });
+      setHasOlderByConv((prev) => ({ ...prev, [activeId]: older.length === LIMIT }));
+    } catch {
+      // ignore
+    } finally {
+      loadingOlderRef.current = false;
+    }
+  }, [activeId, liveChatEnabled, userId]);
+
+  const hasOlderMessages = Boolean(activeId && (hasOlderByConv[activeId] ?? liveChatEnabled));
+
   const value = useMemo(
     () => ({
       conversations,
       visibleConversations,
       activeId,
       activeConversation,
-      showArchived,
-      setShowArchived,
-      showHidden,
-      setShowHidden,
       archivedConversations,
       hiddenConversations,
       savedConversation,
@@ -1633,14 +1824,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       offlineMode,
       syncing,
       pinUnlocked,
+      refreshConversations,
+      refreshMessagesForConversation,
+      loadOlderMessages,
+      hasOlderMessages,
     }),
     [
       conversations,
       visibleConversations,
       activeId,
       activeConversation,
-      showArchived,
-      showHidden,
       archivedConversations,
       hiddenConversations,
       savedConversation,
@@ -1697,6 +1890,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       offlineMode,
       syncing,
       pinUnlocked,
+      refreshConversations,
+      refreshMessagesForConversation,
+      loadOlderMessages,
+      hasOlderMessages,
     ],
   );
 

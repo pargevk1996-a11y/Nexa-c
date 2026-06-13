@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createSpace, type SpaceType } from "@/api/groups";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,6 +32,16 @@ export function CreateSpaceModal({
   const [slowMode, setSlowMode] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Close on Escape — parity with the auth modal (BUG-003, applied proactively).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -68,9 +78,15 @@ export function CreateSpaceModal({
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
-        <h2>{parentCommunityId ? "New channel" : "Create space"}</h2>
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-space-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="create-space-title">{parentCommunityId ? "New channel" : "Create space"}</h2>
         <form className="auth-form" onSubmit={handleSubmit}>
           {!parentCommunityId && (
             <label className="input-label">

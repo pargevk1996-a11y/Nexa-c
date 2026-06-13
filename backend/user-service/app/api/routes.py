@@ -67,7 +67,15 @@ async def bootstrap_profile(
     body: ProfileBootstrapRequest,
     user_id: str = Depends(get_current_user_id),
 ) -> ProfileResponse:
-    p = await profile_store.bootstrap(user_id, body.username, nickname=body.nickname)
+    # Require a real username — never mint a `user_xxxx` placeholder. This closes
+    # the last path that could create junk profiles from a stale/empty session.
+    clean = (body.username or "").strip().lstrip("$")
+    if not clean:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "USERNAME_REQUIRED", "message": "Username is required"}},
+        )
+    p = await profile_store.bootstrap(user_id, clean, nickname=body.nickname)
     return _to_profile(p)
 
 
@@ -75,7 +83,10 @@ async def bootstrap_profile(
 async def clear_my_avatar(user_id: str = Depends(get_current_user_id)) -> ProfileResponse:
     p = await profile_store.clear_avatar(user_id)
     if not p:
-        p = await profile_store.ensure_profile(user_id, f"user_{user_id[:8]}")
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
+        )
     return _to_profile(p)
 
 
@@ -94,7 +105,14 @@ async def get_by_username(
 async def get_me(user_id: str = Depends(get_current_user_id)) -> ProfileResponse:
     p = await profile_store.get(user_id)
     if not p:
-        p = await profile_store.ensure_profile(user_id, f"user_{user_id[:8]}")
+        # Do NOT auto-create a placeholder `user_xxxx` profile here. A valid JWT
+        # without a profile (e.g. a stale token from a deleted account) would
+        # otherwise spawn junk duplicate profiles. Return 404 so the client runs
+        # the proper bootstrap flow with the real chosen username instead.
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
+        )
     return _to_profile(p)
 
 
@@ -103,9 +121,12 @@ async def update_me(
     body: ProfileUpdateRequest,
     user_id: str = Depends(get_current_user_id),
 ) -> ProfileResponse:
-    p = await profile_store.get(user_id) or await profile_store.ensure_profile(
-        user_id, body.username or f"user_{user_id[:8]}"
-    )
+    p = await profile_store.get(user_id)
+    if not p:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
+        )
     privacy = None
     if body.privacy is not None:
         privacy = ProfilePrivacy(**body.privacy.model_dump())
@@ -156,9 +177,12 @@ async def update_presence(
     body: PresenceUpdateRequest,
     user_id: str = Depends(get_current_user_id),
 ) -> ProfileResponse:
-    p = await profile_store.get(user_id) or await profile_store.ensure_profile(
-        user_id, f"user_{user_id[:8]}"
-    )
+    p = await profile_store.get(user_id)
+    if not p:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
+        )
     updated = await profile_store.set_presence(user_id, is_online=body.is_online, status_text=body.status_text)
     return _to_profile(updated or p)
 

@@ -67,6 +67,21 @@ class PostgresUserStore:
             row = await session.scalar(select(UserRow).where(func.lower(UserRow.email) == key))
             return self._to_stored(row) if row else None
 
+    async def get_by_username(self, username: str) -> StoredUser | None:
+        key = username.strip().lstrip("$").lower()
+        if not key:
+            return None
+        async with self._sm() as session:
+            row = await session.scalar(select(UserRow).where(func.lower(UserRow.username) == key))
+            return self._to_stored(row) if row else None
+
+    async def get_by_identifier(self, identifier: str) -> StoredUser | None:
+        # An identifier is an email if it contains "@", otherwise a username.
+        ident = identifier.strip()
+        if "@" in ident:
+            return await self.get_by_email(ident)
+        return await self.get_by_username(ident)
+
     async def get_by_id(self, user_id: str) -> StoredUser | None:
         async with self._sm() as session:
             try:
@@ -78,6 +93,14 @@ class PostgresUserStore:
 
     async def verify_credentials(self, email: str, password: str) -> StoredUser | None:
         user = await self.get_by_email(email)
+        if not user or not verify_password(user.password_hash, password):
+            return None
+        return user
+
+    async def verify_credentials_by_identifier(
+        self, identifier: str, password: str
+    ) -> StoredUser | None:
+        user = await self.get_by_identifier(identifier)
         if not user or not verify_password(user.password_hash, password):
             return None
         return user
@@ -322,6 +345,15 @@ class PostgresSessionStore:
         async with self._sm() as session:
             row = await session.scalar(select(QrSessionRow).where(QrSessionRow.token == token))
             return self._qr_to_stored(row) if row else None
+
+    async def consume_qr_refresh(self, token: str) -> None:
+        """One-time read: null the plaintext refresh token on the QR row once the
+        paired device has received it, so it is not left at rest in the DB."""
+        async with self._sm() as session:
+            row = await session.scalar(select(QrSessionRow).where(QrSessionRow.token == token))
+            if row is not None and row.refresh_token_raw is not None:
+                row.refresh_token_raw = None
+                await session.commit()
 
     async def approve_qr(
         self,

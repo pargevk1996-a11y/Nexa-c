@@ -24,7 +24,7 @@ from app.schemas.auth import (
     VerifyEmailRequest,
 )
 from app.services.verification_store import verification_store
-from app.api.session_routes import _set_refresh_cookie
+from app.api.session_routes import _set_access_cookie, _set_refresh_cookie
 from app.services.session_store import session_store
 from app.services.token_service import issue_tokens_for_user
 from app.services.login_challenge_store import login_challenge_store
@@ -114,8 +114,14 @@ def _login_protection_error(check_code: str, message: str, *, retry_after_second
 @router.post("/login", response_model=AuthResponse)
 async def login(body: LoginRequest, request: Request, response: Response) -> AuthResponse:
     ip = _get_client_ip(request)
+    login_id = body.login_id
+    if not login_id:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": {"code": "IDENTIFIER_REQUIRED", "message": "Username or email is required"}},
+        )
     protection = await get_login_protection()
-    check = await protection.check(body.email, ip)
+    check = await protection.check(login_id, ip)
     if not check.allowed:
         raise _login_protection_error(
             check.code or "ACCOUNT_LOCKED",
@@ -123,14 +129,14 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Aut
             retry_after_seconds=check.retry_after_seconds,
         )
 
-    user = await store.verify_credentials(body.email, body.password)
+    user = await store.verify_credentials_by_identifier(login_id, body.password)
     if not user:
-        failure = await protection.record_failure(body.email, ip)
+        failure = await protection.record_failure(login_id, ip)
         audit_log.record(
             "auth.login_failed",
             ip_hint=ip,
             metadata={
-                "email": body.email,
+                "identifier": login_id,
                 "failures": failure.failures,
                 "strikes": failure.strikes,
                 "requires_password_reset": failure.requires_password_reset,
@@ -153,11 +159,11 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Aut
             detail={
                 "error": {
                     "code": "INVALID_CREDENTIALS",
-                    "message": "Incorrect email or password. Please try again.",
+                    "message": "Incorrect username or password. Please try again.",
                 }
             },
         )
-    await protection.record_success(body.email, ip)
+    await protection.record_success(login_id, ip)
     fp = fingerprint_request(request)
     known_fps = {s.device_fingerprint for s in await session_store.list_user_sessions(user.id)}
     risk = assess_login(
@@ -199,6 +205,7 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Aut
         request=request,
     )
     _set_refresh_cookie(response, raw_refresh)
+    _set_access_cookie(response, access)
     audit_log.record(
         "auth.login_success",
         user_id=user.id,
@@ -251,6 +258,7 @@ async def login_2fa(body: Login2faRequest, request: Request, response: Response)
         request=request,
     )
     _set_refresh_cookie(response, raw_refresh)
+    _set_access_cookie(response, access)
     ip = _get_client_ip(request)
     audit_log.record(
         "auth.login_success",

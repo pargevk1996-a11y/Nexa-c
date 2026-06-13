@@ -44,6 +44,16 @@ export function SignaturePinModal({
     void hasSignatureForUser(uid).then((has) => setSetupMode(!has));
   }, [open, session?.user.id]);
 
+  // Close on Escape — modal a11y parity (BUG-003, applied proactively).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   async function handleSubmit(e: FormEvent) {

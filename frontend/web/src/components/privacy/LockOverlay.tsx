@@ -17,19 +17,19 @@ interface StateContent {
 }
 
 const STATE_CONTENT: Record<Exclude<LockState, "active">, StateContent> = {
-  locked_click: {
-    title: "We care about your security.",
-    body: "To unlock, please click on the screen.",
-    clickable: true,
-  },
   pin_required: {
-    title: "You have been inactive for more than 2 minutes.",
-    body: "To prevent data loss, please enter your PIN code.",
+    title: "Screen locked",
+    body: "Enter your PIN to unlock.",
     clickable: false,
   },
   screenshot_blocked: {
     title: "Oops! Screenshots are not allowed.",
     body: "To unlock, please click on the screen.",
+    clickable: true,
+  },
+  away: {
+    title: "We always think about your security",
+    body: "To continue, click anywhere on the screen.",
     clickable: true,
   },
 };

@@ -98,6 +98,40 @@ export async function saveSettings(userId: string, settings: AppSettings): Promi
   await setSecureItem(storageKeys.settings(userId), userId, settings);
 }
 
+/**
+ * Device-wide theme preference (plain localStorage, NOT per-user) so the
+ * light / dark choice is identical everywhere: home screen, auth, and the
+ * logged-in app — a guest who picks light still sees light after logging in.
+ */
+const GLOBAL_THEME_KEY = "nexa-theme";
+
+export function getGlobalTheme(): ThemeMode {
+  try {
+    const v = localStorage.getItem(GLOBAL_THEME_KEY);
+    if (v === "light" || v === "dark" || v === "system") return v;
+  } catch {
+    /* storage unavailable */
+  }
+  return DEFAULT_SETTINGS.theme;
+}
+
+export function setGlobalTheme(theme: ThemeMode): void {
+  try {
+    localStorage.setItem(GLOBAL_THEME_KEY, theme);
+  } catch {
+    /* storage unavailable */
+  }
+  applyTheme(theme);
+}
+
+/** Resolve a theme mode to whether the effective look is light. */
+export function isLightTheme(theme: ThemeMode = getGlobalTheme()): boolean {
+  if (theme === "system") {
+    return !window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  return theme === "light";
+}
+
 let themeTransitionTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function applyTheme(theme: ThemeMode): void {
@@ -120,6 +154,6 @@ export function applyTheme(theme: ThemeMode): void {
 }
 
 export function applyFontSize(size: FontSize): void {
-  const map = { small: "14px", medium: "16px", large: "18px" };
+  const map = { small: "16px", medium: "17px", large: "18px" };
   document.documentElement.style.fontSize = map[size];
 }

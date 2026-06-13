@@ -15,7 +15,7 @@ export function useNotificationPrefs(conversationId?: string | null) {
   const [chatPrefs, setChatPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const live = Boolean(session?.accessToken && !session.demoMode);
+  const live = Boolean(session?.user?.id && !session?.demoMode);
 
   const refresh = useCallback(async () => {
     if (!live) return;

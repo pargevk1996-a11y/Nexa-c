@@ -1,7 +1,7 @@
 import type { AuthSession } from "@/types";
 import { getSecureItem, removeSecureItem, setSecureItem, wipeLocalSecurityState } from "./secureStorage";
 import { storageKeys } from "./storageKeys";
-import { getOrCreateDeviceKeyMaterial } from "./deviceKey";
+import { getOrCreateDeviceBaseKey } from "./deviceKey";
 
 const ACTIVE_UID_KEY = "securechat_active_uid_v1";
 
@@ -17,7 +17,7 @@ export function getActiveUserId(): string | null {
 
 export async function refreshSessionCache(): Promise<AuthSession | null> {
   const uid = sessionStorage.getItem(ACTIVE_UID_KEY);
-  if (!uid || !sessionStorage.getItem("securechat_device_material_v1")) {
+  if (!uid) {
     cachedSession = null;
     return null;
   }
@@ -29,7 +29,8 @@ export async function refreshSessionCache(): Promise<AuthSession | null> {
 }
 
 export async function persistSession(session: AuthSession): Promise<void> {
-  getOrCreateDeviceKeyMaterial();
+  // Ensure device base key exists before writing encrypted session data.
+  await getOrCreateDeviceBaseKey();
   sessionStorage.setItem(ACTIVE_UID_KEY, session.user.id);
   // Mark this tab as explicitly unlocked so the new-tab lock doesn't re-trigger.
   sessionStorage.setItem(storageKeys.tabUnlocked, "1");
@@ -47,5 +48,5 @@ export async function clearSession(): Promise<void> {
   sessionStorage.removeItem(storageKeys.tabUnlocked);
   try { localStorage.removeItem(storageKeys.globalUnlocked); } catch { /* ignore */ }
   cachedSession = null;
-  wipeLocalSecurityState();
+  await wipeLocalSecurityState();
 }

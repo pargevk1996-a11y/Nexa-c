@@ -34,3 +34,24 @@ def decrypt_field(blob_b64: str, *, master_key_b64: str, aad: str = "securechat-
     aes = AESGCM(key)
     plaintext = aes.decrypt(nonce, ct, aad.encode("utf-8"))
     return json.loads(plaintext.decode("utf-8"))
+
+
+_COOKIE_AAD = "nexa-cookie-v1"
+
+
+def encrypt_cookie_token(token: str, *, key_b64: str) -> str:
+    """Encrypt a JWT string for storage in an httpOnly cookie.
+
+    Returns a URL-safe base64 blob (nonce + ciphertext + GCM tag).
+    The result is opaque — it does not start with 'eyJ' and cannot be
+    decoded without the server-side key.
+    """
+    return encrypt_field(token, master_key_b64=key_b64, aad=_COOKIE_AAD)
+
+
+def decrypt_cookie_token(blob: str, *, key_b64: str) -> str | None:
+    """Decrypt a cookie blob back to the original JWT.  Returns None on any error."""
+    try:
+        return decrypt_field(blob, master_key_b64=key_b64, aad=_COOKIE_AAD)
+    except Exception:
+        return None

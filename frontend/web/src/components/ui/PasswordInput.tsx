@@ -1,4 +1,4 @@
-import { useState, type InputHTMLAttributes } from "react";
+import { useId, useState, type InputHTMLAttributes } from "react";
 
 interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   label: string;
@@ -6,9 +6,13 @@ interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
   hint?: string;
 }
 
-export function PasswordInput({ label, error, hint, id, className = "", ...rest }: PasswordInputProps) {
+export function PasswordInput({ label, error, hint, id, className = "", placeholder, ...rest }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
-  const inputId = id ?? rest.name;
+  const reactId = useId();
+  const inputId = id ?? rest.name ?? reactId;
+  const hintId = hint ? `${inputId}-hint` : undefined;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const resolvedPlaceholder = placeholder ?? " ";
 
   return (
     <div className={`field field--password ${error ? "field--error" : ""} ${className}`.trim()}>
@@ -20,6 +24,9 @@ export function PasswordInput({ label, error, hint, id, className = "", ...rest 
           id={inputId}
           className="field__input field__input--password"
           type={visible ? "text" : "password"}
+          placeholder={resolvedPlaceholder}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={[errorId, hintId].filter(Boolean).join(" ") || undefined}
           {...rest}
         />
         <button
@@ -27,14 +34,19 @@ export function PasswordInput({ label, error, hint, id, className = "", ...rest 
           className="field__password-toggle"
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? "Hide password" : "Show password"}
-          tabIndex={-1}
+          aria-pressed={visible}
+          aria-controls={inputId}
         >
           {visible ? <EyeOffIcon /> : <EyeIcon />}
         </button>
       </div>
-      {hint && !error ? <p className="field__hint">{hint}</p> : null}
+      {hint && !error ? (
+        <p className="field__hint" id={hintId}>
+          {hint}
+        </p>
+      ) : null}
       {error ? (
-        <span className="field__error" role="alert">
+        <span className="field__error" id={errorId} role="alert" aria-live="assertive">
           {error}
         </span>
       ) : null}

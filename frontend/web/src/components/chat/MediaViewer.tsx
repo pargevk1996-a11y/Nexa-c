@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatFileSize, getFileCategory } from "@/utils/files";
 import { useBackgroundPlayback } from "@/media/useBackgroundPlayback";
 
@@ -49,7 +50,7 @@ export function MediaViewer({
     a.remove();
   }
 
-  return (
+  return createPortal(
     <div className="media-viewer" role="dialog" aria-label={`View ${fileName}`}>
       <div className="media-viewer__backdrop" onClick={onClose} />
       <div className="media-viewer__panel" onClick={(e) => e.stopPropagation()}>
@@ -100,6 +101,7 @@ export function MediaViewer({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

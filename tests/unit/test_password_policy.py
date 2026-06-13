@@ -1,7 +1,7 @@
 """Unit tests: password policy validation."""
 
 import pytest
-from securechat_shared.security.password_policy import (
+from nexa_shared.security.password_policy import (
     VIOLATION_MISSING_DIGIT,
     VIOLATION_TOO_SHORT,
     PasswordPolicy,

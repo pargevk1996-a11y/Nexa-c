@@ -43,7 +43,7 @@ export function PasswordLoginForm({ onSuccess, onError }: PasswordLoginFormProps
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setFieldErrors({ email: "Email is required" });
+      setFieldErrors({ email: "Username is required" });
       return;
     }
     if (!password) {
@@ -114,10 +114,11 @@ export function PasswordLoginForm({ onSuccess, onError }: PasswordLoginFormProps
   return (
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <Input
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
+        label="Username"
+        name="username"
+        type="text"
+        autoComplete="username"
+        placeholder="username"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         error={fieldErrors.email}
@@ -126,6 +127,7 @@ export function PasswordLoginForm({ onSuccess, onError }: PasswordLoginFormProps
       <PasswordInput
         label="Password"
         name="password"
+        placeholder="password"
         autoComplete="current-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}

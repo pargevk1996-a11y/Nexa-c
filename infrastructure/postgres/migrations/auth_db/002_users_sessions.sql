@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(lower(email));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_uid   ON users(uid);
+-- Phone must be unique when present (NULL/empty allowed for accounts without a phone)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone) WHERE phone IS NOT NULL AND phone <> '';
 
 CREATE TABLE IF NOT EXISTS sessions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),

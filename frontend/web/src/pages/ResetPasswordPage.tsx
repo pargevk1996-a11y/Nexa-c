@@ -2,9 +2,11 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { resetPassword } from "@/api/auth";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthAlert } from "@/components/auth/AuthAlert";
 import { Button } from "@/components/ui/Button";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { PASSWORD_HINT, validateClientPassword } from "@/utils/passwordMessages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ApiError } from "@/api/client";
 
 export function ResetPasswordPage() {
@@ -15,6 +17,7 @@ export function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useDocumentTitle("New password");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -49,10 +52,11 @@ export function ResetPasswordPage() {
 
   return (
     <AuthCard title="New password" subtitle="At least 8 characters; letters and numbers only">
-        {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
+        <AuthAlert variant="error">{error}</AuthAlert>
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <PasswordInput
             label="New password"
+            name="new_password"
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -61,6 +65,7 @@ export function ResetPasswordPage() {
           />
           <PasswordInput
             label="Confirm password"
+            name="confirm_password"
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}

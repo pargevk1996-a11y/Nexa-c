@@ -4,11 +4,34 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  /* Deep-space black like the home / auth screens (the star field sits on top) */
+  background: #000;
+}
+
+/* Soft blue glow, same as the home page nebula */
+.ambient-bg__glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 60% at 12% 8%, rgba(124, 58, 237, 0.28), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 88% 15%, rgba(37, 99, 235, 0.22), transparent 50%),
-    radial-gradient(ellipse 60% 70% at 50% 100%, rgba(34, 211, 238, 0.08), transparent 55%),
-    linear-gradient(165deg, var(--bg-gradient-1) 0%, var(--bg-root) 45%, var(--bg-gradient-2) 100%);
+    radial-gradient(60% 45% at 18% 10%, rgba(79, 124, 255, 0.16), transparent 70%),
+    radial-gradient(55% 45% at 85% 18%, rgba(56, 128, 255, 0.12), transparent 72%),
+    radial-gradient(50% 50% at 50% 100%, rgba(34, 211, 238, 0.06), transparent 60%);
+}
+
+/* Light theme: a rich, colourful daytime composition (not a pale wash) */
+[data-theme="light"] .ambient-bg {
+  background:
+    radial-gradient(58% 50% at 12% 6%, rgba(124, 92, 255, 0.32), transparent 62%),
+    radial-gradient(55% 50% at 90% 12%, rgba(56, 140, 255, 0.3), transparent 64%),
+    radial-gradient(52% 55% at 50% 102%, rgba(45, 212, 191, 0.22), transparent 62%),
+    radial-gradient(46% 46% at 82% 82%, rgba(244, 114, 182, 0.2), transparent 62%),
+    linear-gradient(155deg, #e9efff 0%, #f1ecff 45%, #e9fbff 100%);
+}
+[data-theme="light"] .ambient-bg .auth-starfield,
+[data-theme="light"] .ambient-bg__glow {
+  opacity: 0;
 }
 
 .ambient-bg__orb {
@@ -24,7 +47,7 @@
   height: 420px;
   top: -8%;
   left: -5%;
-  background: rgba(139, 92, 246, 0.35);
+  background: rgba(79, 124, 255, 0.35);
 }
 
 .ambient-bg__orb--2 {

@@ -54,7 +54,7 @@
   border-radius: var(--radius-full);
   background: var(--accent-gradient);
   color: #fff;
-  box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 12px rgba(59, 109, 255, 0.4);
 }
 
 .chat-left-panel__saved-btn {
@@ -71,7 +71,7 @@
 }
 
 .chat-left-panel__saved-btn:hover {
-  background: rgba(168, 85, 247, 0.22);
+  background: rgba(79, 124, 255, 0.22);
 }
 
 .chat-left-panel__new-btn {
@@ -448,10 +448,9 @@
   }
 }
 
-/* Message grouping */
+/* Message grouping — border-radius handled by nexa.css */
 .chat-bubble-row--grouped .chat-bubble {
   margin-top: 2px;
-  border-radius: var(--radius-md);
 }
 
 .chat-bubble-row--grouped.chat-bubble-row--out .chat-bubble {
@@ -460,14 +459,6 @@
 
 .chat-bubble-row--grouped.chat-bubble-row--in .chat-bubble {
   border-top-left-radius: 6px;
-}
-
-.chat-bubble-row--tail.chat-bubble-row--out .chat-bubble {
-  border-bottom-right-radius: var(--radius-lg);
-}
-
-.chat-bubble-row--tail.chat-bubble-row--in .chat-bubble {
-  border-bottom-left-radius: var(--radius-lg);
 }
 
 .chat-bubble__reply-quote {
@@ -870,4 +861,214 @@
   padding: 0.55rem 0.6rem 0.65rem;
   gap: 0.25rem;
   overflow: visible;
+}
+
+/* ── Contact Request UI ─────────────────────────────────────────────── */
+
+.contacts-page__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: none;
+  border: none;
+  cursor: default;
+  text-align: left;
+  border-radius: var(--radius-md);
+  transition: background var(--dur) var(--ease);
+}
+.contacts-page__row:hover {
+  background: var(--bg-hover);
+}
+
+.contacts-page__row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.contacts-page__request-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.contacts-page__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.contacts-page__action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.contacts-page__action-btn--accept {
+  color: var(--accent, #4caf7d);
+  border-color: var(--accent, #4caf7d);
+}
+.contacts-page__action-btn--accept:hover:not(:disabled) {
+  background: var(--accent, #4caf7d);
+  color: #fff;
+}
+
+.contacts-page__action-btn--decline {
+  color: var(--danger, #e05252);
+  border-color: var(--danger, #e05252);
+}
+.contacts-page__action-btn--decline:hover:not(:disabled) {
+  background: var(--danger, #e05252);
+  color: #fff;
+}
+
+.contacts-page__action-btn--pending {
+  color: var(--text-muted);
+  border-color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.contacts-page__status-label {
+  font-size: 0.72rem;
+  color: var(--accent, #4caf7d);
+  white-space: nowrap;
+}
+
+.contacts-page__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(229, 57, 53, 0.15);
+  border: 1px solid rgba(229, 57, 53, 0.35);
+  color: #ff6b6b;
+  font-size: 0.82rem;
+}
+.contacts-page__error button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+.contacts-page__error button:hover {
+  opacity: 1;
+}
+
+/* Nav badge for pending contact requests */
+.chat-left-panel__nav-icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.chat-left-panel__nav-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: var(--danger, #e05252);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Locked conversation indicator */
+.chat-row__locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Contact request banner inside chat view */
+.contact-request-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  background: rgba(255, 200, 0, 0.08);
+  border-bottom: 1px solid rgba(255, 200, 0, 0.2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.contact-request-banner__icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.contact-request-banner__text {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.contact-request-banner__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.contact-request-banner__btn {
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+
+.contact-request-banner__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.contact-request-banner__btn--accept {
+  color: var(--accent, #4caf7d);
+  border-color: var(--accent, #4caf7d);
+}
+
+.contact-request-banner__btn--accept:hover:not(:disabled) {
+  background: var(--accent, #4caf7d);
+  color: #fff;
+}
+
+.contact-request-banner__btn--decline {
+  color: var(--danger, #e05252);
+  border-color: var(--danger, #e05252);
+}
+
+.contact-request-banner__btn--decline:hover:not(:disabled) {
+  background: var(--danger, #e05252);
+  color: #fff;
 }

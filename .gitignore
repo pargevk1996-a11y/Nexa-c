@@ -1,4 +1,6 @@
+# ──────────────────────────────────────────────────────────────────────────────
 # Python
+# ──────────────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -21,49 +23,111 @@ htmlcov/
 .coverage
 coverage.xml
 
-# Environment secrets — never commit these
+# ──────────────────────────────────────────────────────────────────────────────
+# Environment & secrets — never commit real values
+# ──────────────────────────────────────────────────────────────────────────────
 .env
 .env.local
+.env.development
 .env.production
 .env.staging
+.env.*.local
 !.env.example
 !.env.prod.example
 !.env.staging.example
+!.env.development.example
+# Frontend env files (VITE_ vars may embed API base URLs)
+frontend/web/.env
+frontend/web/.env.local
+frontend/web/.env.development
+frontend/web/.env.production
+frontend/web/.env.staging
+!frontend/web/.env.example
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Cryptographic material — private keys, certs, keystores
+# ──────────────────────────────────────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+# Keep the TLS generation helper script
+!infrastructure/tls/dev/generate-dev-certs.sh
+# JWT key directory (private + public generated at runtime)
+infrastructure/jwt/
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Node / frontend
+# ──────────────────────────────────────────────────────────────────────────────
 node_modules/
 frontend/web/dist/
 frontend/web/.vite/
 frontend/web/coverage/
 *.tsbuildinfo
 
-# IDE
-.idea/
+# ──────────────────────────────────────────────────────────────────────────────
+# IDE & AI assistant tools  ← SECURITY: may store API keys / tokens
+# ──────────────────────────────────────────────────────────────────────────────
+# Obsidian (plugins/copilot/data.json stores LLM API keys)
+.obsidian/
+# Cursor IDE
+.cursor/
+# Obsidian Copilot custom prompts (personal, not project code)
+copilot/
+# VS Code workspace settings (use .vscode/extensions.json if needed)
 .vscode/
-*.swp
-*.swo
+# JetBrains
+.idea/
+# Claude Code project settings (may include personal hooks / tokens)
+.claude/
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AI memory & scratch files
+# ──────────────────────────────────────────────────────────────────────────────
+ClaudeMemory.md
+Untitled.base
+*.base
+
+# ──────────────────────────────────────────────────────────────────────────────
+# OS artefacts
+# ──────────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
+*.swo
 
-# Docker runtime
+# ──────────────────────────────────────────────────────────────────────────────
+# Docker / process runtime
+# ──────────────────────────────────────────────────────────────────────────────
 *.pid
 *.log
 
-# Keys & secrets
-*.pem
-*.key
-*.crt
-*.p12
-
-# Local dev runtime data
-.dev/pgdata/
-.dev/pg-run/
-.dev/redis-data/
-.dev/logs/
-.dev/pids/
-
-# Nested dev runtime dirs in services
+# ──────────────────────────────────────────────────────────────────────────────
+# Local dev runtime data (PostgreSQL, Redis, service logs & pids)
+# ──────────────────────────────────────────────────────────────────────────────
+.dev/
 **/.dev/
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Test artefacts
+# ──────────────────────────────────────────────────────────────────────────────
+test-results/
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Local dev tools (PostgreSQL, Redis, Node binaries — not for version control)
+# ──────────────────────────────────────────────────────────────────────────────
 .tools/
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Terraform / IaC secrets
+# ──────────────────────────────────────────────────────────────────────────────
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform/
+.terraform.lock.hcl

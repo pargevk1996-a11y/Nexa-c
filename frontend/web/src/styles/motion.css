@@ -26,12 +26,11 @@ input[type="button"],
   transition-duration: 80ms;
 }
 
-/* Long lists: skip off-screen paint cost */
-.chat-bubble-row {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 72px;
-}
-
+/* Long lists: skip off-screen paint cost.
+   NOTE: deliberately NOT applied to .chat-bubble-row — the message list is
+   virtualized by react-virtuoso, and content-visibility:auto reports the
+   estimated contain-intrinsic-size instead of the real row height, which fights
+   Virtuoso's measurement and causes scroll-position jumps. */
 .chat-conv-item {
   content-visibility: auto;
   contain-intrinsic-size: auto 64px;
@@ -89,7 +88,7 @@ input[type="button"],
 }
 
 .chat-conv-item--active {
-  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(79, 124, 255, 0.2);
 }
 
 .chat-bubble {

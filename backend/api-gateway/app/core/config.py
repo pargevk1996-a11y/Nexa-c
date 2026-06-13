@@ -60,6 +60,7 @@ class Settings(BaseSettings):
         default="dev-internal-secret",
         validation_alias="INTERNAL_SERVICE_SECRET",
     )
+    cookie_encryption_key: str = Field(default="", validation_alias="COOKIE_ENCRYPTION_KEY")
 
     @property
     def cors_origin_list(self) -> list[str]:

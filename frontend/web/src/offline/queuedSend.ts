@@ -16,7 +16,7 @@ export type FlushResult = {
 
 export async function flushOutboundQueueRest(): Promise<FlushResult> {
   const session = getCachedSession();
-  if (!session?.accessToken || session.demoMode) {
+  if (!session?.user?.id || session?.demoMode) {
     return { sent: 0, failed: 0, resolved: [] };
   }
   if (typeof navigator !== "undefined" && !navigator.onLine) {

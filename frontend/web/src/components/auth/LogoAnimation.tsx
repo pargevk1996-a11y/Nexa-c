@@ -48,13 +48,18 @@ export function LogoAnimation({ size = 220 }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Scale the canvas buffer by devicePixelRatio so it renders crisp on high-DPI
-    // screens (3× on modern phones). CSS size stays at `size` px; buffer is size×dpr.
-    const dpr = window.devicePixelRatio || 1;
+    // Mobile optimisation: cap the pixel ratio at 2 (3× phones draw ~2.25× more
+    // pixels per frame for no visible gain) and thin out particles on phones.
+    const isSmall = window.innerWidth < 640;
+    const dpr = Math.min(window.devicePixelRatio || 1, isSmall ? 1.5 : 2);
     canvas.width  = size * dpr;
     canvas.height = size * dpr;
+    // Width may be capped by CSS (e.g. max-width on small screens); keep the
+    // canvas square by letting height follow the width instead of locking it,
+    // otherwise the logo gets stretched on mobile.
     canvas.style.width  = `${size}px`;
-    canvas.style.height = `${size}px`;
+    canvas.style.height = "auto";
+    canvas.style.aspectRatio = "1 / 1";
 
     const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
@@ -81,7 +86,7 @@ export function LogoAnimation({ size = 220 }: Props) {
     const nodePhase = nodes.map((_, i) => i * 0.71);
 
     const particles: { ax: number; ay: number; az: number; r: number }[] = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < (isSmall ? 8 : 14); i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi   = Math.acos(2 * Math.random() - 1);
       const dist  = RADIUS * (1.15 + Math.random() * 0.35);
@@ -94,7 +99,7 @@ export function LogoAnimation({ size = 220 }: Props) {
     }
 
     // Continuous explosion sparks that emanate from the sphere surface
-    const SPARK_COUNT = 55;
+    const SPARK_COUNT = isSmall ? 26 : 55;
 
     function newSpark(life?: number): Spark {
       const angle = Math.random() * Math.PI * 2;

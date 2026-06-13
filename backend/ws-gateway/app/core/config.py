@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     )
 
     heartbeat_interval_seconds: int = 30
+    auth_timeout_seconds: int = Field(default=10, validation_alias="WS_AUTH_TIMEOUT_SECONDS")
     max_frame_bytes: int = 65536
     per_conn_rate_per_second: int = 50
     max_connections_per_node: int = Field(
@@ -36,6 +37,7 @@ class Settings(BaseSettings):
         validation_alias="WS_MAX_CONNECTIONS_PER_NODE",
     )
     nats_url: str = Field(default="", validation_alias="NATS_URL")
+    cookie_encryption_key: str = Field(default="", validation_alias="COOKIE_ENCRYPTION_KEY")
 
 
 settings = Settings()

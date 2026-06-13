@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from app.core.deps import get_current_user_id, verify_internal_secret
 from app.schemas.notifications import (
@@ -140,3 +141,26 @@ async def list_outbox(
 )
 async def internal_dispatch(body: DispatchNotificationRequest) -> DispatchNotificationResponse:
     return await dispatch_message_notifications(body)
+
+
+class ContactRequestNotification(BaseModel):
+    from_user_id: str
+    from_username: str
+    to_user_id: str
+    request_id: str
+
+
+@router.post(
+    "/internal/dispatch-contact-request",
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def internal_dispatch_contact_request(body: ContactRequestNotification) -> dict[str, bool]:
+    """Send a push notification about an incoming contact request."""
+    from app.services.dispatcher import dispatch_contact_request_notification
+    await dispatch_contact_request_notification(
+        to_user_id=body.to_user_id,
+        from_user_id=body.from_user_id,
+        from_username=body.from_username,
+        request_id=body.request_id,
+    )
+    return {"ok": True}

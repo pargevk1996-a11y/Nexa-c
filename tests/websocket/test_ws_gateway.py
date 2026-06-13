@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from securechat_shared.realtime.events import WsFrame, ws_frame_to_json
+from nexa_shared.realtime.events import WsFrame, ws_frame_to_json
 
 from tests.helpers.jwt_util import TEST_JWT_SECRET, make_access_token
 
@@ -32,6 +32,23 @@ def test_ws_auth_success(ws_client, test_jwt_secret) -> None:
         WsFrame(type="rpc", name="auth", payload={"token": token})
     )
     with ws_client.websocket_connect("/api/v1/ws") as ws:
+        ws.send_text(auth_frame)
+        msg = json.loads(ws.receive_text())
+        assert msg["type"] == "ack"
+        assert msg["name"] == "auth.ok"
+
+
+def test_ws_auth_via_subprotocol_header(ws_client, test_jwt_secret) -> None:
+    """Variant A: token carried in Sec-WebSocket-Protocol, not in the URL.
+
+    The auth frame payload is intentionally empty — the server must read the
+    token from the `bearer, <token>` subprotocol header.
+    """
+    token = make_access_token(secret=test_jwt_secret)
+    auth_frame = ws_frame_to_json(WsFrame(type="rpc", name="auth", payload={}))
+    with ws_client.websocket_connect(
+        "/api/v1/ws", subprotocols=["bearer", token]
+    ) as ws:
         ws.send_text(auth_frame)
         msg = json.loads(ws.receive_text())
         assert msg["type"] == "ack"

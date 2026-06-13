@@ -1,6 +1,7 @@
 import { applyGuestAuthDocumentFlag, isGuestAuthPath } from "./authRoutes";
 import { isScreenshotAllowed } from "./screenshotPolicy";
-import { dispatchScreenshot, dispatchAway } from "./screenshotEvent";
+import { dispatchScreenshot, type CaptureVector } from "./screenshotEvent";
+import { dispatchAway } from "./awayEvent";
 import { storageKeys } from "./storageKeys";
 
 const TAB_UNLOCKED_KEY = storageKeys.tabUnlocked;
@@ -20,13 +21,22 @@ let installed = false;
 
 /** Timestamp (ms) when shield was last activated. 0 = not active. */
 let lockedAt = 0;
-/** Shield stays until user explicitly clicks — set on every activation. */
+/** Shield stays until the user explicitly unlocks — set by a manual lock. */
 let requiresExplicitUnlock = false;
-
-/** Timestamp of last explicit unlock — suppresses blur-triggered re-sealing on mobile. */
-let lastUnlockAt = 0;
-/** How long after unlock to ignore isAwayFromApp() — covers keyboard dismiss on iOS/Android. */
-const UNLOCK_GRACE_MS = 1500;
+/**
+ * Instant blackout shown while our page does NOT have focus (Alt+Tab, Cmd+Tab,
+ * Win/Super key, app/tab switch, mobile app switcher) — protects the OS
+ * app-switcher thumbnail. On RETURN it is ALWAYS cleared and handed to the React
+ * lock overlay (recoverable "click to continue" / PIN), so the user can never be
+ * trapped on a dead black screen. Distinct from the manual PIN lock.
+ */
+let awayArmed = false;
+/** When the page went hidden/blurred — used to pick click-to-continue vs PIN. */
+let hiddenAt = 0;
+/** True only when the page was actually BACKGROUNDED (visibilitychange→hidden),
+ *  not merely blurred (file picker, dialog, devtools, Alt+Tab to another app).
+ *  Gates the recoverable security screen so it doesn't pop on every file attach. */
+let wasBackgrounded = false;
 
 /**
  * Pre-created instant blackout overlay — appended to <body> once so it's always
@@ -41,8 +51,10 @@ let cachedNativeShield: HTMLElement | null = null;
 function getInstantOverlay(): HTMLDivElement {
   if (instantOverlay) return instantOverlay;
   instantOverlay = document.createElement("div");
+  // z-index one below the React lock overlay (2147483647) so a recoverable
+  // "click to continue" / PIN screen always renders ABOVE this raw blackout.
   instantOverlay.style.cssText =
-    "opacity:0;position:fixed;inset:0;z-index:2147483647;background:#0c0a14;pointer-events:none;will-change:opacity;transform:translateZ(0);";
+    "opacity:0;position:fixed;inset:0;z-index:2147483646;background:#0c0a14;pointer-events:none;will-change:opacity;transform:translateZ(0);";
   document.body.appendChild(instantOverlay);
   return instantOverlay;
 }
@@ -66,37 +78,91 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** Print Screen, print-to-PDF, and common capture shortcuts. */
+function isWindowsPlatform(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const uaData = (navigator as { userAgentData?: { platform?: string } }).userAgentData;
+  if (uaData?.platform) return /win/i.test(uaData.platform);
+  return /win/i.test(navigator.platform || navigator.userAgent || "");
+}
+
+/**
+ * Every known screen-capture / screenshot shortcut across all OSes, plus
+ * print-to-PDF. Matches regardless of which fields the browser/keyboard reports
+ * (`key`, `code`, legacy `keyCode`). The Meta/Super/Win key is read via both
+ * `metaKey` and `getModifierState("Meta"|"OS")` for old-browser coverage.
+ *
+ * HONEST LIMIT: most of these are GLOBAL OS hotkeys the browser never delivers to
+ * the page (PrintScreen, Win+Shift+S, Cmd+Shift+4…), so `preventDefault()` cannot
+ * stop the OS capture. This matcher fires the blackout deterrent in the cases the
+ * page DOES receive the event, and pairs with the focus-loss seal (which catches
+ * the overlay-based tools — Snip, Game Bar — via blur) and the Keyboard Lock API.
+ */
 export function isScreenshotKey(e: KeyboardEvent): boolean {
-  const { code, key, keyCode } = e;
-  if (code === "PrintScreen" || key === "PrintScreen" || key === "Snapshot" || keyCode === 44) {
+  const { code, keyCode } = e;
+  const key = e.key;
+  const lower = key.length === 1 ? key.toLowerCase() : key;
+  const meta =
+    e.metaKey ||
+    e.getModifierState?.("Meta") ||
+    e.getModifierState?.("OS") ||
+    false;
+  const { ctrlKey: ctrl, altKey: alt, shiftKey: shift } = e;
+
+  // ── PrintScreen in every reported form, any modifier combination ──
+  // Windows: PrtSc / Alt+PrtSc (window) / Win+PrtSc (file) / Win+Alt+PrtSc (Game Bar).
+  // Linux GNOME/KDE: PrtSc / Shift|Ctrl|Alt|Meta+PrtSc (area / clipboard / window).
+  // Some external keyboards report the dedicated capture key as F13.
+  if (
+    code === "PrintScreen" ||
+    key === "PrintScreen" ||
+    key === "Snapshot" ||
+    key === "Print" ||
+    keyCode === 44 ||
+    code === "F13"
+  ) {
     return true;
   }
-  if (key === "Print" && keyCode === 44) return true;
-  if (e.altKey && (code === "PrintScreen" || keyCode === 44)) return true;
-  if (e.metaKey && e.shiftKey && (key === "3" || key === "4" || key === "5")) return true;
-  // macOS Cmd+Shift+S or Windows Win+Shift+S (Snipping Tool)
-  if (e.shiftKey && (key === "s" || key === "S") &&
-      (e.metaKey || e.getModifierState("Meta") || e.getModifierState("OS"))) {
+
+  // ── macOS: Cmd+Shift+3/4/5/6 (adding Ctrl just copies to clipboard) ──
+  if (meta && shift && (lower === "3" || lower === "4" || lower === "5" || lower === "6")) {
     return true;
   }
-  // Ctrl+P / Cmd+P — print dialog / print-to-PDF
-  if ((e.ctrlKey || e.metaKey) && (key === "p" || key === "P")) return true;
+
+  // ── Snipping tools: Win+Shift+S (Windows), Cmd+Shift+S (macOS),
+  //    Meta+Shift+S (KDE Spectacle region) ──
+  if (meta && shift && lower === "s") return true;
+
+  // ── Windows Xbox Game Bar (capture/record). Gated to Windows so it doesn't
+  //    swallow macOS Cmd+G (find-next) / Cmd+Alt+R etc. ──
+  if (isWindowsPlatform() && meta) {
+    if (lower === "g") return true; // Win+G opens the Game Bar
+    if (alt && (lower === "r" || lower === "g")) return true; // Win+Alt+R / Win+Alt+G record
+  }
+
+  // ── Screen RECORDING combos ──
+  // GNOME built-in screen recorder (Ubuntu/Fedora/PopOS etc.): Ctrl+Alt+Shift+R
+  if (ctrl && alt && shift && lower === "r") return true;
+  // KDE / some distros: Meta+Shift+R (e.g. Peek, Kooha, GNOME Shell extensions)
+  if (meta && shift && lower === "r") return true;
+  // macOS Cmd+Ctrl+Esc — legacy QuickTime screen recording shortcut in some versions
+  if (meta && ctrl && e.key === "Escape") return true;
+  // Shift+Ctrl+PrtSc is already caught by base PrintScreen branch above.
+  // Meta+Alt+R (some desktops, Win+Alt+R Windows Game Bar via second path)
+  if (meta && alt && lower === "r") return true;
+
+  // ── Print / print-to-PDF: Ctrl+P / Cmd+P ──
+  if ((ctrl || meta) && lower === "p") return true;
+
   return false;
 }
 
-function isAwayFromApp(): boolean {
-  return document.visibilityState === "hidden" || !document.hasFocus();
-}
-
 function mustStaySealed(): boolean {
+  // The lock is USER-INITIATED only. No tab-away / visibility / inactivity
+  // sealing. Stay sealed solely for a manual lock or a transient screenshot latch.
+  if (isGuestAuthPath()) return false;
   if (requiresExplicitUnlock) return true;
   if (Date.now() < shieldUntil) return true;
-  if (isGuestAuthPath()) return false;
-  // Grace window after explicit unlock: don't re-seal due to blur/focus loss
-  // caused by the virtual keyboard dismissing on iOS/Android.
-  if (Date.now() - lastUnlockAt < UNLOCK_GRACE_MS) return false;
-  return isAwayFromApp();
+  return false;
 }
 
 function applyRootHidden(hidden: boolean): void {
@@ -194,9 +260,8 @@ export function sealContent(latchMs = 0): void {
   showNativeShield(true);
 }
 
-/** Unlock only when user explicitly clicks — called from PrivacyShield component. */
+/** Unlock — called after a successful PIN entry on the manual lock. */
 export function explicitUnlock(): void {
-  lastUnlockAt = Date.now();
   shieldUntil = 0;
   lockedAt = 0;
   requiresExplicitUnlock = false;
@@ -239,10 +304,10 @@ export function tryUnsealContent(): void {
   showNativeShield(false);
 }
 
-function onScreenshotAttempt(): void {
+function onScreenshotAttempt(vector: CaptureVector = "unknown"): void {
   if (isScreenshotAllowed()) return;
   sealContent(SHIELD_LATCH_MS);
-  dispatchScreenshot();
+  dispatchScreenshot(vector);
   void navigator.clipboard?.writeText("").catch(() => {});
   const sel = window.getSelection();
   if (sel && !sel.isCollapsed) sel.removeAllRanges();
@@ -254,7 +319,7 @@ function onScreenshotKeyEvent(e: KeyboardEvent): void {
   e.preventDefault();
   e.stopImmediatePropagation();
   immediateBlackout();
-  onScreenshotAttempt();
+  onScreenshotAttempt("key");
 }
 
 function clearSelectionOutsideFields(): void {
@@ -272,9 +337,77 @@ function clearSelectionOutsideFields(): void {
 function syncSealState(): void {
   if (mustStaySealed()) {
     sealContent(0);
+  } else if (awayArmed) {
+    // We are unfocused: keep the blackout up so the OS app-switcher thumbnail /
+    // any tool we switched to cannot read our content. The poll must not unseal.
   } else {
     tryUnsealContent();
   }
+}
+
+/** Key combos that move focus AWAY from our page. The OS eats most of these
+ *  (Alt+Tab / Cmd+Tab / Win key) before the page sees them — blur/visibilitychange
+ *  is the reliable cross-platform catch — but when we DO see them we seal a beat
+ *  sooner. Bare Meta/Cmd is intentionally excluded (it would fire on Cmd+C etc.). */
+export function isFocusChangingKey(e: KeyboardEvent): boolean {
+  const k = e.key;
+  if (e.altKey && k === "Tab") return true; // app switcher (Win/Linux)
+  if (e.metaKey && (k === "Tab" || k === "`")) return true; // macOS app/window switch
+  if (e.ctrlKey && (k === "Tab" || k === "PageUp" || k === "PageDown")) return true; // tab switch
+  if ((e.ctrlKey || e.metaKey) && /^[twnTWNlL]$/.test(k)) return true; // new/close tab, new window, address bar
+  if (k === "F6") return true; // focus address bar
+  if (e.altKey && (k === "d" || k === "D")) return true; // address bar (Windows)
+  return false;
+}
+
+/** Reverse immediateBlackout() WITHOUT touching lock state — the guaranteed,
+ *  unconditional recovery path so the user is never trapped behind the blackout. */
+function clearBlackout(): void {
+  applyRootHidden(false);
+  showNativeShield(false);
+}
+
+/** Black out instantly when focus leaves our page (protects the app-switcher
+ *  thumbnail). Recorded so the return handler can offer a recoverable unlock. */
+function armAwayBlackout(): void {
+  if (isScreenshotAllowed()) return;
+  if (isGuestAuthPath()) return;
+  // A manual / screenshot lock already owns the screen (recoverable via its own
+  // overlay) — don't layer the away blackout on top of it.
+  if (requiresExplicitUnlock) return;
+  if (!awayArmed) hiddenAt = Date.now();
+  awayArmed = true;
+  immediateBlackout();
+}
+
+/**
+ * On return to the tab/app: ALWAYS leave a recoverable state — never a dead black
+ * screen. Hands off to the React lock overlay (click-to-continue if the absence
+ * was brief, PIN if long). If nothing is listening (e.g. no app mounted), it just
+ * reveals the app. A manual/screenshot lock, if active, keeps its own overlay.
+ */
+function onReturnFromAway(): void {
+  grabPrintScreenKey();
+  if (!awayArmed) return;
+  awayArmed = false;
+  const awayMs = hiddenAt > 0 ? Date.now() - hiddenAt : 0;
+  hiddenAt = 0;
+  const backgrounded = wasBackgrounded;
+  wasBackgrounded = false;
+  // A real manual/screenshot lock took over while away — its recoverable overlay
+  // (z-index above the blackout) owns the screen; leave it be.
+  if (requiresExplicitUnlock) return;
+  // Brief blur only (file picker / dialog / app switch), or capture is allowed /
+  // guest auth: never show the security screen — just reveal the app.
+  if (!backgrounded || isScreenshotAllowed() || isGuestAuthPath()) {
+    clearBlackout();
+    return;
+  }
+  // Real tab backgrounding: ask React to show the recoverable security overlay.
+  // sealContent() (invoked by the lock) keeps content hidden behind the overlay;
+  // on unlock the blackout clears. If NOBODY handles it, reveal so nothing sticks.
+  const handled = dispatchAway(awayMs);
+  if (!handled) clearBlackout();
 }
 
 /**
@@ -295,30 +428,10 @@ export function installPrivacySeal(): void {
   installed = true;
   applyGuestAuthDocumentFlag();
 
-  // Restore lock state that persisted across page refresh.
-  // Must happen before syncSealState() so the DOM is sealed before React renders.
-  // Exception: a page reload triggers window.blur right before unload, which saves a stale
-  // SEAL_SESSION_KEY; on reload we discard it so the screen stays unlocked after F5.
-  if (!isGuestAuthPath()) {
-    try {
-      if (sessionStorage.getItem(SEAL_SESSION_KEY) === "1") {
-        requiresExplicitUnlock = true;
-        lockedAt = lockedAt || Date.now();
-      }
-      // Inherit unlock state from any already-open tab via the shared localStorage flag.
-      // This makes new/duplicated tabs start in the same state as existing tabs.
-      if (localStorage.getItem(storageKeys.globalUnlocked) === "1") {
-        sessionStorage.setItem(TAB_UNLOCKED_KEY, "1");
-      }
-      // Lock if session exists but this tab was never explicitly unlocked in any tab.
-      const hasSession = Boolean(localStorage.getItem(storageKeys.session));
-      const tabUnlocked = sessionStorage.getItem(TAB_UNLOCKED_KEY) === "1";
-      if (hasSession && !tabUnlocked) {
-        requiresExplicitUnlock = true;
-        lockedAt = lockedAt || Date.now();
-      }
-    } catch { /* storage unavailable */ }
-  }
+  // NOTE: no auto-lock on load. The lock is user-initiated (padlock button) and
+  // its persistence across reload is restored by LockContext (which calls
+  // sealContent() on mount when a manual lock was active). The screen never
+  // locks itself on first load, tab-switch or inactivity.
 
   // Prime element cache and overlay so first immediateBlackout() has zero DOM-lookup cost.
   getCachedRoot();
@@ -339,7 +452,14 @@ export function installPrivacySeal(): void {
       e.stopImmediatePropagation();
       immediateBlackout();
       sealContent(SHIELD_LATCH_MS);
-      dispatchScreenshot();
+      dispatchScreenshot("key");
+      return;
+    }
+    // Focus-changing combo (Alt+Tab, Cmd+Tab, Ctrl/Cmd+W/T, address bar…): black
+    // out a beat before the window blurs. We do NOT preventDefault — the user is
+    // allowed to switch; we only protect our content behind them.
+    if (isFocusChangingKey(e)) {
+      armAwayBlackout();
       return;
     }
     onScreenshotKeyEvent(e);
@@ -353,39 +473,19 @@ export function installPrivacySeal(): void {
       e.stopImmediatePropagation();
       immediateBlackout();
       sealContent(SHIELD_LATCH_MS);
-      dispatchScreenshot();
+      dispatchScreenshot("key");
       return;
     }
     onScreenshotKeyEvent(e);
   }
 
-  function onAway() {
-    if (isScreenshotAllowed() || isGuestAuthPath()) return;
-    // Don't re-seal while the PIN lock overlay is showing — on mobile the virtual
-    // keyboard gaining/losing focus fires window.blur, which must not cover the PIN form.
-    if (document.querySelector(".lock-overlay__pin-form")) return;
-    // Don't re-seal immediately after an explicit unlock (keyboard dismiss timing on iOS/Android).
-    if (Date.now() - lastUnlockAt < UNLOCK_GRACE_MS) return;
-    immediateBlackout();
-    sealContent(0);
-    dispatchAway();
-    void navigator.clipboard?.writeText("").catch(() => {});
-    clearSelectionOutsideFields();
-    // Give React ~150 ms to render the lock overlay, then fade the instant blackout
-    // so the lock UI (logo, title, PIN form) is actually visible to the user.
-    setTimeout(() => {
-      if (instantOverlay && requiresExplicitUnlock) {
-        instantOverlay.style.transition = "opacity 250ms";
-        instantOverlay.style.opacity = "0";
-      }
-    }, 150);
-  }
 
   function onCopy(e: ClipboardEvent) {
     if (isScreenshotAllowed()) return;
     if (isEditableTarget(e.target)) return;
     e.preventDefault();
     void navigator.clipboard?.writeText("").catch(() => {});
+    dispatchScreenshot("copy");
   }
 
   function onCut(e: ClipboardEvent) {
@@ -411,7 +511,7 @@ export function installPrivacySeal(): void {
     // immediateBlackout + sealContent ensures the page is hidden before any print rasterization.
     e.preventDefault();
     immediateBlackout();
-    onScreenshotAttempt();
+    onScreenshotAttempt("print");
   }
 
   // Register at window level first (capture phase: window fires before document)
@@ -423,12 +523,26 @@ export function installPrivacySeal(): void {
   document.addEventListener("cut", onCut);
   document.addEventListener("contextmenu", onContextMenu);
   document.addEventListener("dragstart", onDragStart);
-  document.addEventListener("visibilitychange", syncSealState);
   document.addEventListener("selectionchange", clearSelectionOutsideFields);
-  document.addEventListener("freeze", onAway);
-  window.addEventListener("pagehide", onAway);
-  window.addEventListener("blur", onAway);
-  window.addEventListener("focus", () => { grabPrintScreenKey(); syncSealState(); });
+  // Focus-loss protection — cross-platform (all devices/OS/browsers): any
+  // app/tab/window switch, the OS app switcher (Alt+Tab / Cmd+Tab / Win key) and
+  // the mobile app switcher all fire blur and/or visibilitychange even though the
+  // page never receives the keystroke. We black out INSTANTLY while away (protects
+  // the switcher thumbnail), then on return ALWAYS hand off to the recoverable
+  // React security overlay — never a stuck black screen. `pageshow` covers
+  // bfcache restores (back/forward) which don't always fire focus/visibilitychange.
+  window.addEventListener("blur", armAwayBlackout);
+  window.addEventListener("pagehide", () => { wasBackgrounded = true; armAwayBlackout(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      wasBackgrounded = true; // real tab background → recoverable security screen on return
+      armAwayBlackout();
+    } else {
+      onReturnFromAway();
+    }
+  });
+  window.addEventListener("focus", onReturnFromAway);
+  window.addEventListener("pageshow", onReturnFromAway);
   window.addEventListener("beforeprint", onBeforePrint);
 
   // Cross-tab state sync: when another tab locks or unlocks, mirror it here.

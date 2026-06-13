@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { WaveformBars } from "@/components/voice/WaveformBars";
 import { IconButton } from "@/components/ui/IconButton";
 import { IconPause, IconPlay } from "@/components/icons/Icons";
-import { getCachedSignedUrl, resolveBlobUrl } from "@/media/mediaCache";
+import { cacheSignedUrl, getCachedSignedUrl, resolveBlobUrl } from "@/media/mediaCache";
+import { getMediaUrls } from "@/api/media";
 import { useBackgroundPlayback } from "@/media/useBackgroundPlayback";
 import {
   extractWaveformPeaks,
@@ -50,6 +51,21 @@ export function VoiceMessage({ message }: VoiceMessageProps) {
       if (message.streamUrl) {
         if (!cancelled) setResolvedUrl(message.streamUrl);
         return;
+      }
+      // Recipient (and the sender after a reload) only has the media id — fetch
+      // a fresh signed URL so the clip is actually playable. Without this the
+      // voice message stays silent.
+      if (message.mediaId) {
+        try {
+          const urls = await getMediaUrls(message.mediaId);
+          cacheSignedUrl(message.mediaId, urls.stream_url, urls.expires_in);
+          if (!cancelled) {
+            setResolvedUrl(urls.stream_url);
+            return;
+          }
+        } catch {
+          /* fall through to any locally cached blob */
+        }
       }
       const fromStore = await resolveBlobUrl(`msg:${message.id}`);
       if (!cancelled) setResolvedUrl(fromStore);

@@ -1,4 +1,4 @@
-/* Site font is Rosmatika — declared in tokens.css */
+/* Site font is Montserrat — declared in tokens.css */
 
 /* Layout grid — see premium.css */
 .chat-sidebar {
@@ -288,7 +288,7 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font);
 }
 
 .chat-header {
@@ -620,6 +620,19 @@
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius-lg);
   min-width: 200px;
+  max-width: 100%;
+}
+
+/* On phones the outgoing bubble is capped narrow; a rigid 200px min-width
+   pushes the speed badge (the last, non-shrinking child) outside the bubble.
+   Let the bubble size to its content so the badge stays inside. */
+@media (max-width: 768px) {
+  .voice-msg {
+    min-width: 0;
+  }
+  .voice-msg__wave {
+    min-width: 44px;
+  }
 }
 
 .voice-msg--out {
@@ -1335,7 +1348,48 @@
 
 .call-incoming-banner__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.call-action-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.call-action-btn:hover {
+  transform: scale(1.1);
+  filter: brightness(1.12);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.call-action-btn:active {
+  transform: scale(0.95);
+}
+
+.call-action-btn--accept {
+  background: #3b82f6;
+}
+
+.call-action-btn--decline {
+  background: #ef4444;
+}
+
+@media (max-width: 480px) {
+  .call-action-btn {
+    width: 54px;
+    height: 54px;
+  }
 }
 
 .call-overlay__video-placeholder {
@@ -1655,35 +1709,42 @@
 
 .chat-composer__inner {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border);
+  /* Softer, slimmer single-line bar — no hard bottom rule. */
   border-radius: 0;
-  padding: 8px 8px 8px 16px;
-  transition: border-bottom-color var(--dur) var(--ease);
-}
-
-.chat-composer__inner:focus-within {
-  border-bottom-color: var(--accent);
+  padding: 3px 6px 3px 12px;
 }
 
 .chat-composer textarea {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   color: var(--text);
   resize: none;
-  min-height: 20px;
-  max-height: 120px;
-  line-height: 1.4;
-  padding: 0.25rem 0;
+  /* Single line: text never wraps and never grows the field vertically — long
+     input scrolls horizontally instead. */
+  height: 1.5rem;
+  min-height: 1.5rem;
+  max-height: 1.5rem;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  line-height: 1.5;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+.chat-composer textarea::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Compact composer — shorter input bar ─────────────────────── */
 .chat-composer__inner {
-  padding: 4px 6px 4px 12px;
+  padding: 2px 6px 2px 12px;
 }
 .chat-composer .icon-btn {
   width: 38px;
@@ -2190,7 +2251,9 @@
   max-height: 88vh;
   object-fit: contain;
   transform-origin: center center;
-  will-change: transform;
+  /* No static will-change: a near-fullscreen image layer is large and the
+     viewer is rarely interacted with; promoting it permanently exceeds the
+     will-change memory budget. Zoom/pan transforms composite fine without it. */
   -webkit-user-drag: none;
 }
 

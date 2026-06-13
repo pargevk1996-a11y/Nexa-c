@@ -1,41 +1,32 @@
-import { Link } from "react-router-dom";
-import { IconBell, IconMoon, IconSun } from "@/components/icons/Icons";
+import { IconBell, IconLock } from "@/components/icons/Icons";
 import { BRAND_NAME } from "@/config/brand";
-import { LogoAnimation } from "@/components/auth/LogoAnimation";
-import { useSettings } from "@/store/SettingsContext";
+import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
+import { useLock } from "@/store/LockContext";
 
 export function TopNav() {
-  const { settings, update } = useSettings();
-
-  const isDark =
-    settings.theme === "dark" ||
-    (settings.theme === "system" &&
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  function toggleTheme() {
-    update("theme", isDark ? "light" : "dark");
-  }
+  const { lock } = useLock();
 
   return (
     <header className="top-nav-zone top-nav-zone--compact">
       <div className="top-nav-bar">
-        <Link to="/app/chats" className="top-nav__brand">
-          <LogoAnimation size={84} />
+        <div className="top-nav__brand">
+          <LogoThemeToggle size={84} className="top-nav__brand-logo" />
           <span className="top-nav__brand-text">{BRAND_NAME}</span>
-        </Link>
+          {/* Manual screen lock — locks on demand; PIN required to unlock. */}
+          <button
+            type="button"
+            className="top-nav__lock-btn"
+            onClick={() => lock("pin_required")}
+            aria-label="Lock screen"
+            title="Lock screen (PIN required to unlock)"
+          >
+            <IconLock size={20} />
+          </button>
+        </div>
 
         <div className="top-nav-bar__actions">
           <button type="button" className="top-nav__icon-btn" aria-label="Notifications">
             <IconBell size={18} />
-          </button>
-          <button
-            type="button"
-            className="top-nav__icon-btn"
-            onClick={toggleTheme}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
           </button>
         </div>
       </div>

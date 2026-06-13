@@ -90,6 +90,7 @@ def _to_conversation(
         banned_user_ids={str(b.user_id) for b in bans},
         muted_until=muted_until,
         created_at=row.created_at,
+        locked_for_user_id=(row.settings or {}).get("_locked_for"),
     )
 
 
@@ -207,6 +208,7 @@ class PostgresChatStore:
         parent_id: str | None = None,
         verified: bool = False,
         settings: SpaceSettings | None = None,
+        locked_for: str | None = None,
     ) -> Conversation:
         space_type = normalize_type(type, is_public=is_public)
         if not settings:
@@ -232,6 +234,10 @@ class PostgresChatStore:
                 if not parent or parent.type != "community":
                     raise ValueError("INVALID_PARENT")
 
+            settings_dict = _settings_to_dict(settings)
+            if locked_for:
+                settings_dict["_locked_for"] = locked_for
+
             conv_row = ConversationRow(
                 id=conv_uuid,
                 type=space_type,
@@ -241,7 +247,7 @@ class PostgresChatStore:
                 is_public=is_public or space_type in ("public_group", "supergroup", "channel", "broadcast"),
                 verified=verified,
                 parent_id=_uuid(parent_id) if parent_id else None,
-                settings=_settings_to_dict(settings),
+                settings=settings_dict,
             )
             session.add(conv_row)
             await session.flush()
@@ -276,6 +282,27 @@ class PostgresChatStore:
                 if conv:
                     result.append(conv)
             return result
+
+    async def unlock_conversation(self, conv_id: str) -> bool:
+        conv_uuid = _uuid(conv_id)
+        async with self._sm() as session:
+            await session.execute(
+                text("UPDATE conversations SET settings = settings - '_locked_for' WHERE id = :id"),
+                {"id": conv_uuid},
+            )
+            await session.commit()
+        return True
+
+    async def archive_conversation(self, conv_id: str) -> bool:
+        conv_uuid = _uuid(conv_id)
+        async with self._sm() as session:
+            await session.execute(
+                update(ConversationRow)
+                .where(ConversationRow.id == conv_uuid)
+                .values(deleted_at=datetime.now(UTC)),
+            )
+            await session.commit()
+        return True
 
     async def list_public(self, *, space_type: str | None = None, limit: int = 50) -> list[Conversation]:
         async with self._sm() as session:
@@ -524,7 +551,7 @@ class PostgresChatStore:
         e2ee_envelope: dict | None = None,
         expires_at: datetime | None = None,
         silent: bool = False,
-    ) -> Message:
+    ) -> tuple[Message, bool]:
         conv_uuid = _uuid(conv_id)
         async with self._sm() as session:
             # Idempotency check
@@ -536,7 +563,7 @@ class PostgresChatStore:
                     )
                 )
                 if existing:
-                    return _to_message(existing)
+                    return _to_message(existing), False
 
             conv = await self._load_conversation(session, conv_id)
             if not conv:
@@ -579,7 +606,7 @@ class PostgresChatStore:
             session.add(row)
             await session.commit()
             await session.refresh(row)
-            return _to_message(row)
+            return _to_message(row), True
 
     async def list_messages(
         self,

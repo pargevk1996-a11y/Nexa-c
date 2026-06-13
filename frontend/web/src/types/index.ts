@@ -61,6 +61,10 @@ export interface Conversation {
   pinned?: boolean;
   /** User folder / category label */
   folderId?: ChatFolderId;
+  /** Message content is locked for this user (pending contact request) */
+  isLocked?: boolean;
+  /** Pending contact request id (incoming — to show accept/decline) */
+  contactRequestId?: string;
 }
 
 export type MessageKind = "text" | "voice" | "video" | "file" | "gif" | "sticker" | "poll" | "quiz";
@@ -134,6 +138,8 @@ export interface Message {
   silent?: boolean;
   /** Server sequence (live / offline sync) */
   seq?: number;
+  /** ID of the message being replied to — resolved to replyTo after loading */
+  replyToId?: string;
   scheduledAt?: string;
   pinned?: boolean;
   linkPreview?: LinkPreview;

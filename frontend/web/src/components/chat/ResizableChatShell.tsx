@@ -33,7 +33,14 @@ export function ResizableChatShell({
   onProfileClose,
 }: ResizableChatShellProps) {
   const userId = getCachedSession()?.user.id;
-  const [widths, setWidths] = useState<PanelWidths>(PANEL_DEFAULTS);
+  // Left chat list = 38% of the browser width (responsive).
+  const sidebar38 = () =>
+    Math.round((typeof window !== "undefined" ? window.innerWidth : 1280) * 0.38);
+  const [widths, setWidths] = useState<PanelWidths>(() => ({
+    ...PANEL_DEFAULTS,
+    sidebar: sidebar38(),
+  }));
+  const manualSidebar = useRef(false);
   const widthsRef = useRef(widths);
   const [wideLayout, setWideLayout] = useState(
     () => typeof window !== "undefined" && window.innerWidth > 1024,
@@ -45,15 +52,22 @@ export function ResizableChatShell({
 
   useEffect(() => {
     if (!userId) return;
-    void loadPanelWidths(userId).then(setWidths);
+    // Keep the sidebar at 38% of the viewport; only restore the saved profile width.
+    void loadPanelWidths(userId).then((w) =>
+      setWidths((prev) => ({ ...prev, profile: w.profile })),
+    );
   }, [userId]);
 
   useEffect(() => {
     function onResize() {
       setWideLayout(window.innerWidth > 1024);
+      if (!manualSidebar.current) {
+        setWidths((prev) => ({ ...prev, sidebar: sidebar38() }));
+      }
     }
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -76,6 +90,7 @@ export function ResizableChatShell({
   }, [userId]);
 
   const resizeSidebar = useCallback((delta: number) => {
+    manualSidebar.current = true; // user took over → stop auto-tracking 38%
     setWidths((prev) => {
       const shell = document.querySelector(".chat-shell--resizable");
       const shellW = shell?.clientWidth ?? window.innerWidth;

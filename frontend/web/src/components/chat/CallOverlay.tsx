@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CallVideoGrid, type RemoteParticipant } from "@/components/calls/CallVideoGrid";
+import { RemoteAudioPlayback } from "@/components/calls/RemoteAudioPlayback";
 import { AudioWaveform } from "@/components/voice/AudioWaveform";
 import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import {
   IconFlipCamera,
   IconMaximize,
   IconMic,
   IconMicOff,
+  IconSpeaker,
+  IconSpeakerOff,
   IconVideo,
   IconX,
 } from "@/components/icons/Icons";
@@ -69,6 +71,8 @@ export function CallOverlay({
 }: CallOverlayProps) {
   const [seconds, setSeconds] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  // Speakerphone defaults on for video calls, off (earpiece-style) for voice.
+  const [speakerOn, setSpeakerOn] = useState(type === "video");
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const isVoiceOnly = type === "audio";
@@ -138,6 +142,8 @@ export function CallOverlay({
       aria-label={type === "video" ? "Video call" : "Voice call"}
     >
       <div className="call-overlay__backdrop" onClick={onEnd} aria-hidden />
+      {/* Always-on remote audio sink — makes voice calls (and camera-off video) audible. */}
+      <RemoteAudioPlayback streams={remoteStreams} speakerOn={speakerOn} />
       <div className={`call-overlay__panel ${showVideo ? "call-overlay__panel--video" : ""}`}>
         {showVideo ? (
           <div ref={stageRef} className="call-overlay__stage">
@@ -218,6 +224,14 @@ export function CallOverlay({
               {muted ? <IconMicOff size={22} /> : <IconMic size={22} />}
             </IconButton>
           )}
+          <IconButton
+            label={speakerOn ? "Speaker on" : "Speaker off"}
+            variant="ghost"
+            active={speakerOn}
+            onClick={() => setSpeakerOn((s) => !s)}
+          >
+            {speakerOn ? <IconSpeaker size={22} /> : <IconSpeakerOff size={22} />}
+          </IconButton>
           {type === "video" ? (
             <IconButton
               label={videoOff ? "Turn camera on" : "Turn camera off"}
@@ -287,12 +301,28 @@ export function IncomingCallBanner({
         {callType === "audio" ? " (voice chat)" : ""}
       </span>
       <div className="call-incoming-banner__actions">
-        <Button type="button" onClick={onAccept}>
-          Accept
-        </Button>
-        <Button type="button" variant="secondary" onClick={onReject}>
-          Decline
-        </Button>
+        <button
+          type="button"
+          className="call-action-btn call-action-btn--accept"
+          onClick={onAccept}
+          aria-label="OK ACCEPT CALL"
+          title="OK ACCEPT CALL"
+        >
+          <svg viewBox="0 0 24 24" fill="none" width="22" height="22" aria-hidden>
+            <path d="M5 12.5l5 5L19 7" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="call-action-btn call-action-btn--decline"
+          onClick={onReject}
+          aria-label="Decline"
+          title="Decline"
+        >
+          <svg viewBox="0 0 24 24" fill="none" width="20" height="20" aria-hidden>
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
   );

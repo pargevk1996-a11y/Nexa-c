@@ -1,5 +1,6 @@
 import type { ApiMessage } from "@/api/chat";
 import { getCachedPreviewUrl, getCachedSignedUrl } from "@/media/mediaCache";
+import { getMimeFromExtension, getFileCategory } from "@/utils/files";
 import type { Message } from "@/types";
 
 function parseVoiceDuration(body: string): number | undefined {
@@ -32,6 +33,9 @@ export function apiMessageToUi(m: ApiMessage, currentUserId: string): Message {
   else if (m.content_type === "text") kind = "text";
   else kind = "file";
 
+  const isFile = m.content_type === "file" || (kind === "file" && Boolean(m.media_id));
+  const parsedFileName = isFile ? m.body.split(" (")[0] : undefined;
+
   let fileCategory: Message["fileCategory"];
   let fileMimeType: string | undefined;
   if (isVoice) {
@@ -43,6 +47,9 @@ export function apiMessageToUi(m: ApiMessage, currentUserId: string): Message {
   } else if (isImage) {
     fileCategory = "image";
     fileMimeType = "image/jpeg";
+  } else if (isFile && parsedFileName) {
+    fileMimeType = getMimeFromExtension(parsedFileName);
+    fileCategory = getFileCategory(fileMimeType);
   }
 
   return {
@@ -62,8 +69,9 @@ export function apiMessageToUi(m: ApiMessage, currentUserId: string): Message {
     mediaId: m.media_id ?? undefined,
     fileMimeType,
     fileCategory,
-    fileName: isVideo || isImage ? m.body.split(" (")[0] : undefined,
+    fileName: isVideo || isImage || isFile ? m.body.split(" (")[0] : undefined,
     silent: Boolean(m.silent),
     seq: m.seq,
+    replyToId: m.reply_to_id ?? undefined,
   };
 }

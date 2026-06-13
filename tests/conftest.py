@@ -45,7 +45,7 @@ def auth_client() -> TestClient:
 
     from app.api import auth_routes
     from app.core.config import settings as auth_settings
-    from securechat_shared.security.password_policy import PasswordPolicy
+    from nexa_shared.security.password_policy import PasswordPolicy
 
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(auth_settings, "password_require_uppercase", False)

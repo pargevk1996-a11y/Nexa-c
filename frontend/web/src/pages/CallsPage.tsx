@@ -42,11 +42,11 @@ export function CallsPage() {
   const [recent, setRecent] = useState<CallSession[]>([]);
 
   useEffect(() => {
-    if (!session?.accessToken || session.demoMode) return;
+    if (!session?.user?.id || session?.demoMode) return;
     void listCalls()
       .then(setRecent)
       .catch(() => setRecent([]));
-  }, [session?.accessToken, session?.demoMode]);
+  }, [session?.user?.id, session?.demoMode]);
 
   function startCall(
     conversationId: string,

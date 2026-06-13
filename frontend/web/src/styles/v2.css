@@ -18,12 +18,14 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 88% 58% at 16% -4%,  rgba(124,58,237,0.28) 0%, transparent 66%),
+    radial-gradient(ellipse 88% 58% at 16% -4%,  rgba(59, 109, 255,0.28) 0%, transparent 66%),
     radial-gradient(ellipse 72% 52% at 90% 10%,  rgba(59,130,246,0.20) 0%, transparent 62%),
     radial-gradient(ellipse 55% 68% at 6%  96%,  rgba(34,211,238,0.09) 0%, transparent 60%),
-    radial-gradient(ellipse 48% 42% at 78% 96%,  rgba(168,85,247,0.13) 0%, transparent 58%);
+    radial-gradient(ellipse 48% 42% at 78% 96%,  rgba(79, 124, 255,0.13) 0%, transparent 58%);
   animation: v2-aurora 26s ease-in-out infinite alternate;
-  will-change: transform;
+  /* No will-change: this is a full-viewport always-on layer; promoting it
+     permanently blows the browser's will-change memory budget. The transform
+     animation is GPU-composited while it runs regardless. */
 }
 
 @keyframes v2-aurora {
@@ -36,17 +38,60 @@ body::before {
 
 /* ── 2. LEFT PANEL ────────────────────────────────────────────── */
 .chat-left-panel {
-  background: rgba(9, 7, 20, 0.74);
-  backdrop-filter: blur(26px) saturate(1.3);
-  -webkit-backdrop-filter: blur(26px) saturate(1.3);
-  border: 1px solid rgba(139,92,246,0.15);
+  position: relative;
+  /* Glassy + transparent so the star-field clearly shows through */
+  background: rgba(9, 7, 20, 0.22);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  border: 1px solid rgba(79, 124, 255, 0.1);
+}
+
+/* —— NEXA logo + wordmark watermark behind the chat list —— */
+.chat-left-panel__watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding-top: 8%;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  opacity: 0.08;
+}
+.chat-left-panel__watermark-mark {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(124, 77, 255, 0.95), transparent 60%),
+    radial-gradient(circle at 50% 58%, rgba(56, 128, 255, 0.85), transparent 58%);
+  box-shadow: inset 0 0 0 2px rgba(140, 170, 255, 0.55);
+}
+.chat-left-panel__watermark-text {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 3.2rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+}
+/* keep the real panel content above the watermark */
+.chat-left-panel > :not(.chat-left-panel__watermark) {
+  position: relative;
+  z-index: 1;
 }
 
 .chat-left-panel__head {
   padding: 0.85rem 0.85rem 0.5rem;
 }
 
-/* Header row: [logo 44px] [NEXA wordmark] ... [+ btn] */
+/* Header row, stretched edge-to-edge: [logo ↔ day/night] [search — centered &
+   stretched] [stories + add]. Same on every device / OS. */
 .chat-left-panel__title-row {
   display: flex;
   align-items: center;
@@ -55,22 +100,36 @@ body::before {
   min-height: 44px;
 }
 
-/* Canvas logo — compact on desktop, hidden on mobile */
+/* Logo + its radiating glow never shrink. */
+.chat-left-panel__logo {
+  flex: 0 0 auto;
+}
+
 .chat-left-panel__title-row canvas {
   flex-shrink: 0;
   border-radius: 10px;
 }
 
-@media (max-width: 768px) {
-  .chat-left-panel__title-row canvas {
-    display: none;
-  }
+/* Search fills the centre of the top block and stretches to the available
+   width between the logo and the action buttons. */
+.chat-left-panel__title-row .chat-left-panel__search {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Stories + add button, glued to the right edge. */
+.chat-left-panel__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 /* NEXA wordmark */
 .chat-left-panel__wordmark {
   flex: 1;
-  font-family: var(--font-display);
+  font-family: var(--font-brand);
   font-size: 1.45rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -89,14 +148,14 @@ body::before {
   flex-shrink: 0;
   border: none;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  background: linear-gradient(135deg, #3b6dff, #4f6cff);
   color: #fff;
   font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
   display: grid;
   place-items: center;
-  box-shadow: 0 0 16px rgba(124,58,237,0.5);
+  box-shadow: 0 0 16px rgba(59, 109, 255,0.5);
   transition:
     transform 220ms var(--ease-spring),
     box-shadow 200ms var(--ease);
@@ -104,7 +163,7 @@ body::before {
 
 .chat-left-panel__add-btn:hover {
   transform: scale(1.12) rotate(90deg);
-  box-shadow: 0 0 30px rgba(124,58,237,0.75), 0 0 60px rgba(124,58,237,0.3);
+  box-shadow: 0 0 30px rgba(59, 109, 255,0.75), 0 0 60px rgba(59, 109, 255,0.3);
 }
 
 .chat-left-panel__add-btn:active {
@@ -163,16 +222,16 @@ body::before {
 }
 
 .chat-folder-pill:hover {
-  border-color: rgba(139,92,246,0.32);
+  border-color: rgba(79, 124, 255,0.32);
   color: var(--text);
   transform: translateY(-1px);
 }
 
 .chat-folder-pill--active {
-  background: rgba(139,92,246,0.17);
-  border-color: rgba(139,92,246,0.42);
+  background: rgba(79, 124, 255,0.17);
+  border-color: rgba(79, 124, 255,0.42);
   color: #c4b5fd;
-  box-shadow: 0 0 14px rgba(124,58,237,0.18);
+  box-shadow: 0 0 14px rgba(59, 109, 255,0.18);
   transform: none;
 }
 
@@ -224,8 +283,8 @@ body::before {
 }
 
 .chat-conv-item--active {
-  background: rgba(139,92,246,0.13) !important;
-  box-shadow: inset 0 0 0 1px rgba(139,92,246,0.2) !important;
+  background: rgba(79, 124, 255,0.13) !important;
+  box-shadow: inset 0 0 0 1px rgba(79, 124, 255,0.2) !important;
 }
 
 .chat-conv-item:active {
@@ -260,9 +319,9 @@ body::before {
   font-size: 0.68rem;
   font-weight: 700;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  background: linear-gradient(135deg, #3b6dff, #4f6cff);
   color: #fff;
-  box-shadow: 0 0 12px rgba(124,58,237,0.6);
+  box-shadow: 0 0 12px rgba(59, 109, 255,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -296,7 +355,7 @@ body::before {
   padding: 0.48rem 0.25rem;
   border-radius: 10px;
   color: var(--text-faint);
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-decoration: none;
@@ -316,7 +375,7 @@ body::before {
 
 .chat-left-panel__app-nav-item--active {
   color: #c4b5fd !important;
-  background: rgba(139,92,246,0.17) !important;
+  background: rgba(79, 124, 255,0.17) !important;
 }
 
 .chat-left-panel__app-nav-item--active svg {
@@ -334,21 +393,21 @@ body::before {
     background: rgba(7,5,16,0.90);
     backdrop-filter: blur(30px) saturate(1.5);
     -webkit-backdrop-filter: blur(30px) saturate(1.5);
-    border-top: 1px solid rgba(139,92,246,0.16);
+    border-top: 1px solid rgba(79, 124, 255,0.16);
     padding: 0.55rem 0.75rem calc(0.55rem + var(--safe-bottom));
     box-shadow: 0 -6px 28px rgba(0,0,0,0.4);
   }
 
   .chat-left-panel__app-nav-item {
     padding: 0.6rem 0.25rem;
-    font-size: 0.62rem;
-    gap: 4px;
+    font-size: 0.74rem;
+    gap: 5px;
     border-radius: 12px;
-    min-height: 52px;
+    min-height: 58px;
   }
 
   .chat-left-panel__app-nav-item--active {
-    background: rgba(139,92,246,0.22) !important;
+    background: rgba(79, 124, 255,0.22) !important;
   }
 
   .chat-left-panel__head {
@@ -408,40 +467,12 @@ body::before {
 }
 
 /* ── 6. CHAT BUBBLES ──────────────────────────────────────────── */
-
-/* Outgoing — deep violet→indigo→blue gradient with inner highlight */
-.chat-bubble-row--out .chat-bubble {
-  background: linear-gradient(140deg, #5b21b6 0%, #4338ca 42%, #1d4ed8 100%);
-  border: 1px solid rgba(255,255,255,0.13);
-  box-shadow:
-    0 4px 18px rgba(67,56,202,0.40),
-    inset 0 1px 0 rgba(255,255,255,0.18);
-  color: #fff;
-}
-
-/* Incoming — refined frosted glass */
-.chat-bubble-row--in .chat-bubble {
-  background: rgba(255,255,255,0.058);
-  border: 1px solid rgba(255,255,255,0.09);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  color: var(--text);
-}
-
-/* Bubble entrance: scale+fade — more organic than translateY alone */
-.chat-bubble-row {
-  animation: v2-bubble-in 280ms var(--ease) backwards;
-}
-
-@keyframes v2-bubble-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)  scale(1); }
-}
+/* Colors and animation defined in nexa.css — no overrides here */
 
 /* ── 7. FLOATING COMPOSER ─────────────────────────────────────── */
 .chat-shell--telegram .chat-composer {
   border-radius: 24px;
-  border: 1px solid rgba(139,92,246,0.18);
+  border: 1px solid rgba(79, 124, 255,0.18);
   background: rgba(9,7,20,0.84);
   backdrop-filter: blur(30px) saturate(1.5);
   -webkit-backdrop-filter: blur(30px) saturate(1.5);
@@ -468,33 +499,7 @@ body::before {
   color: rgba(168,163,188,0.5);
 }
 
-/* Send button — consistent across all breakpoints */
-.icon-btn--primary,
-.chat-composer .icon-btn--primary {
-  width: 38px !important;
-  height: 38px !important;
-  border-radius: var(--radius-full) !important;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
-  border: none !important;
-  box-shadow: 0 0 18px rgba(124,58,237,0.52) !important;
-  transition:
-    transform 120ms var(--ease-spring),
-    box-shadow 200ms var(--ease),
-    filter 200ms var(--ease) !important;
-}
-
-.icon-btn--primary:hover:not(:disabled),
-.chat-composer .icon-btn--primary:hover:not(:disabled) {
-  transform: scale(1.07) !important;
-  filter: brightness(1.1) !important;
-  box-shadow: 0 0 30px rgba(124,58,237,0.72) !important;
-}
-
-.icon-btn--primary:active:not(:disabled),
-.chat-composer .icon-btn--primary:active:not(:disabled) {
-  transform: scale(0.92) !important;
-  transition-duration: 70ms !important;
-}
+/* Send button — defined in nexa.css */
 
 /* Mobile composer */
 @media (max-width: 768px) {
@@ -506,25 +511,15 @@ body::before {
   }
 }
 
-/* ── 8. SCROLLBARS ────────────────────────────────────────────── */
-.chat-messages {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(139,92,246,0.2) transparent;
-}
-
-.chat-messages::-webkit-scrollbar { width: 4px; }
-.chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(139,92,246,0.22);
-  border-radius: 4px;
-}
+/* ── 8. SCROLLBARS — defined in nexa.css ─────────────────────── */
 
 .chat-conversations {
   scrollbar-width: thin;
-  scrollbar-color: rgba(139,92,246,0.15) transparent;
+  scrollbar-color: rgba(79, 124, 255,0.15) transparent;
 }
 .chat-conversations::-webkit-scrollbar { width: 4px; }
 .chat-conversations::-webkit-scrollbar-thumb {
-  background: rgba(139,92,246,0.15);
+  background: rgba(79, 124, 255,0.15);
   border-radius: 4px;
 }
 
@@ -590,7 +585,7 @@ body::before {
 /* PIN input — feels like a premium lock screen */
 .lock-overlay__pin-input {
   background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(139,92,246,0.28);
+  border: 1px solid rgba(79, 124, 255,0.28);
   border-radius: 16px;
   font-size: 1.5rem;
   letter-spacing: 0.5em;
@@ -624,10 +619,10 @@ body::before {
   font-size: 0.92rem;
   font-weight: 700;
   border-radius: 14px;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  background: linear-gradient(135deg, #3b6dff, #4f6cff);
   border: none;
   color: #fff;
-  box-shadow: 0 0 20px rgba(124,58,237,0.45);
+  box-shadow: 0 0 20px rgba(59, 109, 255,0.45);
   transition:
     transform 120ms var(--ease-spring),
     box-shadow 200ms var(--ease),
@@ -636,7 +631,7 @@ body::before {
 
 .lock-overlay__pin-btn:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 32px rgba(124,58,237,0.65);
+  box-shadow: 0 0 32px rgba(59, 109, 255,0.65);
   filter: brightness(1.07);
 }
 
@@ -674,13 +669,13 @@ body::before {
 
 /* Primary button */
 .btn--primary {
-  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 52%, #2563eb 100%);
+  background: linear-gradient(135deg, #3b6dff 0%, #4f6cff 52%, #2563eb 100%);
   border: none;
   border-radius: 13px;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  box-shadow: 0 4px 22px rgba(124,58,237,0.40);
+  box-shadow: 0 4px 22px rgba(59, 109, 255,0.40);
   transition:
     transform 120ms var(--ease-spring),
     box-shadow 200ms var(--ease),
@@ -689,7 +684,7 @@ body::before {
 
 .btn--primary:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 34px rgba(124,58,237,0.55);
+  box-shadow: 0 8px 34px rgba(59, 109, 255,0.55);
   filter: brightness(1.06);
 }
 
@@ -706,7 +701,7 @@ body::before {
 
 /* Secondary / ghost button */
 .btn--ghost {
-  border: 1px solid rgba(139,92,246,0.25);
+  border: 1px solid rgba(79, 124, 255,0.25);
   color: var(--text-muted);
   border-radius: 13px;
   background: transparent;
@@ -717,14 +712,14 @@ body::before {
 }
 
 .btn--ghost:hover {
-  background: rgba(139,92,246,0.1);
-  border-color: rgba(139,92,246,0.4);
+  background: rgba(79, 124, 255,0.1);
+  border-color: rgba(79, 124, 255,0.4);
   color: var(--text);
 }
 
 /* ── 12. GLASS SURFACES ───────────────────────────────────────── */
 .glass-panel {
-  border: 1px solid rgba(139,92,246,0.14);
+  border: 1px solid rgba(79, 124, 255,0.14);
   box-shadow:
     0 8px 36px rgba(0,0,0,0.32),
     inset 0 1px 0 rgba(255,255,255,0.048);
@@ -744,7 +739,7 @@ body::before {
   background: rgba(11,8,24,0.94);
   backdrop-filter: blur(28px) saturate(1.4);
   -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  border: 1px solid rgba(139,92,246,0.18);
+  border: 1px solid rgba(79, 124, 255,0.18);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 52px rgba(0,0,0,0.45);
 }
@@ -775,7 +770,7 @@ body::before {
   }
 
   .chat-left-panel__app-nav-item {
-    font-size: 0.58rem;
+    font-size: 0.7rem;
   }
 }
 
@@ -943,6 +938,17 @@ body::before {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  min-width: 0;
+}
+
+.chat-header__title-row .privacy-no-copy {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  /* Override a legacy rule (.chat-header__info span) that tinted the peer name
+     green and shrank it — keep it consistent with the title row. */
+  color: var(--text);
+  font: inherit;
 }
 
 .chat-header__status-line {
@@ -952,6 +958,12 @@ body::before {
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  /* Keep the status on a single line — wrapping made the info block taller than
+     the header so the name was pushed up and overlapped the avatar. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .chat-header__actions {
@@ -1073,35 +1085,103 @@ body::before {
 
 /* ── FULL-SCREEN MOBILE FIXES ─────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Compact header on mobile */
+  /* ════════════════════════════════════════════════════════════════
+     AUTHORITATIVE MOBILE CHAT-HEADER LAYOUT.
+     One clean flex row that never overlaps. Three fixed-width zones
+     (back · avatar · actions) + one flexible, shrinking zone (info).
+     v2.css loads last, so these rules win.
+     Row order:  [back] [avatar] [info →flex/shrink/truncate] [actions]
+     ════════════════════════════════════════════════════════════════ */
   .chat-header {
-    height: 54px;
-    min-height: 54px;
-    padding: 0 0.65rem;
-    gap: 0.35rem;
+    height: 56px;
+    min-height: 56px;
+    padding: 0 0.4rem;
+    gap: 0.5rem;
+    overflow: hidden;
   }
 
+  /* Back button — fixed, never shrinks */
+  .chat-header .chat-header__back {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  /* Avatar trigger (the one WITHOUT the info class) — fixed, never shrinks */
+  .chat-header__profile-trigger:not(.chat-header__info) {
+    flex: 0 0 auto;
+  }
+
+  /* Avatar "md" (57px) exceeds the header → fixed 38px so it fits cleanly. */
+  .chat-header .avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px;
+    flex-shrink: 0;
+  }
+  .chat-header .avatar__img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  /* Info block (name + status) — the ONLY element that grows AND shrinks,
+     so a long name truncates with an ellipsis instead of shoving the avatar. */
+  .chat-header__info {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Actions group — fixed, never shrinks, stays glued to the right edge */
+  .chat-header__actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  /* Name + last-seen scale with the viewport so they fit cleanly inside the
+     56px header on every phone width / OS (small phones → smaller, never
+     clipping or overlapping the avatar). */
   .chat-header__title-row {
-    font-size: 0.93rem;
+    font-size: clamp(0.74rem, 3.2vw, 0.9rem);
   }
 
   .chat-header__status-line {
-    font-size: 0.7rem;
+    font-size: clamp(0.6rem, 2.6vw, 0.72rem);
   }
 
-  /* Hide theme toggle on mobile */
-  .chat-header [title*="theme"],
-  .chat-header [title*="mode"] {
+  /* The ⋮ menu just opens the profile — same as tapping the avatar/name — so
+     it is redundant on a crowded phone header. Hide it to free space. */
+  .chat-header__menu-btn {
     display: none;
   }
 
-  /* SecureChat button compact on mobile */
+  /* Evenly-spaced action buttons so they never touch or overlap. Compact 40px
+     tap targets + a clear gap keep all controls on one row with breathing room.
+     These header-scoped rules override the global mobile .icon-btn 44px min. */
+  .chat-header__actions {
+    gap: 0.25rem;
+  }
+
+  .chat-header .chat-header__back,
+  .chat-header__actions .icon-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .chat-header__actions .icon-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* SecureChat button compact on mobile (icon only) */
   .chat-header__secure-btn span {
     display: none;
   }
 
   .chat-header__secure-btn {
-    padding: 0.3rem 0.45rem;
+    padding: 0.3rem 0.4rem;
     gap: 0;
   }
 }
@@ -1150,7 +1230,7 @@ body::before {
   background: rgba(9,7,20,0.78);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(139,92,246,0.14);
+  border: 1px solid rgba(79, 124, 255,0.14);
   border-radius: var(--radius-2xl);
 }
 
@@ -1159,7 +1239,7 @@ body::before {
   background: rgba(9,7,20,0.72);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(139,92,246,0.13);
+  border: 1px solid rgba(79, 124, 255,0.13);
   border-radius: var(--radius-2xl);
 }
 
@@ -1181,16 +1261,275 @@ body::before {
 .contacts-page__row:hover,
 .calls-page__quick-btn:hover {
   background: rgba(255,255,255,0.07);
-  border-color: rgba(139,92,246,0.25);
+  border-color: rgba(79, 124, 255,0.25);
 }
 
 /* ── SCROLLBAR GLOBAL ─────────────────────────────────────────── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(139,92,246,0.18) transparent;
+  scrollbar-color: rgba(79, 124, 255,0.18) transparent;
 }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(139,92,246,0.18);
+  background: rgba(79, 124, 255,0.18);
   border-radius: 4px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   LIGHT THEME — chat chrome was hardcoded dark; flip the main surfaces so
+   the app is consistent after toggling day mode. Active/accent states use
+   blue rgba() that already reads fine on light, so they are left as-is.
+   ════════════════════════════════════════════════════════════════════ */
+[data-theme="light"] .chat-left-panel {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(79, 124, 255, 0.2);
+}
+[data-theme="light"] .chat-left-panel__search {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+[data-theme="light"] .chat-left-panel__search input::placeholder,
+[data-theme="light"] .chat-composer__input::placeholder {
+  color: rgba(15, 23, 42, 0.45);
+}
+[data-theme="light"] .chat-conv-item:hover:not(.chat-conv-item--active),
+[data-theme="light"] .chat-left-panel__app-nav-item:hover,
+[data-theme="light"] .chat-left-panel__profile:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+[data-theme="light"] .chat-left-panel__app-nav {
+  background: rgba(255, 255, 255, 0.7);
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+[data-theme="light"] .chat-left-panel__footer {
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+[data-theme="light"] .chat-header {
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+[data-theme="light"] .chat-shell--telegram .chat-composer {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(79, 124, 255, 0.28);
+}
+
+@media (max-width: 768px) {
+  [data-theme="light"] .chat-left-panel__app-nav {
+    background: rgba(255, 255, 255, 0.96);
+    border-top-color: rgba(79, 124, 255, 0.18);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE CHAT FIXES — composer input was squeezed to a sliver by the icon
+   row, and the green type-badge pill collided with the avatar/title.
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Single compact row; keep the textarea usable between the icons. */
+  .chat-composer__inner {
+    align-items: center;
+    gap: 2px;
+  }
+  .chat-composer__inner .chat-composer__input,
+  .chat-composer__inner textarea.chat-composer__input {
+    flex: 1 1 auto;
+    min-width: 60px;
+  }
+  .chat-composer .icon-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+  }
+
+  /* Drop the redundant type-badge pill in the header — it overlapped the
+     avatar/title in the cramped mobile header. */
+  .chat-header__title-row .chat-type-badge--pill {
+    display: none;
+  }
+  /* NOTE: header flex layout (avatar/info/actions shrink behaviour) is defined
+     authoritatively in the first mobile block above — do not re-set flex-shrink
+     on .chat-header__profile-trigger here (it would also freeze the info block
+     and bring back the name/avatar overlap). */
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   LIGHT THEME — crisp white frosted-glass panels over the colourful
+   daytime background (replaces the dark glass used in dark mode so the
+   light theme reads vivid, not muddy).
+   ════════════════════════════════════════════════════════════════════ */
+[data-theme="light"] .chat-left-panel {
+  background: rgba(255, 255, 255, 0.56);
+  border-color: rgba(124, 92, 255, 0.2);
+}
+[data-theme="light"] .chat-shell--telegram .chat-main {
+  background: rgba(255, 255, 255, 0.42);
+}
+[data-theme="light"] .chat-shell--telegram .chat-header {
+  background: rgba(255, 255, 255, 0.52);
+}
+[data-theme="light"] .page-shell__inner.glass-panel,
+[data-theme="light"] .settings-nav,
+[data-theme="light"] .app-shell:not(.app-shell--nexa-chats) .side-nav {
+  background: rgba(255, 255, 255, 0.56);
+  border-color: rgba(124, 92, 255, 0.18);
+}
+/* Watermark + active states a touch richer in light mode */
+[data-theme="light"] .chat-left-panel__watermark {
+  opacity: 0.06;
+}
+[data-theme="light"] .chat-conv-item--active {
+  background: rgba(124, 92, 255, 0.14) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Square, edge-to-edge panels (no rounded corners standing out),
+   bigger icons, and a @username on every chat row.
+   ════════════════════════════════════════════════════════════════════ */
+.app-shell--nexa-chats .chat-shell,
+.app-shell--nexa-chats .glass-panel,
+.chat-shell--telegram .chat-main,
+.chat-shell--telegram .chat-header,
+.chat-left-panel,
+.profile-panel {
+  border-radius: 0 !important;
+}
+.app-shell--nexa-chats .chat-shell {
+  box-shadow: none !important;
+}
+.chat-shell--resizable {
+  gap: 0;
+}
+
+/* Bigger icons across the chat chrome */
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+}
+.chat-header__actions .icon-btn svg,
+.chat-composer .icon-btn svg,
+.top-nav__icon-btn svg {
+  width: 23px;
+  height: 23px;
+}
+.side-nav__item svg {
+  width: 24px;
+  height: 24px;
+}
+/* Bottom app-nav block — larger icons */
+.chat-left-panel__nav-icon-wrap svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* @username on each chat row (muted, beside the display name) */
+.chat-conv-item__username {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-faint);
+  margin-left: 0.32rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SLIM COMPOSER — overrides premium.css which loads before v2.css
+   and sets min-height:2.25rem on the textarea. All overrides here are
+   final because v2.css is the last stylesheet in the cascade.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Outer shell: no hard separator line, tighter vertical padding. */
+.chat-composer {
+  border-top: none;
+  padding: 0.45rem 1rem calc(0.6rem + var(--safe-bottom));
+}
+
+/* Inner row: pill-shaped glass bar, vertically centered icons. */
+.chat-composer__inner {
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px 5px 14px;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.chat-composer__inner:focus-within {
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+/* Single-line textarea: horizontal scroll for overflow, fixed height. */
+.chat-composer textarea,
+.chat-composer .chat-composer__input {
+  height: 1.5rem !important;
+  min-height: 1.5rem !important;
+  max-height: 1.5rem !important;
+  white-space: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 0 !important;
+  resize: none;
+  line-height: 1.5;
+  font-size: 0.93rem;
+  scrollbar-width: none;
+}
+
+.chat-composer textarea::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile: further slim the icons to 34px */
+@media (max-width: 768px) {
+  .chat-composer {
+    padding: 0.35rem 0.6rem calc(0.5rem + var(--safe-bottom));
+  }
+  .chat-composer__inner {
+    padding: 4px 6px 4px 12px;
+    gap: 2px;
+  }
+  .chat-composer .icon-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   EPHEMERAL TIMER BADGE — round countdown, no tooltip text.
+   • Outgoing (my messages, right side): badge on TOP-LEFT of bubble.
+   • Incoming (their messages, left side): badge on TOP-RIGHT of bubble.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Default position (incoming = right side of bubble) */
+.chat-bubble__ephemeral-tag {
+  top: -0.45rem;
+  right: 0.3rem;
+  left: auto;
+  width: 20px;
+  height: 20px;
+  font-size: 0;
+}
+
+/* Outgoing: shift badge to top-left */
+.chat-bubble__ephemeral-tag--out {
+  right: auto;
+  left: 0.3rem;
+}
+
+/* The live countdown number rendered inside the badge circle */
+.chat-ephemeral-wrap__countdown {
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #042f2a;
+}
+
+/* Remove the old "Vanishes in Xs" text block — replaced by badge countdown */
+.chat-ephemeral-wrap__timer {
+  display: none;
 }

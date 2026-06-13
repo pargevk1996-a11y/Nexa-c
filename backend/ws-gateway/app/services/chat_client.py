@@ -24,15 +24,19 @@ class ChatClient:
         client_msg_id: str,
         body: str,
         content_type: str = "text",
+        reply_to_id: str | None = None,
     ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "client_msg_id": client_msg_id,
+            "body": body,
+            "content_type": content_type,
+        }
+        if reply_to_id:
+            payload["reply_to_id"] = reply_to_id
         r = await self._client.post(
             f"/api/v1/conversations/{conversation_id}/messages",
             headers={"Authorization": f"Bearer {access_token}"},
-            json={
-                "client_msg_id": client_msg_id,
-                "body": body,
-                "content_type": content_type,
-            },
+            json=payload,
         )
         r.raise_for_status()
         return r.json()

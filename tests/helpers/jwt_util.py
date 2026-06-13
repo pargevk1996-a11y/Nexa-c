@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from securechat_shared.security.jwt_keys import create_access_token
+from nexa_shared.security.jwt_keys import create_access_token
 
 TEST_JWT_SECRET = "test-jwt-secret-for-pytest-only"
 TEST_USER_ID = "test-user-001"

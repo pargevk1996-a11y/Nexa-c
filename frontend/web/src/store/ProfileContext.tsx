@@ -27,7 +27,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!session?.accessToken || session.demoMode) {
+    if (!session?.user?.id || session?.demoMode) {
       setProfile(null);
       return;
     }
@@ -56,14 +56,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [session?.accessToken, session?.demoMode]);
+  }, [session?.user?.id, session?.demoMode]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   useEffect(() => {
-    if (!session?.accessToken || session.demoMode) return;
+    if (!session?.user?.id || session?.demoMode) return;
     void updatePresence(true, profile?.status_text);
     const onVis = () => {
       void updatePresence(!document.hidden, profile?.status_text);
@@ -77,7 +77,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       window.clearInterval(interval);
       void updatePresence(false);
     };
-  }, [session?.accessToken, session?.demoMode, profile?.status_text]);
+  }, [session?.user?.id, session?.demoMode, profile?.status_text]);
 
   const save = useCallback(
     async (patch: Parameters<typeof updateMyProfile>[0]) => {

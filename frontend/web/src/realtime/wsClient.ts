@@ -39,23 +39,25 @@ export class RealtimeWsClient {
 
   connect(): void {
     this.closed = false;
-    const token = this.opts.getAccessToken?.() ?? getCachedSession()?.accessToken;
-    if (!token) return;
+    // Gate on a live session so we don't open sockets for unauthenticated users.
+    // The actual credential is the httpOnly access_token cookie — the browser
+    // sends it automatically on the WebSocket upgrade, so no token needs to
+    // appear in JS memory, request headers, or the Sec-WebSocket-Protocol field.
+    if (!getCachedSession()) return;
 
-    const base = wsUrl();
-    const sep = base.includes("?") ? "&" : "?";
-    const url = `${base}${sep}access_token=${encodeURIComponent(token)}`;
-    // Auth via first frame + query param (Vite proxy may strip Sec-WebSocket-Protocol).
+    const url = wsUrl();
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
       this.reconnectAttempt = 0;
       this.opts.onConnectionState?.("connected");
+      // Auth frame: the server reads the token from the httpOnly cookie that
+      // the browser already attached to the upgrade request. No token in payload.
       this.send({
         type: "event",
         id: crypto.randomUUID(),
         name: "auth",
-        payload: { token },
+        payload: {},
         ts: Date.now(),
       });
       this.startHeartbeat();
@@ -126,7 +128,7 @@ export class RealtimeWsClient {
     }
   }
 
-  sendMessage(conversationId: string, body: string, existingClientMsgId?: string): string {
+  sendMessage(conversationId: string, body: string, existingClientMsgId?: string, replyToId?: string): string {
     const clientMsgId = existingClientMsgId ?? newClientMsgId();
     const pending: PendingOutbound = {
       clientMsgId,
@@ -136,11 +138,13 @@ export class RealtimeWsClient {
       createdAt: Date.now(),
     };
     if (this.ws?.readyState === WebSocket.OPEN) {
+      const payload: Record<string, unknown> = { conversation_id: conversationId, client_msg_id: clientMsgId, body };
+      if (replyToId) payload.reply_to_id = replyToId;
       this.send({
         type: "event",
         id: clientMsgId,
         name: "message.send",
-        payload: { conversation_id: conversationId, client_msg_id: clientMsgId, body },
+        payload,
         ts: Date.now(),
       });
     } else {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections import defaultdict
@@ -14,6 +15,7 @@ from app.services.chat_client import ChatClient
 from app.ws.connection_manager import ClientConnection, ConnectionManager
 from nexa_shared.realtime.events import RealtimeEvent, WsFrame, parse_ws_frame, ws_frame_to_json
 from nexa_shared.realtime.registry import ConnectionRegistry
+from nexa_shared.security.field_encryption import decrypt_cookie_token
 from nexa_shared.security.jwt_keys import load_pem, verify_access_token
 
 
@@ -44,11 +46,29 @@ async def _send_error(ws: WebSocket, *, corr_id: str, code: str, message: str) -
 
 
 def _extract_token(ws: WebSocket, first_payload: dict | None) -> str | None:
+    # Priority 1: httpOnly access_token cookie — the browser sends it automatically
+    # on the WebSocket upgrade request; the token is never visible in DevTools
+    # Network headers, URL, or JS memory.
+    cookie_header = ws.headers.get("cookie", "")
+    for part in cookie_header.split(";"):
+        k, _, v = part.strip().partition("=")
+        if k.strip() == "access_token" and v.strip():
+            return v.strip()
+    # Priority 2 (legacy / non-browser clients): first WS data frame payload.
+    if first_payload and first_payload.get("token"):
+        return str(first_payload["token"])
+    # Priority 3 (legacy fallback): Sec-WebSocket-Protocol bearer header.
     proto = ws.headers.get("sec-websocket-protocol", "")
     if proto.startswith("bearer,"):
         return proto.split(",", 1)[1].strip()
-    if first_payload and first_payload.get("token"):
-        return str(first_payload["token"])
+    return None
+
+
+def _select_subprotocol(ws: WebSocket) -> str | None:
+    proto = ws.headers.get("sec-websocket-protocol", "")
+    parts = [p.strip() for p in proto.split(",") if p.strip()]
+    if parts and parts[0] == "bearer":
+        return "bearer"
     return None
 
 
@@ -73,13 +93,25 @@ class WsHandler:
         if self._manager.connection_count >= settings.max_connections_per_node:
             await websocket.close(code=1013, reason="Server at capacity")
             return
-        await websocket.accept()
+        # Select the negotiated subprotocol BEFORE accepting; otherwise browsers
+        # that offered `["bearer", token]` abort the handshake.
+        await websocket.accept(subprotocol=_select_subprotocol(websocket))
         conn_id = str(uuid4())
         user_id: str | None = None
         access_token: str | None = None
 
         try:
-            raw = await websocket.receive_text()
+            # Connection stays unauthenticated until the first auth frame arrives.
+            # Bound the wait so a silent client cannot hold a slot open forever.
+            try:
+                raw = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=settings.auth_timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                await _send_error(websocket, corr_id="", code="AUTH_TIMEOUT", message="Auth timed out")
+                await websocket.close(code=4001)
+                return
             if len(raw.encode()) > settings.max_frame_bytes:
                 await websocket.close(code=1009)
                 return
@@ -93,6 +125,13 @@ class WsHandler:
                 await _send_error(websocket, corr_id=frame.id, code="AUTH_FAILED", message="Missing token")
                 await websocket.close(code=4001)
                 return
+            # Cookie path: token is an AES-GCM blob — decrypt to get the JWT.
+            # Legacy paths (frame payload / subprotocol) carry a raw JWT; if
+            # decryption fails, the raw value is used as-is for backward compat.
+            if settings.cookie_encryption_key:
+                decrypted = decrypt_cookie_token(token, key_b64=settings.cookie_encryption_key)
+                if decrypted:
+                    token = decrypted
             try:
                 public = load_pem(
                     settings.jwt_access_public_key_file,
@@ -207,6 +246,7 @@ class WsHandler:
             conv_id = str(frame.payload.get("conversation_id", ""))
             client_msg_id = str(frame.payload.get("client_msg_id") or frame.id)
             body = str(frame.payload.get("body", ""))
+            reply_to_id = frame.payload.get("reply_to_id") or None
             if not conv_id or not body:
                 await _send_error(ws, corr_id=frame.id, code="INVALID_PAYLOAD", message="conversation_id and body required")
                 return
@@ -216,6 +256,7 @@ class WsHandler:
                     conversation_id=conv_id,
                     client_msg_id=client_msg_id,
                     body=body,
+                    reply_to_id=reply_to_id,
                 )
                 await _send_frame(
                     ws,

@@ -9,6 +9,7 @@ from starlette.responses import Response
 from app.api.admin_flags import router as admin_flags_router
 from app.api.proxy import get_client, router as proxy_router
 from app.api.routes import router
+from app.api.security_telemetry import router as security_telemetry_router
 from app.core.config import settings
 from app.middleware.security import SecurityMiddleware
 from nexa_shared.observability import setup_observability
@@ -28,16 +29,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # camera/microphone scoped to our own origin (self) so WebRTC calls work
+        # on explicit user action; a blanket () would silently break the call feature.
+        # geolocation/payment/usb fully disabled — the app never uses them.
         response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+            "geolocation=(), microphone=(self), camera=(self), payment=(), usb=()"
         )
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Content-Security-Policy"] = self._CSP
-        if settings.app_env == "production":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains; preload"
-            )
+        # HSTS is set by nginx (TLS terminator) — not duplicated here.
         return response
 
 
@@ -62,8 +63,11 @@ app.add_middleware(
 )
 
 app.include_router(router)
-app.include_router(proxy_router, prefix="/api/v1")
+# Local routers must be registered BEFORE the catch-all proxy so their paths
+# (e.g. /api/v1/security/...) are not swallowed by the `/{service}/{path}` proxy.
+app.include_router(security_telemetry_router, prefix="/api/v1")
 app.include_router(admin_flags_router, prefix="/api/v1")
+app.include_router(proxy_router, prefix="/api/v1")
 
 
 @app.get("/health", response_model=HealthResponse)

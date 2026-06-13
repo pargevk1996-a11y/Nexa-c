@@ -3,6 +3,7 @@ import {
   IconCalls,
   IconChats,
   IconContacts,
+  IconProfile,
   IconSettings,
 } from "@/components/icons/Icons";
 import { useChatOptional } from "@/store/ChatContext";
@@ -11,6 +12,7 @@ const NAV = [
   { to: "/app/chats", label: "Chats", Icon: IconChats },
   { to: "/app/contacts", label: "Contacts", Icon: IconContacts },
   { to: "/app/calls", label: "Calls", Icon: IconCalls },
+  { to: "/app/profile", label: "Profile", Icon: IconProfile },
   { to: "/app/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 

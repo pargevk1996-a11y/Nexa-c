@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import ProfileRow
-from app.services.profile_store import Profile, ProfilePrivacy
+from app.services.profile_store import Profile, ProfilePrivacy, effective_online
 from nexa_shared.utils.uid import generate_public_uid
 
 
@@ -190,8 +190,9 @@ class PostgresProfileStore:
             row.is_online = is_online
             if status_text is not None:
                 row.status_text = status_text
-            if not is_online:
-                row.last_seen_at = datetime.now(UTC)
+            # Always stamp last activity (heartbeat + offline ping) so reads can
+            # expire a sticky online flag left by a killed tab / crash / net drop.
+            row.last_seen_at = datetime.now(UTC)
             await session.commit()
             await session.refresh(row)
             return self._to_profile(row)
@@ -210,7 +211,7 @@ class PostgresProfileStore:
             avatar_url=p.avatar_url if p.privacy.show_avatar else None,
             animated_avatar_url=p.animated_avatar_url if p.privacy.show_avatar else None,
             avatar_kind=p.avatar_kind if p.privacy.show_avatar else "initial",
-            is_online=p.is_online if p.privacy.show_online_status else False,
+            is_online=effective_online(p.is_online, p.last_seen_at) if p.privacy.show_online_status else False,
             last_seen_at=p.last_seen_at if p.privacy.show_last_seen else None,
             verification_badge=p.verification_badge,
             privacy=p.privacy,

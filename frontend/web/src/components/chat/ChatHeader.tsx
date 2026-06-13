@@ -1,19 +1,14 @@
-import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { VerificationBadge } from "@/components/profile/VerificationBadge";
 import { IconButton } from "@/components/ui/IconButton";
 import {
   IconChevronLeft,
-  IconMoon,
   IconPhone,
   IconSearch,
   IconShield,
-  IconSun,
   IconVideo,
 } from "@/components/icons/Icons";
 import { usePublicProfile } from "@/hooks/usePublicProfile";
-import { useSettings } from "@/store/SettingsContext";
-import type { ThemeMode } from "@/store/settings";
 import { displayName, presenceLine } from "@/utils/presenceText";
 import { ChatTypeBadge } from "@/components/chat/ChatTypeBadge";
 import { isBroadcastChannel, resolveChatType } from "@/utils/chatTypes";
@@ -39,8 +34,6 @@ export function ChatHeader({
   isSuperSecret = false,
   onToggleSuperSecret,
 }: ChatHeaderProps) {
-  const { settings, update } = useSettings();
-  const [isDark, setIsDark] = useState(true);
   const chatType = resolveChatType(conversation);
   const isSecret = chatType === "secret";
   const isChannel = chatType === "channel";
@@ -49,15 +42,10 @@ export function ChatHeader({
   const broadcast = isBroadcastChannel(conversation);
   const { profile: peer } = usePublicProfile(conversation.peerUserId);
   const title = isSaved ? conversation.name : peer ? displayName(peer) : conversation.name;
-  const online = peer?.is_online ?? conversation.online;
-
-  useEffect(() => {
-    const dark =
-      settings.theme === "dark" ||
-      (settings.theme === "system" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setIsDark(dark);
-  }, [settings.theme]);
+  // Prefer the live, periodically-refreshed conversation.online (kept fresh by
+  // ChatContext's presence poll) over the process-lifetime cached peer profile,
+  // whose is_online would otherwise stay frozen green after the peer goes offline.
+  const online = conversation.online ?? peer?.is_online ?? false;
 
   const statusLine = (() => {
     if (isSaved) return "Saved messages";
@@ -78,17 +66,6 @@ export function ChatHeader({
 
   const showCalls = !isSecret && !isChannel && !isSaved;
   const showSuperSecretToggle = !isChannel && !isSaved && onToggleSuperSecret;
-
-  const themeCycle: ThemeMode[] = ["dark", "light", "system"];
-
-  function cycleTheme() {
-    const idx = themeCycle.indexOf(settings.theme);
-    const next = themeCycle[(idx + 1) % themeCycle.length];
-    update("theme", next);
-  }
-
-  const themeLabel =
-    settings.theme === "system" ? "System theme" : isDark ? "Light mode" : "Dark mode";
 
   return (
     <header className={`chat-header ${isChannel ? "chat-header--channel" : ""}`}>
@@ -150,17 +127,6 @@ export function ChatHeader({
             <IconSearch size={20} />
           </IconButton>
         ) : null}
-        <IconButton label={themeLabel} variant="ghost" onClick={cycleTheme}>
-          {settings.theme === "system" ? (
-            <span className="chat-header__theme-sys" aria-hidden>
-              ◐
-            </span>
-          ) : isDark ? (
-            <IconSun size={20} />
-          ) : (
-            <IconMoon size={20} />
-          )}
-        </IconButton>
         {showCalls ? (
           <>
             <IconButton
@@ -187,7 +153,12 @@ export function ChatHeader({
             <span>SecureChat</span>
           </button>
         ) : null}
-        <IconButton label="Chat menu" variant="ghost" onClick={() => onOpenProfile?.()}>
+        <IconButton
+          label="Chat menu"
+          variant="ghost"
+          className="chat-header__menu-btn"
+          onClick={() => onOpenProfile?.()}
+        >
           <span className="chat-header__menu-icon" aria-hidden>
             ⋮
           </span>

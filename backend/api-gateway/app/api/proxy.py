@@ -62,13 +62,20 @@ async def proxy(service: str, path: str, request: Request) -> Response:
     except HTTPError:
         return _error_response(502, "UPSTREAM_ERROR", "Upstream request failed")
 
-    return Response(
+    # NB: build the response with multi_items(), NOT a dict comprehension.
+    # A dict collapses duplicate header keys, and httpx's Headers.items() merges
+    # repeated Set-Cookie headers into a single comma-joined value. Browsers do
+    # NOT split Set-Cookie on commas (RFC 6265), so an auth response that sets
+    # refresh_token + access_token + csrf cookies would deliver only ONE cookie —
+    # silently dropping access_token and breaking cookie-based auth entirely.
+    _SKIP = ("transfer-encoding", "content-encoding", "content-length", "content-type")
+    response = Response(
         content=upstream.content,
         status_code=upstream.status_code,
-        headers={
-            k: v
-            for k, v in upstream.headers.items()
-            if k.lower() not in ("transfer-encoding", "content-encoding", "content-length")
-        },
         media_type=upstream.headers.get("content-type"),
     )
+    for key, value in upstream.headers.multi_items():
+        if key.lower() in _SKIP:
+            continue
+        response.headers.append(key, value)
+    return response

@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { fetchPublicProfile } from "@/api/profile";
 import { getCachedSession } from "@/api/auth";
+import { getCachedPublicProfile, loadPublicProfile } from "@/api/publicProfileCache";
 import type { PublicProfile } from "@/types/profile";
 
 export function usePublicProfile(userId: string | undefined) {
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  // Seed synchronously from the shared cache so re-mounts don't re-fetch and
+  // there is no loading flash for an already-known peer.
+  const [profile, setProfile] = useState<PublicProfile | null>(
+    () => getCachedPublicProfile(userId) ?? null,
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -13,18 +17,23 @@ export function usePublicProfile(userId: string | undefined) {
       return;
     }
     const session = getCachedSession();
-    if (!session?.accessToken || session.demoMode) {
+    if (!session?.user?.id || session?.demoMode) {
       setProfile(null);
       return;
     }
+
+    // Already resolved (found or known-404) → use it, no request.
+    const cached = getCachedPublicProfile(userId);
+    if (cached !== undefined) {
+      setProfile(cached);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
-    void fetchPublicProfile(userId)
+    void loadPublicProfile(userId)
       .then((p) => {
         if (!cancelled) setProfile(p);
-      })
-      .catch(() => {
-        if (!cancelled) setProfile(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

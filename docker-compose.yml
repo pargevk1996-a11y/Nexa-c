@@ -4,6 +4,15 @@ x-service-env: &service-env
   APP_ENV: ${APP_ENV:-development}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   REDIS_URL: redis://:${REDIS_PASSWORD:-change-me-redis-password}@redis:6379/0
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+  JWT_ACCESS_PUBLIC_KEY: ${JWT_ACCESS_PUBLIC_KEY}
+  # Graceful key rollover: set to the OLD public key (RS256) during a rotation
+  # window so in-flight tokens still verify; unset after one access-token TTL to
+  # fully invalidate the old (leaked) tokens. See docs/security/jwt-key-rotation.md.
+  JWT_ACCESS_PUBLIC_KEY_PREVIOUS: ${JWT_ACCESS_PUBLIC_KEY_PREVIOUS:-}
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
+  COOKIE_ENCRYPTION_KEY: ${COOKIE_ENCRYPTION_KEY}
 
 services:
   postgres:
@@ -72,8 +81,25 @@ services:
     environment:
       <<: *service-env
       AUTH_DATABASE_URL: ${AUTH_DATABASE_URL}
+      JWT_ACCESS_PRIVATE_KEY: ${JWT_ACCESS_PRIVATE_KEY}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-600}
+      JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
+      AUTO_VERIFY_EMAIL: ${AUTO_VERIFY_EMAIL:-true}
+      # OAuth2 (Google / GitHub social login)
+      OAUTH_ENABLED: ${OAUTH_ENABLED:-true}
+      OAUTH_PUBLIC_BASE_URL: ${OAUTH_PUBLIC_BASE_URL:-https://nexa-c.com}
+      FRONTEND_URL: ${FRONTEND_URL:-https://nexa-c.com}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     networks:
+      # internal: DB/redis + reachable by api-gateway.
+      # gateway: provides outbound internet egress for OAuth token/userinfo calls
+      #          to accounts.google.com / github.com (internal network has internal:true).
       - internal
+      - gateway
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,7 +141,7 @@ services:
       <<: *service-env
       CONTACT_DATABASE_URL: ${CONTACT_DATABASE_URL}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
     networks:
       - internal
     depends_on:
@@ -164,6 +190,7 @@ services:
       <<: *service-env
       MEDIA_DATABASE_URL: ${MEDIA_DATABASE_URL}
       MEDIA_STORAGE_ROOT: /data/media
+      MEDIA_CDN_BASE_URL: /api/v1/media
     volumes:
       - media_data:/data/media
     networks:
@@ -231,7 +258,7 @@ services:
       CHAT_SERVICE_URL: http://chat-service:8004
       PRESENCE_SERVICE_URL: http://presence-service:8010
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       NATS_URL: ${NATS_URL:-}
     networks:
       - internal
@@ -255,7 +282,7 @@ services:
     environment:
       <<: *service-env
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
     networks:
       - internal
     depends_on:
@@ -275,7 +302,7 @@ services:
     environment:
       <<: *service-env
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       STUN_URLS: ${STUN_URLS:-stun:stun.l.google.com:19302}
       TURN_URLS: ${TURN_URLS:-}
       TURN_SECRET: ${TURN_SECRET:-}
@@ -298,7 +325,7 @@ services:
     environment:
       <<: *service-env
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
       AI_CHAT_MODEL: ${AI_CHAT_MODEL:-gpt-4o-mini}
@@ -320,7 +347,7 @@ services:
       <<: *service-env
       NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret}
     networks:
       - internal
@@ -405,6 +432,8 @@ services:
       - gateway
     depends_on:
       api-gateway:
+        condition: service_healthy
+      ws-gateway:
         condition: service_healthy
 
   frontend:

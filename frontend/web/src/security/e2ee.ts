@@ -1,10 +1,16 @@
 /**
  * End-to-end encryption (client-side) using AES-256-GCM via WebCrypto.
  *
- * Key agreement: ECDH P-256. Each conversation uses a derived AES-256-GCM key
- * stored in sessionStorage so it survives page refresh but not tab close.
- * For multi-device / persistent E2EE, replace key storage with a proper
- * key-server or libsignal/MLS ratchet.
+ * Key management: all CryptoKey objects are non-extractable and live ONLY in
+ * the _keyCache module-level Map — they are never written to sessionStorage,
+ * localStorage, or any other storage. This means:
+ *   - An XSS attacker can call crypto.subtle.encrypt/decrypt but cannot
+ *     call exportKey() to exfiltrate raw key bytes.
+ *   - Keys are session-scoped: lost on page reload (forward secrecy by design).
+ *     For persistent E2EE replace with a proper key-server or MLS ratchet.
+ *
+ * Key agreement: ECDH P-256. Conversation keys are AES-256-GCM, generated
+ * fresh per conversation per tab session.
  */
 
 export interface E2eeEnvelope {
@@ -18,12 +24,20 @@ export interface ConversationKeys {
   aesKey: CryptoKey;
 }
 
-const SESSION_KEY_PREFIX = "e2ee_key_";
+// In-memory store: non-extractable CryptoKey objects, never touches any storage.
+const _keyCache = new Map<string, CryptoKey>();
+
+// Stable ephemeral device ID (tab-scoped, not sensitive).
+let _deviceId: string | null = null;
 
 // ── Key generation ────────────────────────────────────────────────────────────
 
 export async function generateDeviceKeyPair(): Promise<CryptoKeyPair> {
-  return crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+  return crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true, // public key must be exportable to share with peers
+    ["deriveKey"],
+  );
 }
 
 export async function exportPublicKey(keyPair: CryptoKeyPair): Promise<string> {
@@ -47,7 +61,7 @@ export async function deriveConversationKey(
     { name: "ECDH", public: peerKey },
     myKeyPair.privateKey,
     { name: "AES-GCM", length: 256 },
-    false,
+    false, // non-extractable derived key
     ["encrypt", "decrypt"],
   );
 }
@@ -55,29 +69,20 @@ export async function deriveConversationKey(
 // ── Per-conversation key management ──────────────────────────────────────────
 
 export async function getOrCreateConversationKey(conversationId: string): Promise<ConversationKeys> {
-  const stored = sessionStorage.getItem(SESSION_KEY_PREFIX + conversationId);
-  if (stored) {
-    const raw = _b64ToBuf(stored);
-    const aesKey = await crypto.subtle.importKey(
-      "raw",
-      raw,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"],
-    );
-    return { conversationId, aesKey };
-  }
-  const aesKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, [
-    "encrypt",
-    "decrypt",
-  ]);
-  const exported = await crypto.subtle.exportKey("raw", aesKey);
-  sessionStorage.setItem(SESSION_KEY_PREFIX + conversationId, _bufToB64(exported));
+  const cached = _keyCache.get(conversationId);
+  if (cached) return { conversationId, aesKey: cached };
+
+  const aesKey = await crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    false, // non-extractable: raw bytes inaccessible to JS, even via exportKey
+    ["encrypt", "decrypt"],
+  );
+  _keyCache.set(conversationId, aesKey);
   return { conversationId, aesKey };
 }
 
 export function clearConversationKey(conversationId: string): void {
-  sessionStorage.removeItem(SESSION_KEY_PREFIX + conversationId);
+  _keyCache.delete(conversationId);
 }
 
 // ── Encrypt / decrypt ─────────────────────────────────────────────────────────
@@ -130,10 +135,9 @@ function _b64ToBuf(b64: string): ArrayBuffer {
 }
 
 function _getDeviceId(): string {
-  let id = sessionStorage.getItem("e2ee_device_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem("e2ee_device_id", id);
-  }
-  return id;
+  if (_deviceId) return _deviceId;
+  // Not sensitive — just a stable-per-tab identifier for sender attribution.
+  _deviceId = sessionStorage.getItem("e2ee_device_id") ?? crypto.randomUUID();
+  sessionStorage.setItem("e2ee_device_id", _deviceId);
+  return _deviceId;
 }

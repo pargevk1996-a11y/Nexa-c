@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { pollQrLogin, startQrLogin, storeSession } from "@/api/auth";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthAlert } from "@/components/auth/AuthAlert";
 import { QrCodeDisplay } from "@/components/auth/QrCodeDisplay";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function QrLoginPage() {
   const navigate = useNavigate();
+  useDocumentTitle("Sign in with QR");
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [pollUrl, setPollUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "pending" | "approved" | "expired">("loading");
@@ -68,7 +71,7 @@ export function QrLoginPage() {
 
   return (
     <AuthCard title="QR sign-in" subtitle="Scan with NEXA on your phone">
-      {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
+      <AuthAlert variant="error">{error}</AuthAlert>
       <div className="qr-login-panel">
         {qrToken && status === "pending" ? (
           <QrCodeDisplay value={qrPayload} size={220} label="Scan to sign in" />

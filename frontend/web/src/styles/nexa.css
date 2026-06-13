@@ -21,7 +21,7 @@
 }
 
 .nexa-sidebar__brand-word {
-  font-family: var(--font-display);
+  font-family: var(--font-brand);
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -342,9 +342,17 @@
   color: var(--text-muted);
 }
 
-/* Full-bleed chats layout — no duplicate rails */
-.app-shell--nexa-chats .top-nav-zone,
+/* Full-bleed chats layout — hide the side rail, but keep the shared TopNav so
+   the top block matches every other section. */
 .app-shell--nexa-chats .side-nav {
+  display: none !important;
+}
+
+/* On mobile, opening a conversation hides the TopNav so the chat uses the full
+   height (it has its own header). `chat-shell--conversation-open` is only set
+   when a chat is open on a narrow (≤768px) viewport, so this never affects the
+   list view or desktop. */
+.app-shell--nexa-chats:has(.chat-shell--conversation-open) .top-nav-zone {
   display: none !important;
 }
 
@@ -500,7 +508,7 @@
 
 .bootstrap-screen__title {
   margin: 0;
-  font-family: var(--font-display, "Rosmatika", sans-serif);
+  font-family: var(--font-display, system-ui, sans-serif);
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;

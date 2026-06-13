@@ -9,12 +9,12 @@ export interface PanelWidths {
 }
 
 export const PANEL_DEFAULTS: PanelWidths = {
-  sidebar: 320,
+  sidebar: 384,
   profile: 300,
 };
 
 export const PANEL_LIMITS = {
-  sidebar: { min: 220, max: 480 },
+  sidebar: { min: 260, max: 560 },
   profile: { min: 200, max: 420 },
   mainMin: 280,
 };

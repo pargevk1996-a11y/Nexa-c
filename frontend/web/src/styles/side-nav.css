@@ -104,3 +104,60 @@
   display: flex;
   flex-direction: column;
 }
+
+/* The section switcher sits at the BOTTOM in every section on every device —
+   identical to the bottom tab bar in the Chats section. Stack the frame so the
+   body fills the screen and the nav becomes a full-width bottom bar (in normal
+   flow, so it never overlaps content).
+   Scoped to non-chat sections; the Chats section has its own full-screen shell
+   with the bottom tab bar already built into ChatLeftPanel. */
+.app-shell:not(.app-shell--nexa-chats) .app-shell__frame {
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.app-shell:not(.app-shell--nexa-chats) .app-shell__body {
+  order: 1;
+}
+
+.app-shell:not(.app-shell--nexa-chats) .side-nav {
+  order: 2;
+  flex-direction: row;
+  width: auto;
+  align-self: stretch;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem calc(0.4rem + var(--safe-bottom, 0px));
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--bg-elevated);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.app-shell:not(.app-shell--nexa-chats) .side-nav__item {
+  flex: 1 1 0;
+  /* Cap width so the 4 items don't stretch across a wide desktop; on phones
+     flex-shrink lets them fit. */
+  width: auto;
+  max-width: 140px;
+  gap: 0.2rem;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.7rem;
+}
+
+/* Reveal the labels (the desktop rail was icon-only). */
+.app-shell:not(.app-shell--nexa-chats) .side-nav__label {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip: auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+}

@@ -4,6 +4,11 @@ from app.core.config import settings
 from nexa_shared.security.jwt_keys import load_pem, verify_access_token
 
 
+def verify_internal_secret(x_internal_secret: str | None = Header(default=None)) -> None:
+    if not settings.internal_service_secret or x_internal_secret != settings.internal_service_secret:
+        raise HTTPException(status_code=403, detail={"error": {"code": "FORBIDDEN", "message": "Internal secret required"}})
+
+
 def get_current_user_id(authorization: str | None = Header(default=None)) -> str:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(

@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { completeOAuthCallback } from "@/api/auth";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthAlert } from "@/components/auth/AuthAlert";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function OAuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  useDocumentTitle("Signing in");
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +35,7 @@ export function OAuthCallbackPage() {
     <AuthCard title="Signing you in">
         {error ? (
           <>
-            <div className="auth-alert auth-alert--error">{error}</div>
+            <AuthAlert variant="error">{error}</AuthAlert>
             <p className="auth-footer">
               <Link to="/login">Back to sign in</Link>
             </p>

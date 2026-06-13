@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from securechat_shared.realtime.events import RealtimeEvent, WsFrame, parse_ws_frame, ws_frame_to_json
+from nexa_shared.realtime.events import RealtimeEvent, WsFrame, parse_ws_frame, ws_frame_to_json
 
 pytestmark = pytest.mark.unit
 

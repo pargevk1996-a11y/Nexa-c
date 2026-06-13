@@ -9,15 +9,16 @@
 }
 
 .top-nav-zone--compact {
-  padding-bottom: 0;
+  /* Gap so the bar doesn't sit flush on the section content below it. */
+  padding-bottom: 0.5rem;
 }
 
-/* Brand + utilities — full-width bar */
+/* Brand + utilities — left-grouped bar (logo, bell and theme all on the left). */
 .top-nav-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.6rem;
   width: 100%;
   padding: 0.5rem 0.85rem;
   border-radius: var(--radius-xl);
@@ -29,16 +30,18 @@
   min-width: 0;
 }
 
+/* NEXA wordmark visible on every device (was hidden < 900px, so on mobile the
+   brand showed nowhere outside the Chats section). */
 .top-nav__brand-text {
-  display: none;
+  display: inline;
+  font-size: 1.4rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 @media (min-width: 900px) {
   .top-nav__brand-text {
-    display: inline;
     font-size: 2.85rem;
-    line-height: 1;
-    letter-spacing: -0.03em;
   }
 }
 
@@ -48,6 +51,7 @@
   gap: 0.35rem;
   flex-shrink: 0;
   min-width: 0;
+  margin-left: auto;
 }
 
 .top-nav__brand {
@@ -55,7 +59,7 @@
   align-items: center;
   gap: 0.45rem;
   padding: 0.2rem 0.35rem;
-  font-family: var(--font-display);
+  font-family: var(--font-brand);
   font-weight: 700;
   font-size: 0.95rem;
   letter-spacing: -0.02em;
@@ -63,6 +67,89 @@
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* ── Logo ↔ day/night switch — shared everywhere (.logo-toggle) ────
+   The animated brand mark doubling as the theme switch, 1:1 with the home
+   screen: radiating golden sun + rays in DAY mode, glowing mesh at NIGHT.
+   Used by the top nav and the chats list header alike. */
+.logo-toggle {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  line-height: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.2s var(--ease, ease);
+}
+
+.logo-toggle:hover {
+  transform: scale(1.04);
+}
+
+.logo-toggle:active {
+  transform: scale(0.96);
+}
+
+.logo-toggle:focus-visible {
+  outline: 2px solid var(--border-focus, var(--accent));
+  outline-offset: 2px;
+}
+
+.logo-toggle canvas {
+  position: relative;
+  z-index: 1;
+  transition: filter 0.6s ease;
+}
+
+.logo-toggle__rays {
+  position: absolute;
+  inset: -38%;
+  z-index: 0;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  background: radial-gradient(circle, rgba(255, 233, 150, 0.95) 0%, rgba(255, 201, 86, 0.4) 32%, transparent 64%);
+  filter: blur(6px);
+}
+
+.logo-toggle__rays::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 224, 130, 0.55) 0deg 3deg,
+    transparent 3deg 13deg
+  );
+  -webkit-mask: radial-gradient(circle, #000 26%, transparent 68%);
+  mask: radial-gradient(circle, #000 26%, transparent 68%);
+  animation: sun-spin 44s linear infinite;
+}
+
+/* Day mode: sun rays light up + the mesh turns into a glowing golden sun. */
+[data-theme="light"] .logo-toggle__rays {
+  opacity: 1;
+  animation: sun-pulse 4.5s ease-in-out infinite;
+}
+
+[data-theme="light"] .logo-toggle canvas {
+  filter: sepia(1) saturate(2.6) hue-rotate(-18deg) brightness(1.28)
+    drop-shadow(0 0 20px rgba(255, 198, 84, 0.85));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-toggle__rays::after,
+  [data-theme="light"] .logo-toggle__rays {
+    animation: none;
+  }
 }
 
 .top-nav__brand-mark {
@@ -143,6 +230,41 @@
 .top-nav__icon-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+/* Manual screen-lock padlock, sits right after the NEXA wordmark. */
+.top-nav__lock-btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-left: 0.15rem;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.top-nav__lock-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.top-nav__lock-btn:active {
+  transform: scale(0.92);
+}
+
+/* Comfortable 44px tap target on touch devices (phones/tablets, any OS). */
+@media (pointer: coarse) {
+  .top-nav__lock-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
 }
 
 .top-nav__avatar {

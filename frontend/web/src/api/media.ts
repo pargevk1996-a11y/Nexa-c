@@ -50,12 +50,10 @@ export async function uploadChunk(
   chunkIndex: number,
   data: ArrayBuffer,
 ): Promise<void> {
-  const session = await import("@/security/sessionCache").then((m) => m.getCachedSession());
   const csrf = await import("@/security/csrf").then((m) => m.getCsrfToken());
   const headers: Record<string, string> = {
     "Content-Type": "application/octet-stream",
   };
-  if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
   if (csrf) headers["X-CSRF-Token"] = csrf;
 
   const res = await fetch(`/api/v1/media/uploads/${uploadId}/chunks/${chunkIndex}`, {

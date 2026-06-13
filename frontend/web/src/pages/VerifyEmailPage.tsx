@@ -2,8 +2,10 @@ import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { resendVerificationEmail, verifyEmail } from "@/api/auth";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthAlert } from "@/components/auth/AuthAlert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function VerifyEmailPage() {
   const [email, setEmail] = useState("");
@@ -12,6 +14,7 @@ export function VerifyEmailPage() {
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useDocumentTitle("Verify email");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -51,19 +54,23 @@ export function VerifyEmailPage() {
 
   return (
     <AuthCard title="Verify email">
-        {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
-        {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
+        <AuthAlert variant="error">{error}</AuthAlert>
+        <AuthAlert variant="success">{message}</AuthAlert>
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <Input
             label="Email"
+            name="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}
           />
           <Input
             label="Verification code"
+            name="code"
             inputMode="numeric"
+            autoComplete="one-time-code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             disabled={loading}

@@ -6,6 +6,16 @@ import { useSettings } from "@/store/SettingsContext";
 export function ThemeSettingsSection() {
   const { settings, update } = useSettings();
 
+  // Platform detection: shortcuts show the correct modifier, and the desktop-app
+  // menu-bar setting is hidden in a plain web browser.
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(navigator.platform || navigator.userAgent);
+  const modKey = isMac ? "⌘" : "Ctrl";
+  const isDesktopApp =
+    typeof window !== "undefined" &&
+    ("__TAURI__" in window || /electron/i.test(navigator.userAgent));
+
   return (
     <>
       <section className="settings-group">
@@ -74,24 +84,31 @@ export function ThemeSettingsSection() {
         </div>
       </section>
 
+      {isDesktopApp ? (
+        <section className="settings-group">
+          <h2>Desktop</h2>
+          <div className="settings-card">
+            <SettingRow title="Menu bar icon" description="Quick access from the menu bar (desktop app).">
+              <Toggle
+                label="Menu bar"
+                checked={settings.macMenuBarIcon}
+                onChange={(v) => update("macMenuBarIcon", v)}
+              />
+            </SettingRow>
+          </div>
+        </section>
+      ) : null}
+
       <section className="settings-group">
-        <h2>Mac</h2>
+        <h2>Keyboard shortcuts</h2>
         <div className="settings-card">
-          <SettingRow title="Menu bar icon" description="Quick access from the menu bar (desktop app).">
-            <Toggle
-              label="Menu bar"
-              checked={settings.macMenuBarIcon}
-              onChange={(v) => update("macMenuBarIcon", v)}
-            />
-          </SettingRow>
           <div className="settings-shortcuts">
-            <h3>Keyboard shortcuts</h3>
             <ul>
               <li>
-                <kbd>⌘</kbd> <kbd>K</kbd> — Search chats
+                <kbd>{modKey}</kbd> <kbd>K</kbd> — Search chats
               </li>
               <li>
-                <kbd>⌘</kbd> <kbd>,</kbd> — Settings
+                <kbd>{modKey}</kbd> <kbd>,</kbd> — Settings
               </li>
               <li>
                 <kbd>Esc</kbd> — Close panels

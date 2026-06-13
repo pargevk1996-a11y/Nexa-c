@@ -9,13 +9,14 @@
       (function () {
         var theme = "dark";
         try {
-          var raw = localStorage.getItem("securechat_settings");
-          if (raw) {
-            var s = JSON.parse(raw);
-            if (s.theme === "light" || s.theme === "dark") theme = s.theme;
-            else if (s.theme === "system" && window.matchMedia("(prefers-color-scheme: light)").matches)
-              theme = "light";
-          }
+          // Device-wide theme lives in the "nexa-theme" key as a plain string
+          // ("light" | "dark" | "system"). The old code read a securechat_settings
+          // JSON blob that no longer exists, so light users flashed dark on first
+          // paint and the theme-color meta was wrong (BUG-021).
+          var v = localStorage.getItem("nexa-theme");
+          if (v === "light" || v === "dark") theme = v;
+          else if (v === "system" && window.matchMedia("(prefers-color-scheme: light)").matches)
+            theme = "light";
         } catch (e) {}
         document.documentElement.dataset.theme = theme;
         var meta = document.getElementById("meta-theme-color");
@@ -26,23 +27,69 @@
     <meta name="robots" content="index, follow" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!-- Single source of truth for the marketing description, mirrored across
+         meta description / og:description / twitter:description (BUG-016). -->
     <meta
       name="description"
-      content="Nexa — secure-first messenger. Telegram-grade UX with Signal-grade privacy engineering."
+      content="Nexa is a secure-first messenger: Telegram-grade UX with Signal-grade privacy engineering — realtime, end-to-end-encryption-ready, built on microservices."
     />
     <meta name="application-name" content="Nexa" />
-    <meta property="og:title" content="Nexa" />
+    <link rel="canonical" href="https://nexa-c.com/" />
+    <meta property="og:title" content="Nexa — Secure Messenger" />
     <meta
       property="og:description"
-      content="Production-shaped secure messenger — realtime, E2EE-ready, microservices."
+      content="Nexa is a secure-first messenger: Telegram-grade UX with Signal-grade privacy engineering — realtime, end-to-end-encryption-ready, built on microservices."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nexa-c.com/" />
+    <meta property="og:site_name" content="Nexa" />
+    <!-- Dedicated 1200×630 social card instead of the square favicon (BUG-015). -->
+    <meta property="og:image" content="https://nexa-c.com/og-image.png" />
+    <meta property="og:image:secure_url" content="https://nexa-c.com/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Nexa — secure-first messenger" />
+    <!-- Large rich preview card on X/Twitter (BUG-022). -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nexa — Secure Messenger" />
+    <meta
+      name="twitter:description"
+      content="Nexa is a secure-first messenger: Telegram-grade UX with Signal-grade privacy engineering — realtime, end-to-end-encryption-ready, built on microservices."
+    />
+    <meta name="twitter:image" content="https://nexa-c.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Nexa — secure-first messenger" />
     <title>Nexa — Secure Messenger</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+    <!-- Structured data for richer search results (SEO audit, Phase 4). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Nexa",
+        "applicationCategory": "CommunicationApplication",
+        "operatingSystem": "Web, Android, iOS, Windows, macOS",
+        "url": "https://nexa-c.com/",
+        "description": "Nexa is a secure-first messenger: Telegram-grade UX with Signal-grade privacy engineering — realtime, end-to-end-encryption-ready, built on microservices.",
+        "image": "https://nexa-c.com/og-image.png",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+    <!-- Fonts are self-hosted (src/styles/fonts.css → /fonts/*.woff2). No request
+         to Google Fonts: zero third-party origins on any page incl. auth + chat. -->
   </head>
-  <body style="margin: 0; background: #050508; color: #f4f4f8">
+  <body>
     <div id="root"></div>
+    <!--
+      Static, non-React blackout backstop. Lives OUTSIDE #root so it survives even
+      if React unmounts or has not mounted yet. privacySeal.ts toggles it via the
+      `hidden` attribute / inline display on every screenshot attempt. Present from
+      the first byte so capture protection does not depend on the JS bundle loading.
+    -->
+    <!-- Styling for #privacy-shield-native lives in global.css (render-blocking),
+         so no inline style attribute is needed and style-src can drop 'unsafe-inline'. -->
+    <div id="privacy-shield-native" hidden aria-hidden="true"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

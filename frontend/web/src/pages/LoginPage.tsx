@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthAlert } from "@/components/auth/AuthAlert";
 import { BiometricLoginButton } from "@/components/auth/BiometricLoginButton";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { PasswordLoginForm } from "@/components/auth/PasswordLoginForm";
@@ -11,8 +12,8 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <AuthCard title="Sign in">
-      {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
+    <AuthCard title="Welcome back" subtitle="Sign in to continue to Nexa">
+      <AuthAlert variant="error">{error}</AuthAlert>
       <OAuthButtons alwaysShow onError={(msg) => setError(msg || null)} />
       <p className="auth-divider" role="separator">
         <span>or sign in with email</span>

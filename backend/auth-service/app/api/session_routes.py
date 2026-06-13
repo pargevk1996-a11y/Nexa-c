@@ -20,6 +20,7 @@ from app.services.token_service import (
     refresh_session,
 )
 from app.services.user_store import store as user_store
+from nexa_shared.security.field_encryption import encrypt_cookie_token
 from nexa_shared.security.jwt_keys import create_access_token
 from nexa_shared.security.tokens import new_refresh_token
 
@@ -38,13 +39,37 @@ def _set_refresh_cookie(response: Response, raw_refresh: str) -> None:
         max_age=max_age,
         httponly=True,
         secure=settings.app_env == "production",
-        samesite="lax",
+        samesite="strict",
         path="/api/v1/auth",
+    )
+
+
+def _set_access_cookie(response: Response, access_token: str) -> None:
+    """Store the access JWT encrypted in an httpOnly cookie.
+
+    The cookie value is an AES-256-GCM blob — opaque, not a readable JWT.
+    The browser sends it automatically on every same-site request (REST +
+    WebSocket upgrade); api-gateway decrypts it and injects Authorization.
+    """
+    key = settings.cookie_encryption_key
+    value = encrypt_cookie_token(access_token, key_b64=key) if key else access_token
+    response.set_cookie(
+        key="access_token",
+        value=value,
+        max_age=settings.jwt_access_ttl_seconds,
+        httponly=True,
+        secure=settings.app_env == "production",
+        samesite="strict",
+        path="/",
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(key=settings.refresh_cookie_name, path="/api/v1/auth")
+
+
+def _clear_access_cookie(response: Response) -> None:
+    response.delete_cookie(key="access_token", path="/")
 
 
 @router.post("/logout")
@@ -56,6 +81,7 @@ async def logout(
     payload = decode_bearer_token(authorization)
     await session_store.revoke_session(payload["sid"])
     _clear_refresh_cookie(response)
+    _clear_access_cookie(response)
     return {"message": "Signed out"}
 
 
@@ -79,6 +105,7 @@ async def refresh_tokens(
     if not user:
         raise HTTPException(status_code=401, detail={"error": {"code": "USER_NOT_FOUND", "message": "User not found"}})
     _set_refresh_cookie(response, new_raw)
+    _set_access_cookie(response, access)
     return AuthResponse(
         user=_user_response(user),
         access_token=access,
@@ -132,15 +159,26 @@ async def qr_start() -> QrStartResponse:
     expires = datetime.now(UTC) + timedelta(minutes=5)
     await session_store.create_qr(token, expires)
     base = settings.oauth_public_base_url.rstrip("/")
+    # NB: the poll token is sent via the X-QR-Token request header, never in the
+    # URL — so it cannot leak into access logs / CDN / browser history.
     return QrStartResponse(
         qr_token=token,
         expires_at=expires.isoformat(),
-        poll_url=f"{base}/api/v1/auth/qr/poll?token={token}",
+        poll_url=f"{base}/api/v1/auth/qr/poll",
     )
 
 
 @router.get("/qr/poll", response_model=QrPollResponse)
-async def qr_poll(token: str, response: Response) -> QrPollResponse:
+async def qr_poll(
+    response: Response,
+    x_qr_token: str | None = Header(default=None, alias="X-QR-Token"),
+) -> QrPollResponse:
+    token = x_qr_token
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": {"code": "QR_TOKEN_REQUIRED", "message": "X-QR-Token header required"}},
+        )
     qr = await session_store.get_qr(token)
     if not qr:
         return QrPollResponse(status="expired")
@@ -168,6 +206,11 @@ async def qr_poll(token: str, response: Response) -> QrPollResponse:
             )
             if qr.refresh_token_raw:
                 _set_refresh_cookie(response, qr.refresh_token_raw)
+                # One-time read: drop the plaintext refresh token from the QR row
+                # as soon as the paired device has it set as an HttpOnly cookie,
+                # so it is never left at rest in the qr_sessions table.
+                await session_store.consume_qr_refresh(token)
+            _set_access_cookie(response, access)
             return QrPollResponse(
                 status="approved",
                 access_token=access,
@@ -188,11 +231,14 @@ async def qr_approve(
     user = await user_store.get_by_id(payload["sub"])
     if not user:
         raise HTTPException(status_code=401, detail={"error": {"code": "UNAUTHORIZED", "message": "Unauthorized"}})
+    # QR pairing ("Trusted Access Points") is the ONLY path allowed to add a
+    # second concurrent session — skip the single-session revocation here.
     _, raw_refresh, session, _ = await issue_tokens_for_user(
         user.id,
         user.email,
         device_label="QR linked device",
         request=request,
+        revoke_others=False,
     )
     qr = await session_store.approve_qr(
         body.qr_token,
@@ -201,8 +247,18 @@ async def qr_approve(
         refresh_token_raw=raw_refresh,
     )
     if not qr:
+        # Pairing failed — don't leave the freshly minted session dangling.
+        await session_store.revoke_session(session.id)
         raise HTTPException(
             status_code=400,
             detail={"error": {"code": "QR_INVALID", "message": "QR code expired or invalid"}},
         )
+    # MAX-2 INVARIANT: after pairing, exactly two sessions stay active — the
+    # approving device (this caller) and the newly linked one. All others are
+    # revoked ("only QR-linked devices can be active simultaneously, max 2").
+    approver_sid = str(payload.get("sid") or "")
+    keep = {approver_sid, session.id}
+    for s in await session_store.list_user_sessions(user.id):
+        if s.id not in keep:
+            await session_store.revoke_session(s.id)
     return {"message": "Device approved", "refresh_token": raw_refresh}

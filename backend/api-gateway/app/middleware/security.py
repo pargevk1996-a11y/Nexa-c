@@ -8,10 +8,12 @@ from collections import defaultdict
 
 from fastapi import Request, Response
 from redis.asyncio import Redis
+from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 from nexa_shared.security.csrf import constant_time_equals, generate_csrf_token
+from nexa_shared.security.field_encryption import decrypt_cookie_token
 from nexa_shared.security.rate_limit import check_rate_limit
 
 _EXEMPT_CSRF = frozenset(
@@ -28,6 +30,10 @@ _EXEMPT_CSRF = frozenset(
         "/api/v1/auth/webauthn/login/start",
         "/api/v1/auth/webauthn/login/finish",
         "/api/v1/auth/oauth/",
+        # Fire-and-forget capture telemetry: sent via navigator.sendBeacon, which
+        # cannot attach a CSRF header. Stateless + sessionless (a forged call only
+        # writes a log line), so exempting it is safe.
+        "/api/v1/security/capture-attempt",
         "/health",
     }
 )
@@ -102,6 +108,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 headers={"X-Request-Id": request_id},
             )
 
+        # If the client did not send an Authorization header but has an httpOnly
+        # access_token cookie, decrypt the AES-GCM blob back to the JWT and inject
+        # Bearer so downstream microservices can verify without any changes.
+        if not request.headers.get("authorization") and "access_token" in request.cookies:
+            raw = request.cookies["access_token"]
+            key = settings.cookie_encryption_key
+            jwt = decrypt_cookie_token(raw, key_b64=key) if key else raw
+            if jwt:
+                MutableHeaders(scope=request.scope)["Authorization"] = f"Bearer {jwt}"
+
         if request.method in _MUTATING and not any(path.startswith(p) for p in _EXEMPT_CSRF):
             if not settings.csrf_enabled:
                 pass
@@ -119,20 +135,33 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response: Response = await call_next(request)
         response.headers["X-Request-Id"] = request_id
 
-        if path in (
-            "/api/v1/auth/login",
-            "/api/v1/auth/login/2fa",
-            "/api/v1/auth/register",
-        ) and response.status_code in (200, 201):
-            token = generate_csrf_token()
-            response.set_cookie(
-                key=settings.csrf_cookie_name,
-                value=token,
-                httponly=False,
-                secure=settings.cookie_secure,
-                samesite=settings.cookie_samesite,
-                max_age=settings.jwt_refresh_ttl_seconds,
-                path="/",
+        if response.status_code in (200, 201):
+            # Endpoints that establish a session must hand out a CSRF cookie.
+            issues_session = path in (
+                "/api/v1/auth/login",
+                "/api/v1/auth/login/2fa",
+                "/api/v1/auth/register",
+                "/api/v1/auth/oauth/exchange",
+                "/api/v1/auth/webauthn/login/finish",
             )
+            # Heal sessions that have no CSRF cookie yet (OAuth / QR / WebAuthn /
+            # pre-existing logins) the next time the token is refreshed — but do
+            # not rotate an already-valid cookie, to avoid a races with in-flight
+            # mutating requests.
+            heals_missing = (
+                path == "/api/v1/auth/refresh"
+                and not request.cookies.get(settings.csrf_cookie_name)
+            )
+            if issues_session or heals_missing:
+                token = generate_csrf_token()
+                response.set_cookie(
+                    key=settings.csrf_cookie_name,
+                    value=token,
+                    httponly=False,
+                    secure=settings.cookie_secure,
+                    samesite=settings.cookie_samesite,
+                    max_age=settings.jwt_refresh_ttl_seconds,
+                    path="/",
+                )
 
         return response

@@ -83,14 +83,16 @@ export function EphemeralWrapper({
       ref={ref}
       className={`chat-ephemeral-wrap ${exploding ? "chat-ephemeral-wrap--boom" : ""} ${isSecret ? "chat-bubble--secret" : ""}`}
     >
-      <span className="chat-bubble__ephemeral-tag" aria-hidden title="Disappearing message">
-        <IconTimer size={14} />
+      <span
+        className={`chat-bubble__ephemeral-tag${message.outgoing ? " chat-bubble__ephemeral-tag--out" : ""}`}
+        aria-hidden
+      >
+        {secondsLeft !== null && !exploding ? (
+          <span className="chat-ephemeral-wrap__countdown">{secondsLeft}</span>
+        ) : (
+          <IconTimer size={11} />
+        )}
       </span>
-      {secondsLeft !== null && !message.outgoing && !exploding ? (
-        <span className="chat-ephemeral-wrap__timer" role="status">
-          Vanishes in {secondsLeft}s
-        </span>
-      ) : null}
       {children}
     </div>
   );

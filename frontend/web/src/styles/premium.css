@@ -13,8 +13,15 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  max-height: 100dvh;
+  /* Fallbacks → svh: on mobile the browser UI (Android URL bar, iOS bars) and
+     system gesture areas shrink the *visible* viewport below 100vh/100dvh, which
+     pushed the bottom section bar off-screen. The app document never scrolls
+     (everything is overflow:hidden), so the browser chrome stays put and 100svh
+     equals the real visible height on every device/OS — the nav always fits. */
+  height: 100vh;
+  height: 100svh;
+  max-height: 100vh;
+  max-height: 100svh;
   overflow: hidden;
 }
 
@@ -74,7 +81,7 @@
 }
 
 .chat-shell__panel--sidebar {
-  width: var(--chat-sidebar-w, 320px);
+  width: var(--chat-sidebar-w, 260px);
   flex-shrink: 0;
 }
 
@@ -182,6 +189,12 @@ body.is-resizing-panels * {
   }
   to {
     transform: translateX(0);
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .chat-shell__panel--sidebar {
+    width: var(--chat-sidebar-w, 220px);
   }
 }
 
@@ -312,7 +325,7 @@ body.is-resizing-panels * {
   background: var(--accent-muted);
   box-shadow:
     0 0 0 1px rgba(167, 139, 250, 0.35),
-    0 8px 24px rgba(139, 92, 246, 0.2);
+    0 8px 24px rgba(79, 124, 255, 0.2);
 }
 
 .chat-conv-item__preview--typing {
@@ -358,7 +371,7 @@ body.is-resizing-panels * {
 .chat-unread {
   background: var(--accent-gradient);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.45);
+  box-shadow: 0 4px 12px rgba(79, 124, 255, 0.45);
   animation: badge-pulse 2.5s var(--ease) infinite;
 }
 
@@ -382,20 +395,8 @@ body.is-resizing-panels * {
   gap: 0.5rem;
 }
 
-.chat-bubble-row {
-  animation: msg-in var(--dur-slow) var(--ease) backwards;
-}
-
-@keyframes msg-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* No entrance animation on message rows — opening a chat must show messages
+   already in place at the bottom, with no fade/slide effect. */
 
 .chat-bubble-row--out .chat-bubble {
   background: var(--accent-gradient-soft);
@@ -436,7 +437,7 @@ body.is-resizing-panels * {
   border-color: rgba(167, 139, 250, 0.5);
   box-shadow:
     0 0 0 3px var(--accent-muted),
-    0 8px 32px rgba(139, 92, 246, 0.15);
+    0 8px 32px rgba(79, 124, 255, 0.15);
 }
 
 .chat-composer__input {
@@ -457,12 +458,12 @@ body.is-resizing-panels * {
   background: var(--accent-gradient);
   color: #fff;
   border-radius: var(--radius-full);
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.45);
+  box-shadow: 0 4px 20px rgba(79, 124, 255, 0.45);
 }
 
 .icon-btn--primary:hover:not(:disabled) {
   filter: brightness(1.08);
-  box-shadow: 0 6px 28px rgba(139, 92, 246, 0.55);
+  box-shadow: 0 6px 28px rgba(79, 124, 255, 0.55);
   transform: scale(1.04);
 }
 
@@ -637,12 +638,12 @@ body.is-resizing-panels * {
 .btn--primary {
   background: var(--accent-gradient);
   color: #fff;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
+  box-shadow: 0 4px 20px rgba(79, 124, 255, 0.35);
 }
 
 .btn--primary:hover:not(:disabled) {
   filter: brightness(1.06);
-  box-shadow: 0 8px 28px rgba(139, 92, 246, 0.45);
+  box-shadow: 0 8px 28px rgba(79, 124, 255, 0.45);
 }
 
 a {
@@ -863,4 +864,31 @@ a:hover {
   background: var(--accent-muted);
   border: 1px solid rgba(167, 139, 250, 0.3);
   color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Contacts / Calls / Settings — same glassy, transparent look as Chats
+   (star field shows through; no heavy opaque panels or borders).
+   ════════════════════════════════════════════════════════════════════ */
+.page-shell__inner.glass-panel {
+  background: rgba(8, 10, 24, 0.2);
+  /* Borderless middle block in every section (Contacts / Calls / Settings) —
+     the glassy panel blends into the ambient background with no outline. */
+  border: none;
+  backdrop-filter: blur(11px) saturate(1.2);
+  -webkit-backdrop-filter: blur(11px) saturate(1.2);
+  box-shadow: none;
+}
+.settings-nav {
+  background: rgba(8, 10, 24, 0.24);
+  border: 1px solid rgba(79, 124, 255, 0.12);
+  backdrop-filter: blur(11px) saturate(1.2);
+  -webkit-backdrop-filter: blur(11px) saturate(1.2);
+}
+.app-shell:not(.app-shell--nexa-chats) .side-nav {
+  background: rgba(9, 7, 20, 0.32);
+  border-color: rgba(79, 124, 255, 0.12);
+  box-shadow: none;
+  backdrop-filter: blur(11px) saturate(1.2);
+  -webkit-backdrop-filter: blur(11px) saturate(1.2);
 }

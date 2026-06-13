@@ -46,11 +46,34 @@ class UserStore:
     async def get_by_email(self, email: str) -> StoredUser | None:
         return self._by_email.get(email.lower().strip())
 
+    async def get_by_username(self, username: str) -> StoredUser | None:
+        key = username.strip().lstrip("$").lower()
+        if not key:
+            return None
+        for user in self._by_email.values():
+            if user.username.lower() == key:
+                return user
+        return None
+
+    async def get_by_identifier(self, identifier: str) -> StoredUser | None:
+        ident = identifier.strip()
+        if "@" in ident:
+            return await self.get_by_email(ident)
+        return await self.get_by_username(ident)
+
     async def get_by_id(self, user_id: str) -> StoredUser | None:
         return self._by_id.get(user_id)
 
     async def verify_credentials(self, email: str, password: str) -> StoredUser | None:
         user = await self.get_by_email(email)
+        if not user or not verify_password(user.password_hash, password):
+            return None
+        return user
+
+    async def verify_credentials_by_identifier(
+        self, identifier: str, password: str
+    ) -> StoredUser | None:
+        user = await self.get_by_identifier(identifier)
         if not user or not verify_password(user.password_hash, password):
             return None
         return user

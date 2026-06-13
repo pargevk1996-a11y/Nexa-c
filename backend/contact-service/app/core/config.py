@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="RS256", validation_alias="JWT_ALGORITHM")
     jwt_access_public_key_file: str = Field(default="", validation_alias="JWT_ACCESS_PUBLIC_KEY_FILE")
     jwt_access_public_key: str = Field(default="", validation_alias="JWT_ACCESS_PUBLIC_KEY")
+    chat_service_url: str = Field(default="http://chat-service:8004", validation_alias="CHAT_SERVICE_URL")
+    notification_service_url: str = Field(default="http://notification-service:8008", validation_alias="NOTIFICATION_SERVICE_URL")
+    internal_service_secret: str = Field(default="", validation_alias="INTERNAL_SERVICE_SECRET")
 
 
 settings = Settings()

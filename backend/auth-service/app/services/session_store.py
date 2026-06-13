@@ -155,6 +155,13 @@ class SessionStore:
         qr.refresh_token_raw = refresh_token_raw
         return qr
 
+    async def consume_qr_refresh(self, token: str) -> None:
+        """One-time read: clear the plaintext refresh token from the QR row once
+        the paired device has consumed it, so it is not left at rest."""
+        qr = self._qr.get(token)
+        if qr:
+            qr.refresh_token_raw = None
+
 
 class _SessionStoreProxy:
     """Starts in-memory; call _switch_to_postgres() in lifespan to use Postgres."""

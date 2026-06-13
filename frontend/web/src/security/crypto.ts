@@ -1,5 +1,5 @@
 import { base64ToBytes, bytesToBase64 } from "./b64";
-import { getOrCreateDeviceKeyMaterial } from "./deviceKey";
+import { getOrCreateDeviceBaseKey } from "./deviceKey";
 
 const AES_ALG = "AES-GCM";
 const AES_BITS = 256;
@@ -13,17 +13,12 @@ export interface EncryptedBlob {
   ct: string;
 }
 
-async function importDeviceBaseKey(): Promise<CryptoKey> {
-  const material = getOrCreateDeviceKeyMaterial();
-  return crypto.subtle.importKey("raw", toArrayBuffer(material), "HKDF", false, ["deriveKey"]);
-}
-
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 export async function deriveUserDataKey(userId: string): Promise<CryptoKey> {
-  const baseKey = await importDeviceBaseKey();
+  const baseKey = await getOrCreateDeviceBaseKey();
   return crypto.subtle.deriveKey(
     {
       name: "HKDF",

@@ -1,5 +1,5 @@
 import pytest
-from securechat_shared.security.passwords import hash_password, verify_password
+from nexa_shared.security.passwords import hash_password, verify_password
 
 pytestmark = pytest.mark.smoke
 

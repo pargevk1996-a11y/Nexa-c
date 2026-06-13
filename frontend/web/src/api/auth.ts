@@ -43,7 +43,7 @@ export function startOAuthLogin(provider: OAuthProvider): void {
   window.location.assign(getOAuthStartUrl(provider));
 }
 
-export async function loginWithPassword(email: string, password: string): Promise<LoginResult> {
+export async function loginWithPassword(identifier: string, password: string): Promise<LoginResult> {
   try {
     const data = await apiFetch<{
       user?: AuthSession["user"];
@@ -53,17 +53,16 @@ export async function loginWithPassword(email: string, password: string): Promis
       challenge_token?: string;
     }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
     if (data.requires_2fa && data.challenge_token) {
       return { ok: false, requires2fa: true, challengeId: data.challenge_token };
     }
-    if (!data.user || !data.access_token) {
+    if (!data.user) {
       return { ok: false, code: "LOGIN_FAILED", message: "Unexpected login response" };
     }
     const session: AuthSession = {
       user: data.user,
-      accessToken: data.access_token,
       expiresIn: data.expires_in,
       demoMode: false,
     };
@@ -105,7 +104,6 @@ export async function completeLogin2fa(challengeId: string, code: string): Promi
   try {
     const data = await apiFetch<{
       user: AuthSession["user"];
-      access_token: string;
       expires_in: number;
     }>("/auth/login/2fa", {
       method: "POST",
@@ -113,7 +111,6 @@ export async function completeLogin2fa(challengeId: string, code: string): Promi
     });
     const session: AuthSession = {
       user: data.user,
-      accessToken: data.access_token,
       expiresIn: data.expires_in,
       demoMode: false,
     };
@@ -208,7 +205,6 @@ export async function completeOAuthCallback(params: URLSearchParams): Promise<Lo
   try {
     const data = await apiFetch<{
       user: AuthSession["user"];
-      access_token: string;
       expires_in: number;
     }>("/auth/oauth/exchange", {
       method: "POST",
@@ -216,7 +212,6 @@ export async function completeOAuthCallback(params: URLSearchParams): Promise<Lo
     });
     const session: AuthSession = {
       user: data.user,
-      accessToken: data.access_token,
       expiresIn: data.expires_in,
       demoMode: false,
     };
@@ -241,7 +236,7 @@ export async function completeOAuthCallback(params: URLSearchParams): Promise<Lo
 export async function logout(): Promise<void> {
   const session = getCachedSession();
   try {
-    if (session?.accessToken) {
+    if (session?.user?.id && !session?.demoMode) {
       await apiFetch("/auth/logout", { method: "POST" });
     }
   } catch {
@@ -257,12 +252,10 @@ export async function refreshAccessToken(): Promise<AuthSession | null> {
   try {
     const data = await apiFetch<{
       user: AuthSession["user"];
-      access_token: string;
       expires_in: number;
     }>("/auth/refresh", { method: "POST", body: JSON.stringify({}) });
     const session: AuthSession = {
       user: data.user,
-      accessToken: data.access_token,
       expiresIn: data.expires_in,
       demoMode: false,
     };
@@ -338,7 +331,8 @@ export async function pollQrLogin(token: string): Promise<{
   expires_in?: number;
   user?: AuthSession["user"];
 }> {
-  return apiFetch(`/auth/qr/poll?token=${encodeURIComponent(token)}`);
+  // Token goes in a header, never the URL (avoids access-log / history leakage).
+  return apiFetch(`/auth/qr/poll`, { headers: { "X-QR-Token": token } });
 }
 
 export async function approveQrLogin(qrToken: string): Promise<void> {
@@ -485,7 +479,6 @@ export async function finishWebAuthnLogin(
   try {
     const data = await apiFetch<{
       user: AuthSession["user"];
-      access_token: string;
       expires_in: number;
     }>("/auth/webauthn/login/finish", {
       method: "POST",
@@ -493,7 +486,6 @@ export async function finishWebAuthnLogin(
     });
     const session: AuthSession = {
       user: data.user,
-      accessToken: data.access_token,
       expiresIn: data.expires_in,
       demoMode: false,
     };

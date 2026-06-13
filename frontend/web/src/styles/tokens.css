@@ -1,15 +1,8 @@
-/* Rosmatika — site-wide font */
-@font-face {
-  font-family: "Rosmatika";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/Rosmatika-Regular.ttf") format("truetype");
-}
-
+/* Montserrat — site-wide font (loaded from Google Fonts in index.html) */
 :root {
-  --font: "Rosmatika", system-ui, sans-serif;
-  --font-display: "Rosmatika", system-ui, sans-serif;
+  --font: "Montserrat", system-ui, sans-serif;
+  --font-display: "Montserrat", system-ui, sans-serif;
+  --font-brand: "Outfit", system-ui, sans-serif; /* NEXA wordmark — kept on its original font */
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 
   /* Typography — readability first */

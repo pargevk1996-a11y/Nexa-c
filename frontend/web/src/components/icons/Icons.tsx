@@ -82,6 +82,26 @@ export function IconMicOff(props: IconProps) {
   );
 }
 
+/** Loudspeaker / speakerphone on */
+export function IconSpeaker(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M11 5 6 9H2v6h4l5 4z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+    </Icon>
+  );
+}
+
+/** Speakerphone off / muted output */
+export function IconSpeakerOff(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M11 5 6 9H2v6h4l5 4z" />
+      <path d="M22 9l-6 6M16 9l6 6" />
+    </Icon>
+  );
+}
+
 /** Schedule send */
 export function IconClock(props: IconProps) {
   return (
@@ -211,6 +231,24 @@ export function IconContacts(props: IconProps) {
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </Icon>
+  );
+}
+
+export function IconProfile(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </Icon>
+  );
+}
+
+export function IconLock(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </Icon>
   );
 }

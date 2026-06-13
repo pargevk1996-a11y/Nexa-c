@@ -1,9 +1,19 @@
+import { useEffect } from "react";
 import { CallOverlay, IncomingCallBanner } from "@/components/chat/CallOverlay";
 import { useCall } from "@/calls/CallProvider";
+import { startRingtone, stopRingtone } from "@/calls/ringtone";
 
 /** App-wide incoming banner and active call overlay (any route). */
 export function GlobalCallUi() {
   const call = useCall();
+
+  // Standard ringtone while an incoming call is pending; stops on
+  // accept / decline / caller hang-up (and on unmount as a safety net).
+  useEffect(() => {
+    if (call.incoming) startRingtone();
+    else stopRingtone();
+    return stopRingtone;
+  }, [call.incoming]);
 
   return (
     <>

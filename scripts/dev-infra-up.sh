@@ -10,6 +10,13 @@ PID_DIR="$ROOT/.dev/pids"
 LOG_DIR="$ROOT/.dev/logs"
 mkdir -p "$TOOLS" "$ROOTFS" "$DEB_DIR" "$PGDATA" "$PID_DIR" "$LOG_DIR"
 
+# Load passwords from .env so infra uses the same credentials as the services
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +a
+fi
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-change-me-postgres-password}"
 REDIS_PASSWORD="${REDIS_PASSWORD:-change-me-redis-password}"
 
@@ -72,6 +79,21 @@ for db in auth_db user_db contact_db chat_db media_db story_db emoji_db notifica
     "SELECT 1 FROM pg_database WHERE datname = '${db}'" | grep -q 1 \
     || psql -h "$ROOT/.dev/pg-run" -U postgres -d postgres -c "CREATE DATABASE ${db} OWNER securechat"
 done
+
+# Apply SQL migrations (idempotent — errors for already-existing objects are suppressed)
+MIGRATIONS_DIR="$ROOT/infrastructure/postgres/migrations"
+if [[ -d "$MIGRATIONS_DIR" ]]; then
+  echo "[infra] Applying SQL migrations ..."
+  for db_dir in $(ls -d "$MIGRATIONS_DIR"/*/  2>/dev/null | sort); do
+    db=$(basename "$db_dir")
+    for sql in $(ls "$db_dir"*.sql 2>/dev/null | sort); do
+      psql -h "$ROOT/.dev/pg-run" -U postgres -d "$db" -f "$sql" >/dev/null 2>&1 || true
+    done
+  done
+  # Ensure securechat owns message_search_index (created by migration as postgres user)
+  psql -h "$ROOT/.dev/pg-run" -U postgres -d chat_db \
+    -c "ALTER TABLE IF EXISTS message_search_index OWNER TO securechat;" >/dev/null 2>&1 || true
+fi
 
 if [[ ! -f "$PID_DIR/redis.pid" ]] || ! kill -0 "$(cat "$PID_DIR/redis.pid")" 2>/dev/null; then
   echo "[infra] Starting Redis on 127.0.0.1:6379 ..."

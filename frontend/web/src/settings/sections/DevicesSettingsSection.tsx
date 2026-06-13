@@ -18,10 +18,10 @@ export function DevicesSettingsSection() {
   if (!isWebAuthnEnabled()) {
     return (
       <section className="settings-group">
-        <h2>Devices</h2>
+        <h2>Trusted Access Points</h2>
         <p className="settings-section__lead">
-          Manage where you are signed in. Biometric unlock (Touch ID, Face ID, fingerprint) is available in the
-          desktop and mobile apps, not in the web client.
+          Manage the devices allowed to access your account. Biometric unlock (Touch ID, Face ID, fingerprint) is
+          available in the desktop and mobile apps, not in the web client.
         </p>
         <div className="settings-card settings-card--flush">
           <ActiveSessionsPanel />
@@ -74,7 +74,7 @@ function DevicesWebAuthnSection() {
 
   return (
     <section className="settings-group">
-      <h2>Device management</h2>
+      <h2>Trusted Access Points</h2>
       <p className="settings-section__lead">Passkeys and active sign-in sessions.</p>
       {status ? <p className="auth-hint">{status}</p> : null}
       <div className="settings-card">

@@ -1,0 +1,9 @@
+# NEXA — security contact and disclosure policy (RFC 9116)
+# NOTE: security@nexa-c.com must be a monitored mailbox. Change the address
+# below if you prefer a different intake, and re-sign if you add a PGP key.
+
+Contact: mailto:security@nexa-c.com
+Expires: 2027-06-13T00:00:00.000Z
+Preferred-Languages: en, ru
+Canonical: https://nexa-c.com/.well-known/security.txt
+Policy: https://github.com/pargevk1996-a11y/Nexa/blob/main/SECURITY.md

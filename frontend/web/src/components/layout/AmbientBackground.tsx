@@ -1,10 +1,18 @@
 export function AmbientBackground() {
+  // Same star field as the home / auth screens so the whole app shares one look.
   return (
     <div className="ambient-bg" aria-hidden>
-      <div className="ambient-bg__orb ambient-bg__orb--1" />
-      <div className="ambient-bg__orb ambient-bg__orb--2" />
-      <div className="ambient-bg__orb ambient-bg__orb--3" />
-      <div className="ambient-bg__particles" />
+      <div className="auth-starfield">
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+        <span className="shooting-star" />
+      </div>
+      <div className="ambient-bg__glow" />
     </div>
   );
 }

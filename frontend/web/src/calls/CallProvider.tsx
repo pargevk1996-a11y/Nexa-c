@@ -312,7 +312,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const session = getCachedSession();
-    if (!session?.accessToken || session.demoMode) return;
+    if (!session?.user?.id || session?.demoMode) return;
     const client = new RealtimeWsClient({ onEvent: handleWsEvent });
     wsRef.current = client;
     client.connect();

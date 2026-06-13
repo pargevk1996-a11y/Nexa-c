@@ -17,7 +17,8 @@ function AppShellInner() {
     <div className={`app-shell ${isChats ? "app-shell--nexa-chats" : ""}`}>
       <GlobalCallUi />
       <AmbientBackground />
-      {!isChats ? <TopNav /> : null}
+      {/* Same top block on every section, including Chats. */}
+      <TopNav />
       <div className="app-shell__frame">
         {!isChats ? <SideNav /> : null}
         <div className="app-shell__body">

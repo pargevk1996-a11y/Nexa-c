@@ -70,6 +70,9 @@ function ConvList({
                 {c.pinned ? <span className="chat-conv-item__pin" aria-hidden>📌</span> : null}
                 {c.favorite ? <span className="chat-conv-item__fav" aria-hidden>★</span> : null}
                 <span className="privacy-no-copy">{c.name}</span>
+                {c.username ? (
+                  <span className="chat-conv-item__username">@{c.username}</span>
+                ) : null}
                 {c.memberCount && c.memberCount > 0 ? (
                   <span className="chat-conv-item__members">{c.memberCount.toLocaleString()}</span>
                 ) : null}

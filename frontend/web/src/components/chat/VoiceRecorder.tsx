@@ -5,9 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { AudioWaveform } from "@/components/voice/AudioWaveform";
 import { IconButton } from "@/components/ui/IconButton";
-import { IconMic, IconSend, IconStop } from "@/components/icons/Icons";
+import { IconMic, IconSend, IconStop, IconTimer, IconX } from "@/components/icons/Icons";
 import { VOICE_AUDIO_CONSTRAINTS } from "@/voice/audioUtils";
 
 const MAX_RECORD_SECONDS = 300;
@@ -20,15 +19,39 @@ export interface VoiceRecorderHandle {
 interface VoiceRecorderProps {
   autoStart?: boolean;
   disabled?: boolean;
+  /** While true the recording continues hands-free and shows stop/cancel. */
+  locked?: boolean;
+  /** Visual feedback for the in-progress drag gesture. */
+  dragHint?: "none" | "lock" | "cancel";
+  /** Disappearing-message toggle, shown once the recording is locked. */
+  ephemeral?: boolean;
+  onToggleEphemeral?: () => void;
   onRecorded: (durationSeconds: number, blobUrl: string, blob: Blob) => void;
   onCancel: () => void;
 }
 
+function LockIcon({ closed }: { closed?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d={closed ? "M8 10.5V7.5a4 4 0 0 1 8 0v3" : "M8 10.5V7.5a4 4 0 0 1 7.5-2"}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>(
-  function VoiceRecorder({ autoStart, disabled, onRecorded, onCancel }, ref) {
+  function VoiceRecorder(
+    { autoStart, disabled, locked, dragHint = "none", ephemeral, onToggleEphemeral, onRecorded, onCancel },
+    ref,
+  ) {
     const [recording, setRecording] = useState(false);
     const [seconds, setSeconds] = useState(0);
-    const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+    const [, setPreviewStream] = useState<MediaStream | null>(null);
 
     const recorderRef = useRef<MediaRecorder | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
@@ -192,16 +215,58 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>
     const ss = String(seconds % 60).padStart(2, "0");
 
     return (
-      <div className="voice-recorder voice-recorder--active">
+      <div
+        className={`voice-recorder voice-recorder--active ${locked ? "voice-recorder--locked" : ""} ${
+          dragHint === "cancel" ? "voice-recorder--cancelling" : ""
+        }`}
+      >
         <span className="voice-recorder__dot" aria-hidden />
-        <AudioWaveform stream={previewStream} active className="voice-recorder__wave" />
         <span className="voice-recorder__time">{mm}:{ss}</span>
-        <IconButton label="Cancel recording" variant="ghost" onClick={handleCancel}>
-          <IconStop size={18} />
-        </IconButton>
-        <IconButton label="Send voice message" variant="primary" onClick={handleSend}>
-          <IconSend size={18} />
-        </IconButton>
+        {locked ? (
+          <>
+            <span className="voice-recorder__hint voice-recorder__hint--grow">Recording…</span>
+            <span className="voice-recorder__lock voice-recorder__lock--closed" aria-hidden title="Locked">
+              <LockIcon closed />
+            </span>
+            {onToggleEphemeral ? (
+              <IconButton
+                label="Disappearing voice message"
+                variant="ghost"
+                className={ephemeral ? "icon-btn--active" : undefined}
+                onClick={onToggleEphemeral}
+              >
+                <IconTimer size={18} />
+              </IconButton>
+            ) : null}
+            <IconButton label="Cancel recording" variant="ghost" onClick={handleCancel}>
+              <IconX size={18} />
+            </IconButton>
+            <IconButton label="Stop — review voice message" variant="primary" onClick={handleSend}>
+              <IconStop size={18} />
+            </IconButton>
+          </>
+        ) : (
+          <>
+            <span className="voice-recorder__hint voice-recorder__hint--grow">
+              {dragHint === "cancel"
+                ? "Release to cancel"
+                : dragHint === "lock"
+                  ? "Release to lock"
+                  : "‹ slide to cancel"}
+            </span>
+            {/* Impulse on the right (where the button was). */}
+            <span className="voice-mrt" aria-hidden />
+            {/* Lock floats ABOVE the send button — slide up to it. */}
+            <span
+              className={`voice-recorder__lock voice-recorder__lock--float ${dragHint === "lock" ? "is-near" : ""}`}
+              aria-hidden
+              title="Slide up to lock"
+            >
+              <LockIcon />
+              <span className="voice-recorder__lock-arrow" aria-hidden>⌃</span>
+            </span>
+          </>
+        )}
       </div>
     );
   },

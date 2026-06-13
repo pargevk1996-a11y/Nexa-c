@@ -53,8 +53,8 @@ export function clearUserSecureStorage(userId: string): void {
   localStorage.removeItem("securechat-panel-widths");
 }
 
-export function wipeLocalSecurityState(): void {
-  destroyDeviceKeyMaterial();
+export async function wipeLocalSecurityState(): Promise<void> {
+  await destroyDeviceKeyMaterial();
 }
 
 export function securityStorageReady(): boolean {

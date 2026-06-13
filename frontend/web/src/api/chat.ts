@@ -16,6 +16,7 @@ export interface ApiConversation {
   my_role?: string | null;
   peer_user_id?: string | null;
   member_ids?: string[];
+  is_locked?: boolean;
 }
 
 export interface ApiMessage {
@@ -94,6 +95,7 @@ export async function sendMessageRest(
     content_type?: string;
     thread_root_id?: string;
     media_id?: string;
+    reply_to_id?: string;
   },
 ): Promise<ApiMessage> {
   return apiFetch<ApiMessage>(`/chat/conversations/${conversationId}/messages`, {

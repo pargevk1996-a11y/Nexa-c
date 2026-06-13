@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     jwt_access_public_key_file: str = Field(default="", validation_alias="JWT_ACCESS_PUBLIC_KEY_FILE")
     jwt_access_public_key: str = Field(default="", validation_alias="JWT_ACCESS_PUBLIC_KEY")
     data_encryption_key: str = Field(default="", validation_alias="DATA_ENCRYPTION_KEY")
+    cookie_encryption_key: str = Field(default="", validation_alias="COOKIE_ENCRYPTION_KEY")
 
     smtp_host: str = Field(default="", validation_alias="SMTP_HOST")
     smtp_port: int = Field(default=587, validation_alias="SMTP_PORT")

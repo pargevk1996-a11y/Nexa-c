@@ -44,6 +44,7 @@ async def issue_tokens_for_user(
     *,
     device_label: str = "Web browser",
     request: Request | None = None,
+    revoke_others: bool = True,
 ) -> tuple[str, str, StoredSession, int]:
     raw_refresh = new_refresh_token()
     fp = fingerprint_request(request) if request else "unknown"
@@ -55,6 +56,14 @@ async def issue_tokens_for_user(
         ip_hint=ip_hint,
         device_fingerprint=fp,
     )
+    # SINGLE-SESSION POLICY: a fresh credentials login (password / 2FA / OAuth /
+    # WebAuthn — they all funnel through here) terminates every other session.
+    # The ONLY sanctioned way to hold two active devices is QR pairing
+    # ("Trusted Access Points"), which passes revoke_others=False and enforces
+    # its own max-2 invariant in qr_approve. Revoked sessions die at their next
+    # token refresh (access tokens are short-lived, jwt_access_ttl_seconds).
+    if revoke_others:
+        await session_store.revoke_other_sessions(user_id, session.id)
     algorithm, hs_secret, private_pem, _public_pem = _jwt_material()
     ttl = settings.jwt_access_ttl_seconds
     access = create_access_token(

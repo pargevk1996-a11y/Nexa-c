@@ -1,5 +1,34 @@
 /* Production realtime messenger — performance, mobile, receipts */
 
+/* Scroll-to-bottom chevron — centered in chat area, no background */
+.chat-scroll-bottom {
+  position: absolute;
+  /* Sit above the floating composer AND the mobile keyboard / safe-area. */
+  bottom: calc(5rem + var(--keyboard-inset, 0px) + var(--safe-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  color: #7a78a0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms var(--ease), transform 150ms var(--ease);
+  animation: slideIn 180ms var(--ease) both;
+}
+
+.chat-scroll-bottom:hover {
+  color: #b0aed0;
+  transform: translateX(-50%) translateY(2px);
+}
+
+.chat-scroll-bottom:active {
+  transform: translateX(-50%) translateY(4px);
+}
+
 :root {
   --keyboard-inset: 0px;
 }
@@ -12,7 +41,10 @@
   }
 
   .app-shell--nexa-chats .chat-shell {
-    min-height: 100dvh;
+    /* Flex (app-shell__frame/body are flex:1) already sizes this to the space
+       left under the shared TopNav. A hard 100dvh here ignores the TopNav and
+       pushes the bottom section bar (chat-left-panel__app-nav) off-screen. */
+    min-height: 0;
     border-radius: 0;
     box-shadow: none;
   }
@@ -54,11 +86,15 @@
 }
 
 .chat-bubble-row--out .msg-receipt--read {
-  color: #a5f3fc;
+  color: #38bdf8; /* sky-400 — vivid blue, clearly distinct from grey ticks */
 }
 
 .chat-bubble-row--out .msg-receipt--delivered {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-bubble-row--out .msg-receipt--sent {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .msg-receipt--sending .msg-receipt__clock {
@@ -143,6 +179,33 @@
 /* Instant panel transitions on chat switch */
 .chat-main {
   transition: opacity 160ms var(--ease);
+}
+
+@media (max-width: 480px) {
+  .chat-bubble-row {
+    max-width: 82%;
+  }
+
+  /* Sent messages stay capped at 60% of the conversation width and hug their
+     text (short messages never wrap to a new line early). */
+  .chat-bubble-row--out {
+    max-width: 60%;
+  }
+
+  .chat-composer textarea,
+  .chat-composer__input {
+    font-size: 16px !important;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .chat-bubble-row {
+    max-width: 72%;
+  }
+
+  .chat-bubble-row--out {
+    max-width: 60%;
+  }
 }
 
 @media (max-width: 768px) {

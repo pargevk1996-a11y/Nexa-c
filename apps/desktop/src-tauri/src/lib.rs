@@ -11,6 +11,11 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![app_version])
         .setup(|app| {
+            // Block OS screen capture / screenshots / screen recording of the app
+            // window. Windows: WDA_EXCLUDEFROMCAPTURE; macOS: NSWindowSharingNone.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_content_protection(true);
+            }
             #[cfg(debug_assertions)]
             app.get_webview_window("main").unwrap().open_devtools();
             Ok(())

@@ -121,3 +121,31 @@ async def dispatch_message_notifications(body: DispatchNotificationRequest) -> D
 async def _deliver_stub(platform: str, payload: dict) -> None:
     """Replace with pywebpush / FCM / APNs in production."""
     logger.debug("notify [%s] %s", platform, payload.get("title"))
+
+
+async def dispatch_contact_request_notification(
+    *,
+    to_user_id: str,
+    from_user_id: str,
+    from_username: str,
+    request_id: str,
+) -> None:
+    """Store and deliver a contact request notification."""
+    subs = notification_store.list_subscriptions(to_user_id)
+    payload = {
+        "type": "contact_request",
+        "title": "New contact request",
+        "body": f"@{from_username} wants to connect with you",
+        "from_user_id": from_user_id,
+        "request_id": request_id,
+    }
+    for sub in subs:
+        notification_store.enqueue(
+            to_user_id,
+            sub.platform,
+            collapse_key=f"contact_request:{request_id}",
+            group_count=1,
+            payload=payload,
+            silent=False,
+        )
+        await _deliver_stub(sub.platform, payload)

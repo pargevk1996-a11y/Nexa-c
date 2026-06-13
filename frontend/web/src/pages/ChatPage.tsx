@@ -7,6 +7,7 @@ import {
 } from "@/hooks/useChatKeyboardShortcuts";
 import { conversationMatchesSearch } from "@/utils/userSearch";
 import { getCachedSession } from "@/api/auth";
+import { acceptContactRequest, declineContactRequest, getContactStatus } from "@/api/contacts";
 import { useCall } from "@/calls/CallProvider";
 import { resolveDemoCallPeers } from "@/calls/demoCallPeers";
 import { ChatHeader } from "@/components/chat/ChatHeader";
@@ -35,12 +36,15 @@ export function ChatPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [contactRequestId, setContactRequestId] = useState<string | null>(null);
+  const [contactRequestBusy, setContactRequestBusy] = useState(false);
   const {
     visibleConversations,
     hiddenConversations,
     savedConversation,
     activeId,
     selectConversation,
+    refreshConversations,
     search,
     setSearch,
     activeCategory,
@@ -83,6 +87,9 @@ export function ChatPage() {
     readReceiptsEnabled,
     drafts,
     setDraft,
+    refreshMessagesForConversation,
+    loadOlderMessages,
+    hasOlderMessages,
   } = useChat();
 
   useKeyboardInset(Boolean(activeId));
@@ -199,7 +206,44 @@ export function ChatPage() {
   useEffect(() => {
     setProfileOpen(false);
     setSearchOpen(false);
+    setContactRequestId(null);
   }, [activeId]);
+
+  // Load contact request id for locked conversations so we can accept/decline inline
+  useEffect(() => {
+    if (!active?.isLocked || !active.peerUserId || session?.demoMode) return;
+    void getContactStatus(active.peerUserId)
+      .then((s) => { if (s.request_id) setContactRequestId(s.request_id); })
+      .catch(() => {});
+  }, [active?.isLocked, active?.peerUserId, session?.demoMode]);
+
+  async function acceptLockedRequest() {
+    if (!contactRequestId || !activeId) return;
+    setContactRequestBusy(true);
+    try {
+      await acceptContactRequest(contactRequestId);
+      await refreshConversations();
+      await refreshMessagesForConversation(activeId);
+    } catch {
+      // ignore
+    } finally {
+      setContactRequestBusy(false);
+    }
+  }
+
+  async function declineLockedRequest() {
+    if (!contactRequestId) return;
+    setContactRequestBusy(true);
+    try {
+      await declineContactRequest(contactRequestId);
+      await refreshConversations();
+      clearActiveConversation();
+    } catch {
+      // ignore
+    } finally {
+      setContactRequestBusy(false);
+    }
+  }
 
   useEffect(() => {
     const q = searchParams.get("q");
@@ -307,6 +351,33 @@ export function ChatPage() {
                     onUnpin={unpinMessage}
                   />
                 ) : null}
+                {active.isLocked ? (
+                  <div className="contact-request-banner">
+                    <span className="contact-request-banner__icon">🔒</span>
+                    <span className="contact-request-banner__text">
+                      <strong>{active.name}</strong> sent you a contact request.
+                      Messages are hidden until you respond.
+                    </span>
+                    <div className="contact-request-banner__actions">
+                      <button
+                        type="button"
+                        className="contact-request-banner__btn contact-request-banner__btn--accept"
+                        disabled={contactRequestBusy || !contactRequestId}
+                        onClick={() => void acceptLockedRequest()}
+                      >
+                        ✓ Accept
+                      </button>
+                      <button
+                        type="button"
+                        className="contact-request-banner__btn contact-request-banner__btn--decline"
+                        disabled={contactRequestBusy || !contactRequestId}
+                        onClick={() => void declineLockedRequest()}
+                      >
+                        ✕ Decline
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 <ChatDropZone
                   disabled={!canPost || isSecret || selectionMode}
                   onFiles={(files) => {
@@ -332,6 +403,8 @@ export function ChatPage() {
                     onIncomingVisible={markMessageDelivered}
                     showReadReceipts={readReceiptsEnabled}
                     onRetryMessage={retryMessage}
+                    onLoadOlder={loadOlderMessages}
+                    hasOlderMessages={hasOlderMessages}
                   />
                 </ChatDropZone>
                 {!selectionMode ? <ChatTypingBar conversation={active} /> : null}

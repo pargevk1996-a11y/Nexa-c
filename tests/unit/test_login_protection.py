@@ -1,7 +1,7 @@
 """Unit tests: login protection state machine."""
 
 import pytest
-from securechat_shared.security.login_protection import (
+from nexa_shared.security.login_protection import (
     AccountLoginState,
     IpEmailLoginState,
     LoginPhase,

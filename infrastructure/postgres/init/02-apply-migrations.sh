@@ -21,4 +21,5 @@ run_db() {
 run_db auth_db
 run_db user_db
 run_db chat_db
+run_db contact_db
 run_db notification_db

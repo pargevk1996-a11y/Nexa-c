@@ -1,0 +1,543 @@
+/* ───────────────────────────  NEXA home / main page  ───────────────────────────
+   Big animated logo on the left, brand text on the right, on the star field.
+   Login & Register render as modal windows floating over this page.
+*/
+
+.home {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--text);
+  font-family: var(--font);
+  isolation: isolate;
+}
+
+/* soft blue glow behind the hero (atmosphere, sits over the star field) */
+.home__nebula {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(45% 40% at 32% 48%, rgba(79, 124, 255, 0.16), transparent 70%),
+    radial-gradient(40% 45% at 70% 60%, rgba(56, 128, 255, 0.1), transparent 72%);
+}
+
+/* —— Hero: logo left, text right —— */
+.home__hero {
+  position: relative;
+  z-index: 2;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 5vw, 5rem);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
+}
+
+/* Outer wrapper holds .home__rays so they can bleed beyond the button's
+   clip-path without being clipped themselves (BUG-019 fix: clip-path on the
+   button still constrains pointer events to the visible round logo). */
+.home__logo-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.home__logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  line-height: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  /* Constrain the theme-switch hit target to the visible round logo instead of
+     the full square bounding box so users do not toggle the theme with stray
+     clicks (BUG-019). clip-path also clips pointer events, unlike border-radius
+     alone. The rays live in the parent wrapper, so they are unaffected. */
+  clip-path: circle(50%);
+  transition: transform 0.2s var(--ease);
+}
+
+.home__logo:hover {
+  transform: scale(1.02);
+}
+
+.home__logo canvas {
+  position: relative;
+  z-index: 1;
+  max-width: min(46vw, 480px);
+  height: auto;
+  transition: filter 0.6s ease;
+}
+
+/* radiating sun rays — only visible in light mode */
+.home__rays {
+  position: absolute;
+  inset: -38%;
+  z-index: 0;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  background: radial-gradient(circle, rgba(255, 233, 150, 0.95) 0%, rgba(255, 201, 86, 0.4) 32%, transparent 64%);
+  filter: blur(6px);
+}
+
+.home__rays::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 224, 130, 0.55) 0deg 3deg,
+    transparent 3deg 13deg
+  );
+  -webkit-mask: radial-gradient(circle, #000 26%, transparent 68%);
+  mask: radial-gradient(circle, #000 26%, transparent 68%);
+  animation: sun-spin 44s linear infinite;
+}
+
+/* —— Daytime sky + clouds —— */
+.home__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+  overflow: hidden;
+}
+
+.home__cloud {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 70%);
+  filter: blur(6px);
+  will-change: transform;
+}
+
+.home__cloud:nth-child(1) { width: 360px; height: 130px; top: 12%; left: -15%; animation: cloud-drift 58s linear infinite; }
+.home__cloud:nth-child(2) { width: 260px; height: 95px;  top: 30%; left: -20%; animation: cloud-drift 84s linear infinite 8s; opacity: 0.85; }
+.home__cloud:nth-child(3) { width: 440px; height: 150px; top: 58%; left: -25%; animation: cloud-drift 100s linear infinite 4s; opacity: 0.9; }
+.home__cloud:nth-child(4) { width: 220px; height: 80px;  top: 74%; left: -12%; animation: cloud-drift 70s linear infinite 14s; opacity: 0.8; }
+
+@keyframes cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(135vw); }
+}
+
+@keyframes sun-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sun-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.82; transform: scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home__cloud,
+  .home__rays::after { animation: none; }
+}
+
+/* ════════════  LIGHT (DAY) MODE  ════════════ */
+.home--light {
+  background: linear-gradient(180deg, #5aa7ef 0%, #8fc7f5 42%, #cfe9ff 78%, #eaf6ff 100%);
+}
+
+.home--light .auth-starfield,
+.home--light .home__nebula {
+  opacity: 0;
+}
+
+.home--light .home__sky {
+  opacity: 1;
+}
+
+.home--light .home__rays {
+  opacity: 1;
+  animation: sun-pulse 4.5s ease-in-out infinite;
+}
+
+/* turn the blue/violet mesh into a glowing golden sun (structure preserved) */
+.home--light .home__logo canvas {
+  filter: sepia(1) saturate(2.6) hue-rotate(-18deg) brightness(1.28)
+    drop-shadow(0 0 34px rgba(255, 198, 84, 0.85));
+}
+
+/* readable text on the bright sky */
+.home--light .home__wordmark {
+  color: #0c2c4d;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.home--light .home__tagline {
+  background: linear-gradient(118deg, #0c2c4d 10%, #1d5fa6 60%, #2a86d8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.home--light .home__sub {
+  color: rgba(12, 38, 66, 0.78);
+}
+
+.home--light .home__btn--ghost {
+  color: #0c2c4d;
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(12, 44, 77, 0.22);
+}
+
+.home--light .home__btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(12, 44, 77, 0.35);
+}
+
+.home__text {
+  flex: 1 1 420px;
+  max-width: 520px;
+  text-align: left;
+}
+
+.home__wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.home__tagline {
+  margin: 1.1rem 0 0;
+  font-size: clamp(1.15rem, 2.4vw, 1.6rem);
+  font-weight: 600;
+  line-height: 1.3;
+  background: linear-gradient(118deg, #ffffff 20%, #bcd0ff 60%, #6aa3ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.home__sub {
+  margin: 1rem 0 0;
+  max-width: 46ch;
+  color: var(--text-muted);
+  font-size: clamp(0.95rem, 1.6vw, 1.08rem);
+  line-height: 1.65;
+}
+
+.home__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 2rem;
+}
+
+.home__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Equal min-height + min-width so the two CTAs (ghost / primary) render at a
+     consistent size regardless of label length (BUG-014). */
+  min-height: 3.25rem;
+  min-width: 11rem;
+  padding: 0.85rem 1.9rem;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    transform 0.15s var(--ease),
+    box-shadow 0.2s var(--ease),
+    background 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    filter 0.2s var(--ease);
+}
+
+.home__btn--primary {
+  color: #fff;
+  background: linear-gradient(135deg, #4f7cff 0%, #3b6dff 50%, #6a5cff 100%);
+  box-shadow: 0 12px 30px -10px rgba(70, 110, 255, 0.7);
+}
+
+.home__btn--primary:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 18px 42px -10px rgba(70, 110, 255, 0.85);
+}
+
+.home__btn--ghost {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.home__btn--ghost:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* —— Auth modal (login / register float over the home page) —— */
+.home-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(1rem, 6vh, 4rem) 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.home-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(2, 3, 10, 0.62);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  animation: home-fade 0.2s var(--ease);
+}
+
+.home-modal__panel {
+  position: relative;
+  z-index: 1;
+  /* Center horizontally only. A vertical `margin: auto` inside a flex container
+     re-centers tall content and clips its top above the scroll origin on short
+     screens — the register form (7 fields) becomes unreachable. Horizontal-only
+     margins keep the panel scrollable from the top down (BUG-005). */
+  margin-inline: auto;
+  margin-block: auto;
+  width: 100%;
+  max-width: 440px;
+  animation: home-pop 0.22s var(--ease);
+}
+
+/* On viewports too short for the tallest form, pin to the top so nothing is
+   clipped and the whole panel scrolls within .home-modal (BUG-005). */
+@media (max-height: 760px) {
+  .home-modal {
+    align-items: flex-start;
+  }
+  .home-modal__panel {
+    margin-block: 0;
+  }
+}
+
+/* the inner AuthCard already provides its own surface; let it fill the panel */
+.home-modal__panel .auth-card {
+  max-width: 100%;
+}
+
+.home-modal__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.home-modal__close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+@keyframes home-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes home-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-modal__backdrop,
+  .home-modal__panel { animation: none; }
+}
+
+/* —— Responsive: stack logo over text —— */
+@media (max-width: 860px) {
+  .home__hero {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+    justify-content: center;
+    padding: 1.5rem 1.25rem;
+  }
+  .home__text {
+    text-align: center;
+    flex-basis: auto;
+  }
+  .home__logo canvas {
+    max-width: min(58vw, 300px);
+  }
+  .home__sub {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .home__cta {
+    justify-content: center;
+  }
+}
+
+/* —— Phones: keep the whole hero inside one screen (no scroll) —— */
+@media (max-width: 560px) {
+  .home__hero {
+    gap: 0.25rem;
+    padding: 1rem 1rem;
+  }
+  .home__logo canvas {
+    max-width: min(46vw, 220px);
+  }
+  .home__wordmark {
+    font-size: clamp(2.4rem, 13vw, 3.4rem);
+  }
+  .home__tagline {
+    margin-top: 0.7rem;
+    font-size: clamp(1.05rem, 4.4vw, 1.3rem);
+  }
+  .home__sub {
+    margin-top: 0.7rem;
+    font-size: clamp(0.9rem, 3.6vw, 1rem);
+    line-height: 1.5;
+  }
+  .home__cta {
+    margin-top: 1.25rem;
+    gap: 0.7rem;
+  }
+  .home__btn {
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+/* —— Short viewports: trim vertical rhythm so nothing overflows —— */
+@media (max-width: 860px) and (max-height: 720px) {
+  .home__logo canvas {
+    max-width: min(40vw, 180px);
+  }
+  .home__tagline {
+    margin-top: 0.5rem;
+  }
+  .home__sub {
+    margin-top: 0.5rem;
+  }
+  .home__cta {
+    margin-top: 1rem;
+  }
+}
+
+/* —— Legal / trust links (shared component, BUG-023) —— */
+.auth-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-faint);
+}
+
+.auth-legal a {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--dur) var(--ease);
+}
+
+.auth-legal a:hover {
+  color: #6aa3ff;
+  text-decoration: underline;
+}
+
+/* Fixed footer on the landing hero */
+.home__legal {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 3;
+  padding: 1rem;
+}
+
+.auth-panel__legal {
+  margin-top: 1.5rem;
+}
+
+/* —— Static legal/trust pages (Privacy, Terms) —— */
+.legal-page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: clamp(2rem, 6vh, 5rem) 1.25rem;
+  background: var(--bg, #050508);
+  color: var(--text, #f4f4f8);
+}
+
+.legal-page__card {
+  width: 100%;
+  max-width: 760px;
+}
+
+.legal-page__card h1 {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  margin-bottom: 0.5rem;
+}
+
+.legal-page__intro {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.legal-page__card section {
+  margin-bottom: 1.5rem;
+}
+
+.legal-page__card h2 {
+  font-size: 1.15rem;
+  margin-bottom: 0.4rem;
+}
+
+.legal-page__card p {
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.legal-page__back {
+  margin-top: 2.5rem;
+}
+
+.legal-page__back a {
+  color: #6aa3ff;
+  font-weight: 600;
+  text-decoration: none;
+}

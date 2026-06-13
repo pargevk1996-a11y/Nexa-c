@@ -54,6 +54,19 @@ export AUTO_VERIFY_EMAIL="${AUTO_VERIFY_EMAIL:-true}"
 export FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5173}"
 export OAUTH_PUBLIC_BASE_URL="${OAUTH_PUBLIC_BASE_URL:-http://127.0.0.1:8000}"
 
+# Convert relative JWT key paths to absolute so services find them regardless of cwd
+if [[ -n "${JWT_ACCESS_PUBLIC_KEY_FILE:-}" && "${JWT_ACCESS_PUBLIC_KEY_FILE}" != /* ]]; then
+  export JWT_ACCESS_PUBLIC_KEY_FILE="${ROOT}/${JWT_ACCESS_PUBLIC_KEY_FILE}"
+fi
+if [[ -n "${JWT_ACCESS_PRIVATE_KEY_FILE:-}" && "${JWT_ACCESS_PRIVATE_KEY_FILE}" != /* ]]; then
+  export JWT_ACCESS_PRIVATE_KEY_FILE="${ROOT}/${JWT_ACCESS_PRIVATE_KEY_FILE}"
+fi
+# Always re-export REDIS_URL with localhost if it still points at a Docker hostname
+if echo "${REDIS_URL:-}" | grep -qv "127.0.0.1\|localhost"; then
+  _redis_pass="${REDIS_PASSWORD:-change-me-redis-password}"
+  export REDIS_URL="redis://:${_redis_pass}@127.0.0.1:6379/0"
+fi
+
 # Bundled Node.js (no system npm required)
 if [[ ! -x "$NODE_DIR/bin/npm" ]]; then
   echo "[node] Installing Node.js to .tools/node ..."
@@ -103,7 +116,7 @@ start_service() {
       export NOTIFICATION_SERVICE_URL
       export CALL_SERVICE_URL AI_SERVICE_URL
     fi
-    if [[ "$name" == "auth-service" || "$name" == "ws-gateway" || "$name" == "api-gateway" ]]; then
+    if [[ "$name" == "auth-service" || "$name" == "ws-gateway" || "$name" == "api-gateway" || "$name" == "chat-service" ]]; then
       export JWT_ACCESS_SECRET JWT_REFRESH_SECRET JWT_ALGORITHM
       export JWT_ACCESS_PUBLIC_KEY_FILE JWT_ACCESS_PUBLIC_KEY
       export JWT_ACCESS_PRIVATE_KEY_FILE
@@ -112,8 +125,11 @@ start_service() {
       export AUTO_VERIFY_EMAIL FRONTEND_URL OAUTH_PUBLIC_BASE_URL
       export GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
     fi
+    if [[ "$name" == "ws-gateway" || "$name" == "chat-service" ]]; then
+      export REDIS_URL
+    fi
     if [[ "$name" == "ws-gateway" ]]; then
-      export REDIS_URL CHAT_SERVICE_URL WS_NODE_ID
+      export CHAT_SERVICE_URL WS_NODE_ID
     fi
     exec "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port "$port"
   ) >"$LOG_DIR/$name.log" 2>&1 &

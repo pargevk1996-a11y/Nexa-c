@@ -5,14 +5,21 @@ import { VoiceRecorder, type VoiceRecorderHandle } from "@/components/chat/Voice
 import { SmartReplyBar } from "@/components/ai/SmartReplyBar";
 import { useSmartReply } from "@/ai/useSmartReply";
 import {
-  IconBell,
-  IconMic,
   IconPaperclip,
+  IconPause,
+  IconPlay,
   IconSend,
   IconSmile,
+  IconSpeaker,
+  IconSpeakerOff,
   IconTimer,
   IconX,
 } from "@/components/icons/Icons";
+
+function fmtDur(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 import type { Message } from "@/types";
 import { replySenderLabel, replySnippet } from "@/utils/messageLayout";
 import type { DemoGif, DemoSticker } from "@/data/mockMedia";
@@ -100,9 +107,23 @@ export function MessageComposer({
   const [recordingMode, setRecordingMode] = useState(false);
   const [ephemeralMode, setEphemeralMode] = useState(false);
   const [silentMode, setSilentMode] = useState(false);
+  // Voice gesture: hold the send button (when the field is empty) to record.
+  // Slide up locks; slide left cancels; on release the clip waits for review.
+  const [recordLocked, setRecordLocked] = useState(false);
+  const [dragHint, setDragHint] = useState<"none" | "lock" | "cancel">("none");
+  const [reviewVoice, setReviewVoice] = useState<{ url: string; blob: Blob; duration: number } | null>(null);
+  const [reviewPlaying, setReviewPlaying] = useState(false);
   const voiceRecorderRef = useRef<VoiceRecorderHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiBtnRef = useRef<HTMLButtonElement>(null);
+  const reviewAudioRef = useRef<HTMLAudioElement | null>(null);
+  // Pointer-gesture bookkeeping for the send / hold-to-record button.
+  const pressRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const holdTimerRef = useRef<number | null>(null);
+  const recordingRef = useRef(false);
+  const lockedRef = useRef(false);
+  const cancelRef = useRef(false);
+  const longPressedRef = useRef(false);
 
   const aiOn = features.ai && !isSecret;
   const { suggestions, loading: replyLoading, clear: clearReplies } = useSmartReply(
@@ -112,6 +133,9 @@ export function MessageComposer({
   );
 
   const isEditing = editingText != null;
+  // When the field has text, collapse the accessory buttons so the input gets
+  // the full width and stays on a single line.
+  const hasText = text.trim().length > 0;
   const sendOpts = (): SendOptions | undefined => {
     const opts: SendOptions = {};
     if (ephemeralMode) opts.ephemeral = true;
@@ -147,9 +171,128 @@ export function MessageComposer({
     stopTyping();
   }
 
-  async function handleVoiceRecorded(duration: number, url: string, blob: Blob) {
-    onSendVoice(duration, url, blob, sendOpts());
+  // Recording finished — keep the clip for review instead of sending it.
+  function handleVoiceRecorded(duration: number, url: string, blob: Blob) {
     setRecordingMode(false);
+    setRecordLocked(false);
+    recordingRef.current = false;
+    lockedRef.current = false;
+    if (blob.size > 0 && url) {
+      setReviewVoice({ url, blob, duration });
+    }
+  }
+
+  function discardVoiceReview() {
+    if (reviewVoice?.url) URL.revokeObjectURL(reviewVoice.url);
+    setReviewVoice(null);
+    setReviewPlaying(false);
+  }
+
+  function sendVoiceReview() {
+    if (!reviewVoice) return;
+    onSendVoice(reviewVoice.duration, reviewVoice.url, reviewVoice.blob, sendOpts());
+    setReviewVoice(null);
+    setReviewPlaying(false);
+    setEphemeralMode(false);
+  }
+
+  function toggleReviewPlay() {
+    const el = reviewAudioRef.current;
+    if (!el) return;
+    if (el.paused) {
+      void el.play();
+      setReviewPlaying(true);
+    } else {
+      el.pause();
+      setReviewPlaying(false);
+    }
+  }
+
+  // ── Hold-to-record / hold-to-arm-ephemeral gesture on the send button ──
+  // (window listeners use per-gesture local closures so add/remove always
+  //  reference the same function, avoiding listener leaks across re-renders.)
+  function clearHoldTimer() {
+    if (holdTimerRef.current !== null) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }
+
+  function onSendPointerDown(e: React.PointerEvent) {
+    if (disabled || isEditing) return;
+    if (reviewVoice || recordLocked) return; // handled by their own controls
+    const LOCK_DY = 64;
+    const CANCEL_DX = 70;
+    const start = { x: e.clientX, y: e.clientY, t: Date.now() };
+    pressRef.current = start;
+    cancelRef.current = false;
+    longPressedRef.current = false;
+    const hasText = text.trim().length > 0;
+
+    const cleanup = () => {
+      clearHoldTimer();
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      pressRef.current = null;
+      setDragHint("none");
+    };
+    const move = (ev: PointerEvent) => {
+      if (!recordingRef.current || lockedRef.current) return;
+      const dy = start.y - ev.clientY;
+      const dx = start.x - ev.clientX;
+      if (dx > CANCEL_DX) {
+        cancelRef.current = true;
+        voiceRecorderRef.current?.cancel();
+        recordingRef.current = false;
+        setRecordingMode(false);
+        cleanup();
+        return;
+      }
+      if (dy > LOCK_DY) {
+        lockedRef.current = true;
+        setRecordLocked(true);
+        cleanup();
+        return;
+      }
+      setDragHint(dy > 24 ? "lock" : dx > 24 ? "cancel" : "none");
+    };
+    const up = () => {
+      const held = Date.now() - start.t;
+      if (recordingRef.current && !lockedRef.current && !cancelRef.current) {
+        if (held >= 400) {
+          voiceRecorderRef.current?.stopAndSend(); // → review
+        } else {
+          voiceRecorderRef.current?.cancel();
+          setRecordingMode(false);
+          recordingRef.current = false;
+        }
+      } else if (!recordingRef.current && hasText && !longPressedRef.current) {
+        submit(); // plain tap with text
+      }
+      cleanup();
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+
+    if (hasText) {
+      // Long-press text → arm "disappearing" mode (don't send on that release).
+      holdTimerRef.current = window.setTimeout(() => {
+        longPressedRef.current = true;
+        setEphemeralMode((v) => !v);
+      }, 550);
+    } else {
+      // Empty field → press-and-hold starts a voice recording (small delay so a
+      // quick tap doesn't trigger the mic permission prompt).
+      holdTimerRef.current = window.setTimeout(() => {
+        recordingRef.current = true;
+        lockedRef.current = false;
+        setRecordLocked(false);
+        setRecordingMode(true);
+      }, 280);
+    }
   }
 
   function insertEmoji(emoji: string) {
@@ -176,6 +319,9 @@ export function MessageComposer({
     }, 50);
     return () => window.clearTimeout(t);
   }, [conversationId, disabled, recordingMode, selectionMode, isEditing]);
+
+  // Single-line input: the field never grows vertically. Long text stays on one
+  // line and scrolls horizontally (see .chat-composer__input in CSS).
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (settings.enterToSend && e.key === "Enter" && !e.shiftKey) {
@@ -230,7 +376,7 @@ export function MessageComposer({
       ) : null}
       {silentMode && !isSecret ? (
         <div className="chat-composer__silent-banner" role="status">
-          <IconBell size={16} />
+          <IconSpeakerOff size={16} />
           <span>Send without notification sound</span>
         </div>
       ) : null}
@@ -265,81 +411,122 @@ export function MessageComposer({
         <div className="chat-composer__inner">
           {selectionMode ? (
             <p className="chat-composer__hint">Tap messages to select them</p>
+          ) : reviewVoice ? (
+            <div className="voice-review">
+              <button
+                type="button"
+                className="icon-btn icon-btn--ghost voice-review__del"
+                aria-label="Delete recording"
+                title="Delete"
+                onClick={discardVoiceReview}
+              >
+                <IconX size={18} />
+              </button>
+              <button
+                type="button"
+                className="icon-btn voice-review__play"
+                aria-label={reviewPlaying ? "Pause" : "Play"}
+                onClick={toggleReviewPlay}
+              >
+                {reviewPlaying ? <IconPause size={18} /> : <IconPlay size={18} />}
+              </button>
+              <span className="voice-review__bar" aria-hidden>
+                <span className={`voice-review__fill ${reviewPlaying ? "is-playing" : ""}`} />
+              </span>
+              <span className="voice-review__time">{fmtDur(reviewVoice.duration)}</span>
+              {!isSecret ? (
+                <button
+                  type="button"
+                  className={`icon-btn icon-btn--ghost ${ephemeralMode ? "icon-btn--active" : ""}`}
+                  aria-label="Send as disappearing voice message"
+                  onClick={() => setEphemeralMode((v) => !v)}
+                >
+                  <IconTimer size={20} />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="icon-btn icon-btn--primary chat-composer__send"
+                aria-label="Send voice message"
+                title="Send"
+                onClick={sendVoiceReview}
+              >
+                <IconSend size={18} />
+              </button>
+              <audio
+                ref={reviewAudioRef}
+                src={reviewVoice.url}
+                onEnded={() => setReviewPlaying(false)}
+                hidden
+              />
+            </div>
           ) : recordingMode ? (
             <VoiceRecorder
               ref={voiceRecorderRef}
               autoStart
               disabled={disabled}
-              onRecorded={(dur, url, blob) => void handleVoiceRecorded(dur, url, blob)}
-              onCancel={() => setRecordingMode(false)}
+              locked={recordLocked}
+              dragHint={dragHint}
+              ephemeral={ephemeralMode}
+              onToggleEphemeral={isSecret ? undefined : () => setEphemeralMode((v) => !v)}
+              onRecorded={(dur, url, blob) => handleVoiceRecorded(dur, url, blob)}
+              onCancel={() => {
+                setRecordingMode(false);
+                setRecordLocked(false);
+                recordingRef.current = false;
+                lockedRef.current = false;
+              }}
             />
           ) : (
             <>
-              {!isSecret ? (
+              {/* Accessory buttons collapse once the user starts typing so the
+                  input keeps the full width on a single line. */}
+              {!hasText ? (
                 <>
+                  {!isSecret ? (
+                    <button
+                      type="button"
+                      className={`icon-btn icon-btn--ghost chat-composer__silent ${silentMode ? "chat-composer__silent--muted" : ""}`}
+                      disabled={disabled || isEditing}
+                      aria-label={silentMode ? "Notifications off — will send silently" : "Send with notification"}
+                      onClick={() => setSilentMode((v) => !v)}
+                    >
+                      {silentMode ? <IconSpeakerOff size={20} /> : <IconSpeaker size={20} />}
+                    </button>
+                  ) : null}
+                  {!isSecret && onSendFile ? (
+                    <FileAttachButton
+                      label={secureMode ? "Attach photo, video or audio (SecureChat)" : "Attach photo, video, or file"}
+                      accept={secureMode ? "image/*,video/*,audio/*" : COMPOSER_ATTACH_ACCEPT}
+                      disabled={disabled || isEditing}
+                      multiple
+                      onFiles={(list) => {
+                        Array.from(list).forEach((file) => {
+                          if (secureMode) {
+                            const ok = file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/");
+                            if (!ok) return;
+                          }
+                          onSendFile(file, sendOpts());
+                        });
+                      }}
+                      className="icon-btn icon-btn--ghost"
+                    >
+                      <IconPaperclip size={20} />
+                    </FileAttachButton>
+                  ) : null}
                   <button
+                    ref={emojiBtnRef}
                     type="button"
-                    className={`icon-btn icon-btn--ghost ${ephemeralMode ? "icon-btn--active" : ""}`}
-                    disabled={disabled || isEditing}
-                    aria-label="Toggle disappearing messages"
-                    title={`Disappearing messages — vanish ${EPHEMERAL_VIEW_SECONDS}s after viewing`}
-                    onClick={() => setEphemeralMode((v) => !v)}
+                    className={`icon-btn icon-btn--ghost ${emojiOpen ? "icon-btn--active" : ""}`}
+                    disabled={disabled}
+                    aria-label="Emoji, GIF and stickers"
+                    title="Emoji, GIF and stickers"
+                    onClick={() => setEmojiOpen((o) => !o)}
                   >
-                    <IconTimer size={20} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`icon-btn icon-btn--ghost ${silentMode ? "icon-btn--active" : ""}`}
-                    disabled={disabled || isEditing}
-                    aria-label="Send silently"
-                    title="Send without notification"
-                    onClick={() => setSilentMode((v) => !v)}
-                  >
-                    <IconBell size={20} />
+                    <IconSmile size={20} />
                   </button>
                 </>
               ) : null}
-              {!isSecret && onSendFile ? (
-                <FileAttachButton
-                  label={secureMode ? "Attach photo, video or audio (SecureChat)" : "Attach photo, video, or file"}
-                  accept={secureMode ? "image/*,video/*,audio/*" : COMPOSER_ATTACH_ACCEPT}
-                  disabled={disabled || isEditing}
-                  multiple
-                  onFiles={(list) => {
-                    Array.from(list).forEach((file) => {
-                      if (secureMode) {
-                        const ok = file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/");
-                        if (!ok) return;
-                      }
-                      onSendFile(file, sendOpts());
-                    });
-                  }}
-                  className="icon-btn icon-btn--ghost"
-                >
-                  <IconPaperclip size={20} />
-                </FileAttachButton>
-              ) : null}
-              {!isSecret ? (
-                <IconButton
-                  label="Record voice message"
-                  variant="ghost"
-                  disabled={disabled || isEditing}
-                  onClick={() => setRecordingMode(true)}
-                >
-                  <IconMic size={20} />
-                </IconButton>
-              ) : null}
-              <button
-                ref={emojiBtnRef}
-                type="button"
-                className={`icon-btn icon-btn--ghost ${emojiOpen ? "icon-btn--active" : ""}`}
-                disabled={disabled}
-                aria-label="Emoji, GIF and stickers"
-                title="Emoji, GIF and stickers"
-                onClick={() => setEmojiOpen((o) => !o)}
-              >
-                <IconSmile size={20} />
-              </button>
               <textarea
                 ref={textareaRef}
                 className="chat-composer__input"
@@ -366,14 +553,28 @@ export function MessageComposer({
                 disabled={disabled}
                 aria-label="Message text"
               />
-              <IconButton
-                label={isEditing ? "Save edit" : "Send message"}
-                variant="primary"
-                disabled={disabled || !text.trim()}
-                onClick={submit}
-              >
-                <IconSend size={18} />
-              </IconButton>
+              {isEditing ? (
+                <IconButton label="Save edit" variant="primary" disabled={disabled || !text.trim()} onClick={submit}>
+                  <IconSend size={18} />
+                </IconButton>
+              ) : (
+                <button
+                  type="button"
+                  className={`icon-btn icon-btn--primary chat-composer__send ${ephemeralMode ? "chat-composer__send--ephemeral" : ""} ${text.trim() ? "" : "chat-composer__send--voice"}`}
+                  disabled={disabled}
+                  aria-label={text.trim() ? "Send message — hold for disappearing" : "Hold to record a voice message"}
+                  onPointerDown={onSendPointerDown}
+                  onContextMenu={(e) => e.preventDefault()}
+                >
+                  {/* Default: 3 typing dots (text). Hold to switch to voice
+                      mode — the recorder then shows the voice impulse icon. */}
+                  <span className="typing-dots" aria-hidden>
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </button>
+              )}
             </>
           )}
         </div>

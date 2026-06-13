@@ -8,8 +8,14 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Username OR email. `email` kept for backward-compat with older clients.
+    identifier: str | None = Field(default=None, max_length=254)
+    email: str | None = Field(default=None, max_length=254)
     password: str = Field(min_length=1, max_length=128)
+
+    @property
+    def login_id(self) -> str:
+        return (self.identifier or self.email or "").strip()
 
 
 class EmailRequest(BaseModel):

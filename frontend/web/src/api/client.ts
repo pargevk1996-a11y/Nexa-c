@@ -1,4 +1,3 @@
-import { getCachedSession } from "@/security/sessionCache";
 import { getCsrfToken } from "@/security/csrf";
 
 const API_BASE = "/api/v1";
@@ -9,7 +8,7 @@ async function tryRefreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = import("@/api/auth")
       .then((m) => m.refreshAccessToken())
-      .then((s) => Boolean(s?.accessToken))
+      .then((s) => Boolean(s?.user?.id))
       .finally(() => {
         refreshInFlight = null;
       });
@@ -35,14 +34,14 @@ export async function apiFetch<T>(
   options: RequestInit = {},
   retried = false,
 ): Promise<T> {
-  const session = getCachedSession();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
+  // The access token travels as an httpOnly Secure SameSite=Lax cookie —
+  // credentials:"include" below ensures the browser attaches it automatically.
+  // No Authorization header is set from JS; the api-gateway reads the cookie
+  // and injects Bearer for downstream microservices.
   const csrf = getCsrfToken();
   if (csrf && options.method && options.method !== "GET") {
     headers["X-CSRF-Token"] = csrf;
@@ -93,9 +92,13 @@ export async function apiFetch<T>(
 }
 
 export function isBackendUnavailable(err: unknown): boolean {
+  // A network-level failure (fetch throws TypeError) or a gateway/upstream error.
+  // NOTE: 404 is intentionally NOT treated as "unavailable" — it is a definitive
+  // "resource not found", not a transient backend outage, and must not trigger
+  // retry/offline handling.
   if (err instanceof TypeError) return true;
   if (err instanceof ApiError) {
-    return err.status === 404 || err.status === 502 || err.status === 503 || err.status === 504;
+    return err.status === 502 || err.status === 503 || err.status === 504;
   }
   return false;
 }

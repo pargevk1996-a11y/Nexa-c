@@ -27,7 +27,8 @@ function RemoteTile({ participant }: { participant: RemoteParticipant }) {
     <div
       className={`call-video-grid__tile ${participant.isScreen ? "call-video-grid__tile--screen" : ""}`}
     >
-      <video ref={videoRef} className="call-video-grid__video" playsInline autoPlay />
+      {/* Muted: remote audio plays through the dedicated RemoteAudioPlayback sink. */}
+      <video ref={videoRef} className="call-video-grid__video" playsInline autoPlay muted />
       <span className="call-video-grid__label">
         {participant.isScreen ? "Screen" : participant.label}
       </span>

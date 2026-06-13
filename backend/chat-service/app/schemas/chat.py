@@ -17,6 +17,7 @@ class ConversationResponse(BaseModel):
     my_role: str | None = None
     peer_user_id: str | None = None
     member_ids: list[str] = Field(default_factory=list)
+    is_locked: bool = False
 
 
 class CreateConversationRequest(BaseModel):
@@ -30,6 +31,7 @@ class CreateConversationRequest(BaseModel):
     is_public: bool = False
     parent_id: str | None = None
     verified: bool = False
+    locked_for: str | None = None
 
 
 class MessageResponse(BaseModel):

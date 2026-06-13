@@ -1,19 +1,17 @@
-import { useMemo, useRef } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useProfileOptional } from "@/store/ProfileContext";
-import { displayName, presenceLine } from "@/utils/presenceText";
-import { LogoAnimation } from "@/components/auth/LogoAnimation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   IconCalls,
   IconChats,
   IconContacts,
+  IconProfile,
   IconSearch,
   IconSettings,
 } from "@/components/icons/Icons";
 import { features } from "@/features/registry";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
-import { Avatar } from "@/components/ui/Avatar";
 import { getCachedSession } from "@/api/auth";
+import { listIncomingRequests } from "@/api/contacts";
 import {
   CHAT_CATEGORIES,
   sortChatList,
@@ -47,6 +45,7 @@ const APP_NAV = [
   { to: "/app/chats", label: "Chats", Icon: IconChats },
   { to: "/app/contacts", label: "Contacts", Icon: IconContacts },
   { to: "/app/calls", label: "Calls", Icon: IconCalls },
+  { to: "/app/profile", label: "Profile", Icon: IconProfile },
   { to: "/app/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
@@ -70,10 +69,16 @@ export function ChatLeftPanel({
 }: ChatLeftPanelProps) {
   const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
-  const session = getCachedSession();
-  const myProfile = useProfileOptional()?.profile;
-  const meLabel = myProfile ? displayName(myProfile) : session?.user.username ?? "You";
-  const mePresence = myProfile ? presenceLine(myProfile) : "Online";
+
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+
+  useEffect(() => {
+    const s = getCachedSession();
+    if (!s?.user?.id || s?.demoMode) return;
+    listIncomingRequests()
+      .then((list) => setPendingRequestCount(list.length))
+      .catch(() => {});
+  }, []);
 
   const effectiveSearch = pinUnlocked && search.startsWith("#") ? "" : search;
 
@@ -92,32 +97,37 @@ export function ChatLeftPanel({
   );
   return (
     <aside className="chat-left-panel glass-panel" aria-label="Chat list">
+      {/* Faint NEXA logo + wordmark watermark behind the chat list */}
+      <div className="chat-left-panel__watermark" aria-hidden>
+        <span className="chat-left-panel__watermark-mark" />
+        <span className="chat-left-panel__watermark-text">NEXA</span>
+      </div>
       <header className="chat-left-panel__head">
         <div className="chat-left-panel__title-row">
-          <LogoAnimation size={44} />
-          <span className="chat-left-panel__wordmark">NEXA</span>
-          <StoryPeek />
-          <button
-            type="button"
-            className="chat-left-panel__add-btn"
-            onClick={() => navigate("/app/contacts")}
-            title="Add contact"
-            aria-label="Add contact"
-          >
-            +
-          </button>
+          <label className="chat-left-panel__search">
+            <IconSearch size={18} className="chat-left-panel__search-icon" />
+            <input
+              ref={searchRef}
+              type="search"
+              placeholder="Search"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              aria-label="Search chats"
+            />
+          </label>
+          <div className="chat-left-panel__head-actions">
+            <StoryPeek />
+            <button
+              type="button"
+              className="chat-left-panel__add-btn"
+              onClick={() => navigate("/app/contacts")}
+              title="Add contact"
+              aria-label="Add contact"
+            >
+              +
+            </button>
+          </div>
         </div>
-        <label className="chat-left-panel__search">
-          <IconSearch size={18} className="chat-left-panel__search-icon" />
-          <input
-            ref={searchRef}
-            type="search"
-            placeholder="Search"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            aria-label="Search chats"
-          />
-        </label>
       </header>
 
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
@@ -159,28 +169,16 @@ export function ChatLeftPanel({
             }
             title={item.label}
           >
-            <item.Icon size={18} />
+            <span className="chat-left-panel__nav-icon-wrap">
+              <item.Icon size={18} />
+              {item.label === "Contacts" && pendingRequestCount > 0 && (
+                <span className="chat-left-panel__nav-badge">{pendingRequestCount}</span>
+              )}
+            </span>
             <span>{item.label}</span>
           </NavLink>
         ))}
       </nav>
-
-      <footer className="chat-left-panel__footer">
-        <Link to="/app/profile" className="chat-left-panel__profile">
-          <Avatar
-            name={meLabel}
-            size="sm"
-            online={myProfile?.is_online}
-            avatarUrl={myProfile?.avatar_url}
-            animatedUrl={myProfile?.animated_avatar_url}
-            avatarKind={myProfile?.avatar_kind}
-          />
-          <div className="chat-left-panel__profile-text">
-            <span className="chat-left-panel__profile-name">{meLabel}</span>
-            <span className="chat-left-panel__profile-hint">{mePresence}</span>
-          </div>
-        </Link>
-      </footer>
     </aside>
   );
 }
