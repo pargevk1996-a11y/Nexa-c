@@ -36,7 +36,6 @@ coverage.xml
 !.env.prod.example
 !.env.staging.example
 !.env.development.example
-# Frontend env files (VITE_ vars may embed API base URLs)
 frontend/web/.env
 frontend/web/.env.local
 frontend/web/.env.development
@@ -55,9 +54,7 @@ frontend/web/.env.staging
 *.pfx
 *.jks
 *.keystore
-# Keep the TLS generation helper script
 !infrastructure/tls/dev/generate-dev-certs.sh
-# JWT key directory (private + public generated at runtime)
 infrastructure/jwt/
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -70,25 +67,22 @@ frontend/web/coverage/
 *.tsbuildinfo
 
 # ──────────────────────────────────────────────────────────────────────────────
-# IDE & AI assistant tools  ← SECURITY: may store API keys / tokens
+# Local editor & tool settings
 # ──────────────────────────────────────────────────────────────────────────────
-# Obsidian (plugins/copilot/data.json stores LLM API keys)
 .obsidian/
-# Cursor IDE
 .cursor/
-# Obsidian Copilot custom prompts (personal, not project code)
-copilot/
-# VS Code workspace settings (use .vscode/extensions.json if needed)
-.vscode/
-# JetBrains
-.idea/
-# Claude Code project settings (may include personal hooks / tokens)
 .claude/
+.continue/
+.aider/
+copilot/
+.vscode/
+.idea/
 
 # ──────────────────────────────────────────────────────────────────────────────
-# AI memory & scratch files
+# Local scratch & workspace files
 # ──────────────────────────────────────────────────────────────────────────────
-ClaudeMemory.md
+AGENTS.md
+*Memory.md
 Untitled.base
 *.base
 
@@ -108,7 +102,7 @@ desktop.ini
 *.log
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Local dev runtime data (PostgreSQL, Redis, service logs & pids)
+# Local dev runtime data
 # ──────────────────────────────────────────────────────────────────────────────
 .dev/
 **/.dev/
@@ -119,7 +113,7 @@ desktop.ini
 test-results/
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Local dev tools (PostgreSQL, Redis, Node binaries — not for version control)
+# Local dev tools
 # ──────────────────────────────────────────────────────────────────────────────
 .tools/
 
