@@ -47,6 +47,10 @@ export async function clearSession(): Promise<void> {
   sessionStorage.removeItem(ACTIVE_UID_KEY);
   sessionStorage.removeItem(storageKeys.tabUnlocked);
   try { localStorage.removeItem(storageKeys.globalUnlocked); } catch { /* ignore */ }
+  // Drop the persistent screen-lock flag: a full logout / session reset is a
+  // stronger gate than the PIN, so a restored lock must not strand a logged-out
+  // user behind an unenterable PIN screen on the next load.
+  try { localStorage.removeItem("nexa-screen-lock"); } catch { /* ignore */ }
   cachedSession = null;
   await wipeLocalSecurityState();
 }

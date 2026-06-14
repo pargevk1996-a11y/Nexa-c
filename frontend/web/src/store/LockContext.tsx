@@ -17,7 +17,7 @@ import { isGuestAuthPath } from "@/security/authRoutes";
 const AWAY_PIN_THRESHOLD_MS = 60_000;
 
 // Legacy persisted-lock keys from the old auto-lock system. Clear them on load
-// so a stale value can never boot the app into a locked state ("auto-locks").
+// so a stale value from that system can never affect the new lock.
 try {
   localStorage.removeItem("_nxlr");
   localStorage.removeItem("_nxla");
@@ -25,12 +25,36 @@ try {
   /* storage unavailable */
 }
 
+// Persisted manual-lock flag. A user-initiated padlock lock (`pin_required`)
+// must survive a full page reload — in any browser / OS / device — and stay
+// locked until the correct PIN is entered. Only this manual lock is persisted;
+// the transient screens (screenshot_blocked / away) are never stored. We only
+// persist the lock STATE, never the PIN itself.
+const LOCK_PERSIST_KEY = "nexa-screen-lock";
+
+function isManualLockPersisted(): boolean {
+  try {
+    return localStorage.getItem(LOCK_PERSIST_KEY) === "pin_required";
+  } catch {
+    return false;
+  }
+}
+
+function persistManualLock(locked: boolean): void {
+  try {
+    if (locked) localStorage.setItem(LOCK_PERSIST_KEY, "pin_required");
+    else localStorage.removeItem(LOCK_PERSIST_KEY);
+  } catch {
+    /* storage unavailable — best effort */
+  }
+}
+
 /**
- * The screen lock is USER-INITIATED and SESSION-ONLY: it is never restored on
- * page load / reload (a fresh page is always unlocked), and there is NO
- * automatic locking on tab-switch, blur or inactivity. The only triggers are
- * the padlock button (manual `pin_required`) and a screenshot attempt
- * (`screenshot_blocked`, click to dismiss). A manual lock needs the PIN.
+ * The screen lock is USER-INITIATED. A manual padlock lock (`pin_required`) is
+ * PERSISTENT: it is restored on page load / reload and can only be cleared by
+ * entering the PIN. There is still NO automatic locking on tab-switch, blur or
+ * inactivity; the transient `screenshot_blocked` / `away` screens are session-
+ * only (click to dismiss) and are never persisted.
  */
 export type LockState = "active" | "pin_required" | "screenshot_blocked" | "away";
 
@@ -45,12 +69,23 @@ interface LockContextValue {
 const LockContext = createContext<LockContextValue | null>(null);
 
 export function LockProvider({ children }: { children: ReactNode }) {
-  // Always boot unlocked — no persisted/restored lock state.
-  const [lockState, setLockState] = useState<LockState>("active");
+  // Restore a persisted manual lock on boot so a reload stays locked until the
+  // PIN is entered. Guest auth pages never carry a lock.
+  const [lockState, setLockState] = useState<LockState>(() =>
+    !isGuestAuthPath() && isManualLockPersisted() ? "pin_required" : "active",
+  );
   const [lockedAt, setLockedAt] = useState<number>(0);
 
-  const lockStateRef = useRef<LockState>("active");
+  const lockStateRef = useRef<LockState>(lockState);
   lockStateRef.current = lockState;
+
+  // If we booted into a restored manual lock, seal the content immediately so it
+  // stays hidden behind the overlay (and against screenshots) from first paint.
+  useEffect(() => {
+    if (lockStateRef.current === "pin_required") sealContent(0);
+    // Mount-only: the restored lock is established before any user interaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const lock = useCallback((reason: Exclude<LockState, "active">) => {
     if (isGuestAuthPath()) return;
@@ -63,9 +98,13 @@ export function LockProvider({ children }: { children: ReactNode }) {
     sealContent(0);
     setLockedAt(Date.now());
     setLockState(reason);
+    // Only a manual padlock lock survives a reload; transient screens do not.
+    if (reason === "pin_required") persistManualLock(true);
   }, []);
 
   const unlock = useCallback(() => {
+    // Clear the persisted lock first so a reload mid-unlock can't re-lock.
+    persistManualLock(false);
     explicitUnlock();
     setLockState("active");
     setLockedAt(0);

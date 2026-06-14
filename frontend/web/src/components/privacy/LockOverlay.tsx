@@ -35,7 +35,10 @@ const STATE_CONTENT: Record<Exclude<LockState, "active">, StateContent> = {
 };
 
 function PinForm({ onSuccess }: { onSuccess: () => void }) {
-  const session = getCachedSession();
+  // The session may still be hydrating when a restored lock paints on reload.
+  // Track it reactively (via the persistSession event) so the PIN form becomes
+  // usable the moment the session is available — never a permanent lockout.
+  const [session, setSession] = useState(getCachedSession);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +47,13 @@ function PinForm({ onSuccess }: { onSuccess: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // Random id each mount so browser can't correlate with saved credentials
   const uid = useId();
+
+  // Pick up the session as soon as bootstrap finishes hydrating it.
+  useEffect(() => {
+    const onSession = () => setSession(getCachedSession());
+    window.addEventListener("securechat-session", onSession);
+    return () => window.removeEventListener("securechat-session", onSession);
+  }, []);
 
   useEffect(() => {
     if (!session) return;
