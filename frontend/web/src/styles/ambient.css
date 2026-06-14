@@ -146,3 +146,51 @@ body:has(.app-shell)::before {
   animation: none;
   transform: none;
 }
+
+/*
+  LOW-END DEVICE MODE (data-perf="low" on <html>)
+  Set by an inline script in index.html when hardwareConcurrency ≤ 2,
+  deviceMemory ≤ 0.5 GB, or requestIdleCallback is absent.
+
+  Strategy: replace all GPU-expensive effects with cheap equivalents.
+  - backdrop-filter → solid semi-transparent background (composites once, free)
+  - filter: blur → removed (orbs become solid colour blobs — still look fine)
+  - All animations → none (no repaints, no compositor work)
+  - body::before aurora → hidden (saves a full-screen compositing layer)
+  - Ambient starfield → hidden (removes 8 animated pseudo-elements)
+  No visual feature is removed: layout, text, icons, interactions all stay.
+*/
+[data-perf="low"] body::before { display: none; }
+[data-perf="low"] .ambient-bg { display: none; }
+
+[data-perf="low"] *,
+[data-perf="low"] *::before,
+[data-perf="low"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Replace glass blur with solid opaque backgrounds — no compositing cost */
+[data-perf="low"] .top-nav,
+[data-perf="low"] .side-nav,
+[data-perf="low"] .chat-left-panel,
+[data-perf="low"] .chat-main,
+[data-perf="low"] .chat-sidebar,
+[data-perf="low"] .chat-header,
+[data-perf="low"] .profile-panel,
+[data-perf="low"] .chat-composer,
+[data-perf="low"] .settings-page,
+[data-perf="low"] .modal-card,
+[data-perf="low"] .auth-card {
+  backdrop-filter: none !important;
+  background: var(--bg-elevated) !important;
+}
+
+[data-perf="low"] .ambient-bg__orb { filter: none !important; }
+
+/* Zero font downloads on low-end devices — system fonts are already in RAM */
+[data-perf="low"] {
+  --font: system-ui, sans-serif;
+  --font-display: system-ui, sans-serif;
+  --font-brand: system-ui, sans-serif;
+}

@@ -21,6 +21,15 @@
         document.documentElement.dataset.theme = theme;
         var meta = document.getElementById("meta-theme-color");
         if (meta) meta.content = theme === "light" ? "#f0f2fa" : "#050508";
+        // Low-end device detection: ≤2 CPU cores OR ≤512 MB RAM OR no IdleCallback.
+        // Sets data-perf="low" on <html> so CSS can strip backdrop-filter, blur, and
+        // animations — the main GPU killers on refrigerators / low-end TVs / phones.
+        try {
+          var lowCpu = navigator.hardwareConcurrency <= 2;
+          var lowRam = navigator.deviceMemory !== undefined && navigator.deviceMemory <= 0.5;
+          var oldBrowser = typeof window.requestIdleCallback === "undefined";
+          if (lowCpu || lowRam || oldBrowser) document.documentElement.dataset.perf = "low";
+        } catch (e) {}
       })();
     </script>
     <meta http-equiv="ScreenCapture" content="deny" />
@@ -76,6 +85,10 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     </script>
+    <!-- Critical font preloads — Latin subsets only; other subsets (Cyrillic, ext)
+         load lazily after CSS is parsed. Avoids FOIT on first render. -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/montserrat-400-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/montserrat-700-latin.woff2" crossorigin />
     <!-- Fonts are self-hosted (src/styles/fonts.css → /fonts/*.woff2). No request
          to Google Fonts: zero third-party origins on any page incl. auth + chat. -->
   </head>
