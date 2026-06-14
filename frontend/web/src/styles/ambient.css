@@ -128,3 +128,21 @@
      compositing work without any frozen-streak artefact. */
   animation: none;
 }
+
+/*
+  PERF (root-cause fix): body::before in v2.css paints a full-viewport aurora
+  at z-index:-2 and animates it with transform (scale + translate) via the
+  v2-aurora keyframes, running at 60fps continuously. Because it sits behind
+  every backdrop-filter panel in the authenticated shell (top-nav, chat-sidebar,
+  chat-main, etc.), every transform frame forces a full-screen re-composite of
+  all glass panels — this is the dominant source of GPU jank on PC.
+
+  When .app-shell is present in the DOM the user is in the authenticated app;
+  freeze the aurora there. Landing / auth pages have no .app-shell so they keep
+  the full animation. body:has(.app-shell)::before has higher specificity than
+  body::before so this wins without !important and without touching v2.css.
+*/
+body:has(.app-shell)::before {
+  animation: none;
+  transform: none;
+}
