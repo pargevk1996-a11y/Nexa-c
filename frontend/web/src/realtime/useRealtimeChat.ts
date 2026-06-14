@@ -327,10 +327,12 @@ export function useRealtimeChat({
     let cancelled = false;
     void (async () => {
       const uid = session.user.id;
-      // Open at the LAST message: load the newest contiguous window. Older history
-      // is fetched lazily on scroll-up (loadOlderMessages / startReached), so big
-      // conversations open instantly and only pay for what the user actually views.
-      const PAGE = 50;
+      // Open at the LAST message: load the newest contiguous window (the last 30
+      // messages, Sn..Sn-29). Older history is fetched lazily on scroll-up
+      // (loadOlderMessages / startReached, also 30 at a time), so big
+      // conversations open instantly and only pay for what the user actually
+      // views. The full history stays in the DB — this is only the page size.
+      const PAGE = 30;
       try {
         const { loadOfflineMessages } = await import("@/offline/chatOfflineCache");
         const cached = (await loadOfflineMessages(uid, activeId)) ?? [];
