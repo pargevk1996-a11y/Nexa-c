@@ -1,6 +1,6 @@
 /* Nexa — minimal production service worker (shell + static assets). */
 
-const CACHE_VERSION = "nexa-v1";
+const CACHE_VERSION = "nexa-v2";
 const SHELL_CACHE = `nexa-shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `nexa-static-${CACHE_VERSION}`;
 
