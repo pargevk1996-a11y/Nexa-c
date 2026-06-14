@@ -133,9 +133,6 @@ export function MessageComposer({
   );
 
   const isEditing = editingText != null;
-  // When the field has text, collapse the accessory buttons so the input gets
-  // the full width and stays on a single line.
-  const hasText = text.trim().length > 0;
   const sendOpts = (): SendOptions | undefined => {
     const opts: SendOptions = {};
     if (ephemeralMode) opts.ephemeral = true;
@@ -479,10 +476,9 @@ export function MessageComposer({
             />
           ) : (
             <>
-              {/* Accessory buttons collapse once the user starts typing so the
-                  input keeps the full width on a single line. */}
-              {!hasText ? (
-                <>
+              {/* Accessory buttons stay visible at all times — emoji, attach and
+                  the notification toggle remain available while typing. */}
+              <>
                   {!isSecret ? (
                     <button
                       type="button"
@@ -525,8 +521,7 @@ export function MessageComposer({
                   >
                     <IconSmile size={20} />
                   </button>
-                </>
-              ) : null}
+              </>
               <textarea
                 ref={textareaRef}
                 className="chat-composer__input"
