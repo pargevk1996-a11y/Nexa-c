@@ -21,13 +21,6 @@ function Icon({ size = 20, children, ...props }: IconProps & { children: ReactNo
   );
 }
 
-export function IconPlus(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 5v14M5 12h14" />
-    </Icon>
-  );
-}
 
 export function IconChats(props: IconProps) {
   return (
@@ -46,14 +39,6 @@ export function IconStories(props: IconProps) {
   );
 }
 
-export function IconPosts(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
-    </Icon>
-  );
-}
 
 export function IconSettings(props: IconProps) {
   return (
@@ -102,15 +87,6 @@ export function IconSpeakerOff(props: IconProps) {
   );
 }
 
-/** Schedule send */
-export function IconClock(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 6v6l4 2" />
-    </Icon>
-  );
-}
 
 /** Self-destruct / disappearing messages — Telegram-style stopwatch */
 export function IconTimer(props: IconProps) {
@@ -257,13 +233,6 @@ export function IconCalls(props: IconProps) {
   return <IconPhone {...props} />;
 }
 
-export function IconFilter(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M4 6h16M7 12h10M10 18h4" />
-    </Icon>
-  );
-}
 
 export function IconBell(props: IconProps) {
   return (
@@ -292,13 +261,6 @@ export function IconSun(props: IconProps) {
   );
 }
 
-export function IconMoon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </Icon>
-  );
-}
 
 export function IconGif(props: IconProps) {
   return (

@@ -233,16 +233,6 @@ html:has(.auth-layout) body {
   flex-shrink: 0;
 }
 
-.auth-brand__logo-video {
-  width: 560px;
-  height: auto;
-  aspect-ratio: 1;
-  max-width: min(92%, 720px);
-  max-height: min(52vh, 720px);
-  margin: 0 auto;
-  display: block;
-  object-fit: contain;
-}
 
 .auth-brand__mark .logo {
   display: block;
@@ -317,48 +307,10 @@ html:has(.auth-layout) body {
   font-size: 1.05rem;
 }
 
-.auth-brand__features {
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
 @media (min-width: 900px) {
-  .auth-brand__features {
-    margin-top: 0.75rem;
-    gap: 0.5rem;
-  }
-}
-
-.auth-brand__feature {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-@media (min-width: 900px) {
-  .auth-brand__feature {
-    font-size: 0.82rem;
-  }
-
   .auth-brand p {
     font-size: 0.9rem;
   }
-}
-
-.auth-brand__feature-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--accent-muted);
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  font-size: 1rem;
 }
 
 .auth-card__mobile-logo {
@@ -450,7 +402,6 @@ html:has(.auth-layout) body {
   padding: 2.5rem 2.25rem 2rem;
   overflow: hidden;
   backdrop-filter: blur(28px) saturate(140%);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 30px 80px -22px rgba(0, 0, 0, 0.72),
@@ -731,13 +682,6 @@ html:has(.auth-layout) body {
   color: var(--text);
 }
 
-.auth-oauth-note {
-  margin: 1.25rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: var(--text-faint);
-  text-align: center;
-}
 
 .auth-oauth-loading {
   margin: 0;
@@ -848,48 +792,6 @@ html:has(.auth-layout) body {
   border-radius: var(--radius-sm);
 }
 
-.auth-demo-banner {
-  position: fixed;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  padding: 0.5rem 1rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  box-shadow: var(--shadow-md);
-}
-
-.auth-demo-banner--inline {
-  position: absolute;
-  top: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
-  margin: 0;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.72rem;
-  pointer-events: none;
-}
-
-.auth-demo-banner--compact {
-  top: 0.65rem;
-  right: 0.75rem;
-  bottom: auto;
-  left: auto;
-  transform: none;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: var(--secure-teal-muted, var(--accent-muted));
-  border-color: var(--secure-border, var(--glass-border));
-  color: var(--secure-teal, var(--accent));
-}
 
 .qr-code-display {
   margin: 0 auto 1rem;

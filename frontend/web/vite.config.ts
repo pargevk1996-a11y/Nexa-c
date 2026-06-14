@@ -1,4 +1,5 @@
 import path from "path";
+import autoprefixer from "autoprefixer";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import {
@@ -14,6 +15,7 @@ export default defineConfig(({ command }) => {
 
   return {
     plugins: [react()],
+    css: { postcss: { plugins: [autoprefixer()] } },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

@@ -170,11 +170,6 @@
   }
 }
 
-.chat-header__theme-sys {
-  font-size: 1.05rem;
-  line-height: 1;
-  opacity: 0.9;
-}
 
 /* Instant panel transitions on chat switch */
 .chat-main {

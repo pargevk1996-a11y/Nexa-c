@@ -11,7 +11,6 @@
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-md);
 }
 
@@ -134,7 +133,6 @@
   border-radius: 0;
   background: var(--bg-elevated);
   backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   box-shadow: none;
 }
 

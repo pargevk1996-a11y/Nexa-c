@@ -315,7 +315,6 @@
   cursor: pointer;
   background: rgba(2, 3, 10, 0.62);
   backdrop-filter: blur(8px) saturate(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
   animation: home-fade 0.2s var(--ease);
 }
 
