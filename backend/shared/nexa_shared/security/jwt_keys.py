@@ -6,9 +6,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-import jwt
-from jwt import PyJWKClient
-
 from nexa_shared.security.jwt import decode_token, encode_token
 
 

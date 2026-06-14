@@ -40,7 +40,7 @@ async def start_nats_consumer(
         return
     try:
         import nats
-        from nats.js.api import ConsumerConfig, DeliverPolicy, AckPolicy
+        from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 
         _nc = await nats.connect(nats_url)
         js = _nc.jetstream()

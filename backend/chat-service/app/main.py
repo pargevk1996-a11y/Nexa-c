@@ -2,14 +2,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from nexa_shared.observability import setup_observability
+from nexa_shared.schemas.common import HealthResponse
 
 from app.api.group_routes import router as group_router
 from app.api.routes import router
 from app.core.config import settings
 from app.core.redis import close_redis
 from app.services.realtime_publisher import close_publisher, init_publisher
-from nexa_shared.observability import setup_observability
-from nexa_shared.schemas.common import HealthResponse
 
 
 async def _init_postgres() -> None:

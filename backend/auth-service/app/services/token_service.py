@@ -1,6 +1,5 @@
-from fastapi import HTTPException, Request
-
 from app.core.config import settings
+from fastapi import HTTPException, Request
 
 _auto_private_pem: str | None = None
 _auto_public_pem: str | None = None

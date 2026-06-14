@@ -8,9 +8,9 @@ from fastapi import APIRouter, HTTPException, Request, Response
 logger = logging.getLogger("oauth")
 from fastapi.responses import RedirectResponse
 
+from app.api.session_routes import _set_access_cookie, _set_refresh_cookie
 from app.core.config import settings
 from app.schemas.auth import AuthResponse, OAuthExchangeRequest, UserResponse
-from app.api.session_routes import _set_access_cookie, _set_refresh_cookie
 from app.services.token_service import issue_tokens_for_user
 from app.services.user_store import store
 

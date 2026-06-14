@@ -7,20 +7,19 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, WebSocket
-from redis.asyncio import Redis
-
 from app.core.config import settings
 from app.services.chat_client import ChatClient
 from app.services.local_registry import LocalConnectionRegistry
 from app.services.nats_consumer import start_nats_consumer, stop_nats_consumer
 from app.ws.connection_manager import ConnectionManager
 from app.ws.handler import WsHandler
+from fastapi import FastAPI, WebSocket
+from nexa_shared.observability import setup_observability
 from nexa_shared.realtime.bus import RETRY_STREAM, EventBus, fanout_event
 from nexa_shared.realtime.events import RealtimeEvent, WsFrame, ws_frame_to_json
 from nexa_shared.realtime.registry import ConnectionRegistry
-from nexa_shared.observability import setup_observability
 from nexa_shared.schemas.common import HealthResponse
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 

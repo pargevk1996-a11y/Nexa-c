@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from nexa_shared.features.flags import FeatureFlags, FlagConfig, is_flag_enabled
 
 

@@ -6,6 +6,9 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from nexa_shared.security.passwords import hash_password, verify_password
+from nexa_shared.security.tokens import hash_refresh_token
+from nexa_shared.utils.uid import generate_public_uid
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -19,9 +22,6 @@ from app.db.models import (
 )
 from app.services.session_store import QrLoginSession, StoredSession
 from app.services.user_store import StoredUser
-from nexa_shared.security.passwords import hash_password, verify_password
-from nexa_shared.security.tokens import hash_refresh_token
-from nexa_shared.utils.uid import generate_public_uid
 
 
 class PostgresUserStore:

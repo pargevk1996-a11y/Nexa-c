@@ -6,7 +6,6 @@ import logging
 import re
 
 import httpx
-
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

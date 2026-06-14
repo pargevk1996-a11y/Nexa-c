@@ -1,7 +1,7 @@
 from fastapi import Header, HTTPException
+from nexa_shared.security.jwt_keys import load_pem, verify_access_token
 
 from app.core.config import settings
-from nexa_shared.security.jwt_keys import load_pem, verify_access_token
 
 
 def verify_internal_secret(x_internal_secret: str | None = Header(default=None)) -> None:

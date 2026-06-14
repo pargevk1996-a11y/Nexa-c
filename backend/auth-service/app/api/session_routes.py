@@ -1,6 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
+from nexa_shared.security.field_encryption import encrypt_cookie_token
+from nexa_shared.security.jwt_keys import create_access_token
+from nexa_shared.security.tokens import new_refresh_token
 
 from app.core.config import settings
 from app.schemas.auth import (
@@ -20,9 +23,6 @@ from app.services.token_service import (
     refresh_session,
 )
 from app.services.user_store import store as user_store
-from nexa_shared.security.field_encryption import encrypt_cookie_token
-from nexa_shared.security.jwt_keys import create_access_token
-from nexa_shared.security.tokens import new_refresh_token
 
 router = APIRouter(prefix="/api/v1", tags=["sessions"])
 

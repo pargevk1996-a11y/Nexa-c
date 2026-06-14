@@ -1,5 +1,3 @@
-from fastapi import APIRouter, Depends
-
 from app.core.deps import get_current_user_id, get_current_user_id_or_internal
 from app.schemas.ai import (
     AssistantChatRequest,
@@ -23,6 +21,7 @@ from app.schemas.ai import (
 from app.services.provider import get_provider
 from app.services.rate_limiter import rate_limiter
 from app.services.semantic_index import semantic_index
+from fastapi import APIRouter, Depends
 
 router = APIRouter(prefix="/api/v1", tags=["ai"])
 

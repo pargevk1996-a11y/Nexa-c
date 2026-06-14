@@ -1,6 +1,5 @@
-from fastapi import Header, HTTPException
-
 from app.core.config import settings
+from fastapi import Header, HTTPException
 from nexa_shared.security.jwt_keys import load_pem, verify_access_token
 
 

@@ -6,7 +6,8 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY, BYTEA, JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import BYTEA, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

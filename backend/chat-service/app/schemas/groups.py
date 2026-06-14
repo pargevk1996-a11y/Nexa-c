@@ -1,6 +1,5 @@
-from pydantic import BaseModel, Field
-
 from app.domain.space_types import SPACE_TYPES
+from pydantic import BaseModel, Field
 
 
 class SpaceSettingsSchema(BaseModel):

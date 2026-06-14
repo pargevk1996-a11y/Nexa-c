@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from redis.asyncio import Redis
-
 from app.core.config import settings
+from redis.asyncio import Redis
 
 
 @dataclass

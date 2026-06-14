@@ -8,7 +8,6 @@ import re
 from typing import Any
 
 import httpx
-
 from app.core.config import settings
 
 _SPAM_PATTERNS = (

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 import httpx
-
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

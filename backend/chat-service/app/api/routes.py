@@ -11,8 +11,8 @@ from app.schemas.chat import (
     ReadReceiptRequest,
     SendMessageRequest,
 )
-from app.services.chat_store import SpaceSettings, chat_store
 from app.services.ai_client import maybe_ai_moderate
+from app.services.chat_store import SpaceSettings, chat_store
 from app.services.group_service import group_service
 from app.services.message_crypto import maybe_decrypt_body
 from app.services.notification_client import dispatch_push_for_message

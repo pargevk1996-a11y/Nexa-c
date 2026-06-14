@@ -5,14 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from redis.asyncio import Redis
-
 from app.core.config import settings
 from app.services.chat_store import chat_store
-from app.services.nats_publisher import init_nats, close_nats, publish_to_nats
+from app.services.nats_publisher import close_nats, init_nats, publish_to_nats
 from nexa_shared.realtime.bus import EventBus, fanout_event
 from nexa_shared.realtime.events import RealtimeEvent
 from nexa_shared.realtime.registry import ConnectionRegistry
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 

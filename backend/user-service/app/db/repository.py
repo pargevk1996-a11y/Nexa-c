@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, update
+from nexa_shared.utils.uid import generate_public_uid
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import ProfileRow
 from app.services.profile_store import Profile, ProfilePrivacy, effective_online
-from nexa_shared.utils.uid import generate_public_uid
 
 
 class PostgresProfileStore:

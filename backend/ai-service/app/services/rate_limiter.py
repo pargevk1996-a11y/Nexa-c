@@ -5,9 +5,8 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import UTC, datetime
 
-from fastapi import HTTPException
-
 from app.core.config import settings
+from fastapi import HTTPException
 
 
 class RateLimiter:

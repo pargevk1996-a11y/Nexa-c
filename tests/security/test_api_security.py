@@ -2,7 +2,7 @@
 
 import pytest
 from tests.helpers.api import api_error
-from tests.helpers.jwt_util import auth_header, make_access_token
+from tests.helpers.jwt_util import auth_header
 
 pytestmark = pytest.mark.security
 

@@ -10,13 +10,11 @@ Load gate (CI p99 < 150ms):
 
 from __future__ import annotations
 
-import json
 import os
 import uuid
 
 from locust import HttpUser, between, events, task
 from locust.runners import MasterRunner
-
 
 GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://127.0.0.1:8000")
 P99_THRESHOLD_MS = int(os.environ.get("LOAD_P99_THRESHOLD_MS", "150"))

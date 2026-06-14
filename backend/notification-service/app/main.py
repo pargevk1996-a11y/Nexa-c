@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from nexa_shared.observability import setup_observability
+from nexa_shared.schemas.common import HealthResponse
 
 from app.api.routes import router
 from app.core.config import settings
-from nexa_shared.observability import setup_observability
-from nexa_shared.schemas.common import HealthResponse
 
 
 @asynccontextmanager

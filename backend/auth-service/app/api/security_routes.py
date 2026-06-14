@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from nexa_shared.security.passwords import verify_password
 
 from app.api.session_routes import _set_refresh_cookie
 from app.schemas.auth import (
@@ -18,7 +19,6 @@ from app.schemas.auth import (
 )
 from app.services.session_store import session_store
 from app.services.token_service import decode_bearer_token, issue_tokens_for_user
-from nexa_shared.security.passwords import verify_password
 from app.services.totp_service import totp_store
 from app.services.user_store import store as user_store
 from app.services.webauthn_store import webauthn_store

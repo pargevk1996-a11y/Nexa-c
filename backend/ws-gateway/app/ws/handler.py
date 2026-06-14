@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from collections import defaultdict
 from uuid import uuid4
 
-from fastapi import WebSocket, WebSocketDisconnect
-
 from app.core.config import settings
 from app.services.chat_client import ChatClient
 from app.ws.connection_manager import ClientConnection, ConnectionManager
+from fastapi import WebSocket, WebSocketDisconnect
 from nexa_shared.realtime.events import RealtimeEvent, WsFrame, parse_ws_frame, ws_frame_to_json
 from nexa_shared.realtime.registry import ConnectionRegistry
 from nexa_shared.security.field_encryption import decrypt_cookie_token
@@ -108,7 +106,7 @@ class WsHandler:
                     websocket.receive_text(),
                     timeout=settings.auth_timeout_seconds,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await _send_error(websocket, corr_id="", code="AUTH_TIMEOUT", message="Auth timed out")
                 await websocket.close(code=4001)
                 return

@@ -40,7 +40,7 @@ class FlagConfig:
         return json.dumps(asdict(self))
 
     @classmethod
-    def from_json(cls, raw: str) -> "FlagConfig":
+    def from_json(cls, raw: str) -> FlagConfig:
         data = json.loads(raw)
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 

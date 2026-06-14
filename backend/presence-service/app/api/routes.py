@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
-
 from app.core.deps import get_current_user_id
 from app.services.event_publisher import PresencePublisher
 from app.services.presence_store import PresenceStore
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/presence", tags=["presence"])
 

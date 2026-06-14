@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import (
@@ -388,7 +387,7 @@ class PostgresChatStore:
             member = next((m for m in conv.members if m.user_id == user_id), None)
             if not member:
                 return
-            from app.domain.permissions import rank, ROLE_OWNER
+            from app.domain.permissions import ROLE_OWNER
             if member.role == ROLE_OWNER:
                 owners = [m for m in conv.members if m.role == ROLE_OWNER]
                 if len(owners) <= 1:

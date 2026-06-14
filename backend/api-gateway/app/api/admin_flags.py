@@ -12,13 +12,13 @@ Access is restricted to requests with a valid internal service secret
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
+from nexa_shared.features.flags import FeatureFlags, FlagConfig
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 
 from app.core.config import settings
 from app.middleware.security import _get_redis
-from nexa_shared.features.flags import FeatureFlags, FlagConfig
 
 router = APIRouter(prefix="/admin/flags", tags=["admin-flags"])
 

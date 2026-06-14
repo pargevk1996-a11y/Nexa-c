@@ -1,14 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from redis.asyncio import Redis
-
 from app.api.routes import router
 from app.core.config import settings
 from app.services.event_publisher import PresencePublisher
 from app.services.presence_store import PresenceStore
+from fastapi import FastAPI
 from nexa_shared.observability import setup_observability
 from nexa_shared.schemas.common import HealthResponse
+from redis.asyncio import Redis
 
 
 @asynccontextmanager

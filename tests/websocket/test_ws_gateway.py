@@ -4,8 +4,7 @@ import json
 
 import pytest
 from nexa_shared.realtime.events import WsFrame, ws_frame_to_json
-
-from tests.helpers.jwt_util import TEST_JWT_SECRET, make_access_token
+from tests.helpers.jwt_util import make_access_token
 
 pytestmark = pytest.mark.websocket
 

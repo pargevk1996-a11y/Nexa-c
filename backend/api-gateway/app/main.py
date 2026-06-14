@@ -2,18 +2,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from nexa_shared.observability import setup_observability
+from nexa_shared.schemas.common import HealthResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.api.admin_flags import router as admin_flags_router
-from app.api.proxy import get_client, router as proxy_router
+from app.api.proxy import get_client
+from app.api.proxy import router as proxy_router
 from app.api.routes import router
 from app.api.security_telemetry import router as security_telemetry_router
 from app.core.config import settings
 from app.middleware.security import SecurityMiddleware
-from nexa_shared.observability import setup_observability
-from nexa_shared.schemas.common import HealthResponse
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

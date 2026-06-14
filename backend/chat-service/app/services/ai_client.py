@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 import httpx
-
 from app.core.config import settings
 from app.services.moderation_engine import ModVerdict
 

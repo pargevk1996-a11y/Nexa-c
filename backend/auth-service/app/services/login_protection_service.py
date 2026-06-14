@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from redis.asyncio import Redis
-
 from app.core.config import settings
 from app.core.redis import get_redis
 from nexa_shared.security.login_protection import (
@@ -17,6 +15,7 @@ from nexa_shared.security.login_protection import (
     record_login_failure,
     record_login_success,
 )
+from redis.asyncio import Redis
 
 _IP_PREFIX = "nexa:auth:login:ip:"
 _ACCT_PREFIX = "nexa:auth:login:acct:"

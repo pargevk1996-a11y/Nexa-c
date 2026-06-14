@@ -6,11 +6,8 @@ import hashlib
 import os
 from pathlib import Path
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-import hashlib
-
 from app.core.config import settings
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 def _key() -> bytes:

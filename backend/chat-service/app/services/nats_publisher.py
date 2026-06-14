@@ -56,7 +56,7 @@ async def close_nats() -> None:
 async def _ensure_stream() -> None:
     if not _js:
         return
-    from nats.js.api import StreamConfig, RetentionPolicy, StorageType
+    from nats.js.api import RetentionPolicy, StorageType, StreamConfig
 
     try:
         await _js.find_stream(STREAM_NAME)

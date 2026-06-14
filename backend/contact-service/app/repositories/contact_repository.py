@@ -5,12 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from app.models.contact import BlockedUserRow, ContactRequestRow
 from app.services.block_store import BlockRecord
 from app.services.request_store import ContactRequest
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class PostgresRequestStore:

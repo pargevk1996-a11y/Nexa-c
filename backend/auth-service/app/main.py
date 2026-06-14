@@ -2,15 +2,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from nexa_shared.observability import setup_observability
+from nexa_shared.schemas.common import HealthResponse
 
 from app.api.auth_routes import router as auth_router
 from app.api.oauth_routes import router as oauth_router
+from app.api.routes import router
 from app.api.security_routes import router as security_router
 from app.api.session_routes import router as session_router
-from app.api.routes import router
 from app.core.config import settings
-from nexa_shared.observability import setup_observability
-from nexa_shared.schemas.common import HealthResponse
 
 
 def _auto_generate_rs256_keys() -> None:

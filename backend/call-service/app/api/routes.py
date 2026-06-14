@@ -1,5 +1,3 @@
-from fastapi import APIRouter, Depends, HTTPException
-
 from app.core.deps import get_current_user_id
 from app.schemas.calls import (
     CallResponse,
@@ -11,6 +9,7 @@ from app.schemas.calls import (
 from app.services.call_publisher import notify_users
 from app.services.call_store import call_store
 from app.services.turn_service import build_ice_servers
+from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(prefix="/api/v1", tags=["calls"])
 

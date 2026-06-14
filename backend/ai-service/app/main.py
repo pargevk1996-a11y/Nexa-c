@@ -1,8 +1,7 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-
 from app.api.routes import router
 from app.core.config import settings
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from nexa_shared.observability import setup_observability
 from nexa_shared.schemas.common import HealthResponse
 

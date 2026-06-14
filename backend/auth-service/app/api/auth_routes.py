@@ -7,6 +7,12 @@ def _get_client_ip(request: Request) -> str | None:
         return forwarded_for.split(",")[0].strip()
     return request.client.host if request.client else None
 
+from nexa_shared.security.audit import audit_log
+from nexa_shared.security.device_fingerprint import fingerprint_request
+from nexa_shared.security.login_risk import assess_login
+from nexa_shared.security.password_policy import PasswordPolicy, validate_password
+
+from app.api.session_routes import _set_access_cookie, _set_refresh_cookie
 from app.core.config import settings
 from app.schemas.auth import (
     AuthConfigResponse,
@@ -23,18 +29,13 @@ from app.schemas.auth import (
     UserResponse,
     VerifyEmailRequest,
 )
-from app.services.verification_store import verification_store
-from app.api.session_routes import _set_access_cookie, _set_refresh_cookie
+from app.services.login_challenge_store import login_challenge_store
+from app.services.login_protection_service import get_login_protection
 from app.services.session_store import session_store
 from app.services.token_service import issue_tokens_for_user
-from app.services.login_challenge_store import login_challenge_store
 from app.services.totp_service import totp_store
 from app.services.user_store import store
-from nexa_shared.security.audit import audit_log
-from app.services.login_protection_service import get_login_protection
-from nexa_shared.security.device_fingerprint import fingerprint_request
-from nexa_shared.security.login_risk import assess_login
-from nexa_shared.security.password_policy import PasswordPolicy, validate_password
+from app.services.verification_store import verification_store
 
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 

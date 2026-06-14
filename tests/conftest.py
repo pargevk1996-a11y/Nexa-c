@@ -33,12 +33,12 @@ def auth_client() -> TestClient:
     from tests.helpers.apps import load_app
 
     app = load_app("auth-service")
-    from app.services.user_store import store as user_store
-    from app.services.session_store import session_store
     from app.services.login_protection_service import (
         reset_memory_login_protection,
         use_memory_login_protection_for_tests,
     )
+    from app.services.session_store import session_store
+    from app.services.user_store import store as user_store
 
     use_memory_login_protection_for_tests()
     reset_memory_login_protection()
