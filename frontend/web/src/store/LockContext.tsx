@@ -9,12 +9,7 @@ import {
 } from "react";
 import { sealContent, explicitUnlock } from "@/security/privacySeal";
 import { setScreenshotCb } from "@/security/screenshotEvent";
-import { setAwayCb } from "@/security/awayEvent";
 import { isGuestAuthPath } from "@/security/authRoutes";
-
-/** Absence (ms) beyond which returning to the tab requires the PIN, not just a
- *  click. Below it, a single click on the security screen continues. */
-const AWAY_PIN_THRESHOLD_MS = 60_000;
 
 // Legacy persisted-lock keys from the old auto-lock system. Clear them on load
 // so a stale value from that system can never affect the new lock.
@@ -116,12 +111,10 @@ export function LockProvider({ children }: { children: ReactNode }) {
     return () => setScreenshotCb(null);
   }, [lock]);
 
-  // Returning to the tab after being away shows the recoverable security screen:
-  // a single click continues for brief absences; a longer one requires the PIN.
-  useEffect(() => {
-    setAwayCb((awayMs) => lock(awayMs >= AWAY_PIN_THRESHOLD_MS ? "pin_required" : "away"));
-    return () => setAwayCb(null);
-  }, [lock]);
+  // NOTE: there is intentionally NO automatic lock on inactivity / tab-switch /
+  // returning from the background. The screen only locks when the user taps the
+  // padlock (manual pin_required) or on a screenshot attempt. (Removed the
+  // away/inactivity auto-lock per product decision.)
 
   return (
     <LockContext.Provider value={{ lockState, lockedAt, lock, unlock }}>
