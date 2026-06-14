@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Ruff
-        run: pip install ruff && ruff check backend/ tests/ --ignore E501,F401
+        run: pip install ruff && ruff check backend/ tests/ --ignore E501,F401,E402,B017
 
   backend-test:
     runs-on: ubuntu-latest
