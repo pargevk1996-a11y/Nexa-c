@@ -37,3 +37,16 @@ class ProfileRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ScreenLockRow(Base):
+    """Account-wide manual screen-lock flag. When locked, every device/browser
+    that loads the account shows the PIN lock until the correct PIN is entered."""
+
+    __tablename__ = "screen_locks"
+
+    user_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    locked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -10,6 +10,7 @@ import {
 import { sealContent, explicitUnlock } from "@/security/privacySeal";
 import { setScreenshotCb } from "@/security/screenshotEvent";
 import { isGuestAuthPath } from "@/security/authRoutes";
+import { fetchScreenLock, setScreenLock } from "@/api/profile";
 
 // Legacy persisted-lock keys from the old auto-lock system. Clear them on load
 // so a stale value from that system can never affect the new lock.
@@ -20,11 +21,12 @@ try {
   /* storage unavailable */
 }
 
-// Persisted manual-lock flag. A user-initiated padlock lock (`pin_required`)
-// must survive a full page reload — in any browser / OS / device — and stay
-// locked until the correct PIN is entered. Only this manual lock is persisted;
-// the transient screens (screenshot_blocked / away) are never stored. We only
-// persist the lock STATE, never the PIN itself.
+// Local fast-path cache of the ACCOUNT-WIDE manual-lock flag. The server is the
+// source of truth (so the lock follows the account across every browser / OS /
+// device), but we also mirror it in localStorage so a reload restores the lock
+// INSTANTLY — before the network round-trip — with no unlocked flash. The lock
+// stays until the correct PIN is entered. Only the lock STATE is stored here and
+// on the server, never the PIN itself.
 const LOCK_PERSIST_KEY = "nexa-screen-lock";
 
 function isManualLockPersisted(): boolean {
@@ -73,6 +75,8 @@ export function LockProvider({ children }: { children: ReactNode }) {
 
   const lockStateRef = useRef<LockState>(lockState);
   lockStateRef.current = lockState;
+  const lockedAtRef = useRef<number>(lockedAt);
+  lockedAtRef.current = lockedAt;
 
   // If we booted into a restored manual lock, seal the content immediately so it
   // stays hidden behind the overlay (and against screenshots) from first paint.
@@ -93,13 +97,19 @@ export function LockProvider({ children }: { children: ReactNode }) {
     sealContent(0);
     setLockedAt(Date.now());
     setLockState(reason);
-    // Only a manual padlock lock survives a reload; transient screens do not.
-    if (reason === "pin_required") persistManualLock(true);
+    // Only a manual padlock lock persists; transient screens do not. Mirror it
+    // locally (instant restore) and push to the server (account-wide).
+    if (reason === "pin_required") {
+      persistManualLock(true);
+      void setScreenLock(true).catch(() => {});
+    }
   }, []);
 
   const unlock = useCallback(() => {
-    // Clear the persisted lock first so a reload mid-unlock can't re-lock.
+    // Clear the lock locally first (so a reload mid-unlock can't re-lock), then
+    // on the server so every other device of the account unlocks too.
     persistManualLock(false);
+    void setScreenLock(false).catch(() => {});
     explicitUnlock();
     setLockState("active");
     setLockedAt(0);
@@ -110,6 +120,51 @@ export function LockProvider({ children }: { children: ReactNode }) {
     setScreenshotCb(() => lock("screenshot_blocked"));
     return () => setScreenshotCb(null);
   }, [lock]);
+
+  // Account-wide sync: the server is the source of truth. On boot — and whenever
+  // the session (re)hydrates — fetch the flag and make THIS device match it, so
+  // opening the account in any other browser/OS/device reflects the lock, and a
+  // PIN-unlock on one device clears it everywhere.
+  useEffect(() => {
+    let cancelled = false;
+    async function reconcile() {
+      if (isGuestAuthPath()) return;
+      let serverLocked: boolean;
+      try {
+        serverLocked = await fetchScreenLock();
+      } catch {
+        return; // offline / not authenticated yet — keep the optimistic local state
+      }
+      if (cancelled) return;
+      if (serverLocked) {
+        if (lockStateRef.current === "active") {
+          sealContent(0);
+          setLockedAt(Date.now());
+          setLockState("pin_required");
+        }
+        persistManualLock(true);
+      } else if (lockStateRef.current === "pin_required") {
+        // Honour a server-side unlock — unless WE locked moments ago and our own
+        // write may still be in flight (avoids a rare refresh-race self-unlock).
+        if (Date.now() - lockedAtRef.current > 5000) {
+          explicitUnlock();
+          setLockState("active");
+          setLockedAt(0);
+          persistManualLock(false);
+        }
+      } else {
+        persistManualLock(false);
+      }
+    }
+    void reconcile();
+    const onSession = () => void reconcile();
+    window.addEventListener("securechat-session", onSession);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("securechat-session", onSession);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // NOTE: there is intentionally NO automatic lock on inactivity / tab-switch /
   // returning from the background. The screen only locks when the user taps the

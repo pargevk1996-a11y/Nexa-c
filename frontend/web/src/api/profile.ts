@@ -16,6 +16,21 @@ export async function clearMyAvatar(): Promise<UserProfile> {
   return apiFetch<UserProfile>("/users/me/avatar", { method: "DELETE" });
 }
 
+/** Account-wide manual screen-lock flag (server is the source of truth so the
+ *  lock follows the account across every device/browser/OS). Only the STATE is
+ *  stored server-side — never the PIN. */
+export async function fetchScreenLock(): Promise<boolean> {
+  const r = await apiFetch<{ locked: boolean }>("/users/me/screen-lock");
+  return r.locked;
+}
+
+export async function setScreenLock(locked: boolean): Promise<void> {
+  await apiFetch("/users/me/screen-lock", {
+    method: "PUT",
+    body: JSON.stringify({ locked }),
+  });
+}
+
 export async function fetchProfileByUsername(username: string): Promise<PublicProfile> {
   const handle = username.replace(/^\$/, "");
   return apiFetch<PublicProfile>(`/users/by-username/${encodeURIComponent(handle)}`);

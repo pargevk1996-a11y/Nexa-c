@@ -11,8 +11,14 @@ from app.schemas.profile import (
     TypingRequest,
 )
 from app.services.profile_store import ProfilePrivacy, profile_store
+from app.services.screen_lock_store import screen_lock_store
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
+
+
+class ScreenLockState(BaseModel):
+    locked: bool
 
 
 def _privacy_to_schema(p: ProfilePrivacy) -> ProfilePrivacySettings:
@@ -150,6 +156,24 @@ async def update_me(
             ) from e
         raise
     return _to_profile(updated or p)
+
+
+@router.get("/me/screen-lock", response_model=ScreenLockState)
+async def get_screen_lock(user_id: str = Depends(get_current_user_id)) -> ScreenLockState:
+    """Account-wide manual screen-lock flag. Read on app load so any device that
+    opens the account reflects a lock set on another device."""
+    return ScreenLockState(locked=await screen_lock_store.get(user_id))
+
+
+@router.put("/me/screen-lock", response_model=ScreenLockState)
+async def set_screen_lock(
+    body: ScreenLockState,
+    user_id: str = Depends(get_current_user_id),
+) -> ScreenLockState:
+    """Set/clear the account-wide screen lock. Only the lock STATE is stored —
+    never the PIN itself (the PIN lives in the client's secure signature store)."""
+    await screen_lock_store.set(user_id, body.locked)
+    return ScreenLockState(locked=body.locked)
 
 
 @router.get("/search", response_model=list[PublicProfileResponse])

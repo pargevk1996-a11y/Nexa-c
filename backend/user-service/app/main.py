@@ -11,12 +11,19 @@ from app.core.config import settings
 async def _init_postgres() -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+    from app.db.models import Base
     from app.db.repository import PostgresProfileStore
     from app.services.profile_store import profile_store
+    from app.services.screen_lock_store import screen_lock_store
 
     engine = create_async_engine(settings.database_url, pool_size=10, max_overflow=20, pool_pre_ping=True)
+    # Idempotent: creates only missing tables (e.g. screen_locks) and skips
+    # existing ones (checkfirst), so it never alters the profiles table.
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     sm = async_sessionmaker(engine, expire_on_commit=False)
     profile_store._switch_to_postgres(PostgresProfileStore(sm))
+    screen_lock_store.use_postgres(sm)
 
 
 @asynccontextmanager
