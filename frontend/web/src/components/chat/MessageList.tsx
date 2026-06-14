@@ -256,37 +256,31 @@ export function MessageList({
 }: MessageListProps) {
   const [menu, setMenu] = useState<ContextState | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
-  // INVERTED CHAT: rows[0] is the NEWEST message and sits at the TOP; scrolling
-  // DOWN reveals older messages, which are loaded at the tail. "At top" therefore
-  // means "viewing the latest message" — the equivalent of "at bottom" in a
-  // normal chat.
-  const [isAtTop, setIsAtTop] = useState(true);
-  // The list is rendered invisibly until it has been pinned to the newest
-  // message (top). Virtuoso's initial positioning + variable-height measurement
-  // + async media loading all move the scroll position on first paint; hiding
-  // the list during that settling means the user only ever sees the final state
-  // — the latest message already in view — with zero visible scrolling.
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  // The list is rendered invisibly until it has been pinned to the last
+  // message. Virtuoso's initial positioning + variable-height measurement +
+  // async media loading all move the scroll position on first paint; hiding the
+  // list during that settling means the user only ever sees the final state —
+  // the latest message already in view — with zero visible scrolling.
   const [pinned, setPinned] = useState(false);
-  // Mirrors isAtTop for use inside callbacks without re-subscribing.
-  const isAtTopRef = useRef(true);
+  // Mirrors isAtBottom for use inside callbacks without re-subscribing.
+  const isAtBottomRef = useRef(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   // Virtuoso anchors prepended items via a large virtual index.
   const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const scrollerRef = useRef<HTMLElement | null>(null);
-  // Disarmed when the user scrolls DOWN (away from the newest message at the
-  // top); re-armed when they return to the top. Controls whether a freshly
-  // arrived message auto-scrolls into view.
-  const stickToTopRef = useRef(true);
+  // Disarmed when the user scrolls up; re-armed when they reach the bottom.
+  // Controls whether followOutput should scroll to new messages.
+  const stickToBottomRef = useRef(true);
   const prevConversationIdRef = useRef<string | undefined>(conversationId);
-  // Head-prepend detection: a NEW message becomes rows[0] (the head). Track the
-  // newest message id so we can keep the scroll position stable via firstItemIndex.
+  // Prepend-detection bookkeeping for stable firstItemIndex maintenance.
   const prevRowsLenRef = useRef(0);
-  const newestMsgIdRef = useRef<string | null>(null);
+  const oldestMsgIdRef = useRef<string | null>(null);
   // True after Virtuoso's first render for this conversation is committed to
-  // the DOM. The scroll detector must not fire before this — during
+  // the DOM. The scroll-up detector must not fire before this — during
   // initialTopMostItemIndex positioning Virtuoso moves scrollTop internally,
-  // and treating that as user intent would permanently disarm stickToTop.
+  // and treating that as user intent would permanently disarm stickToBottom.
   const listReadyRef = useRef(false);
   // Per-conversation guard: arm listReadyRef exactly once per chat open.
   const readyConvRef = useRef<string | undefined>(undefined);
@@ -294,18 +288,18 @@ export function MessageList({
   // opened. While true, ANY change to the list's total height (async media,
   // link previews, voice waveforms, video thumbs, or Virtuoso's own
   // variable-height measurement) instantly re-pins the viewport to the very
-  // top (newest message). This guarantees the chat always lands exactly on the
-  // latest message — never mid-history, never with a visible scroll. It does not
-  // affect load-older (that needs the user at the bottom, impossible while
-  // pinned to the top during this window).
+  // last message. This guarantees the chat always lands exactly on the latest
+  // message — never mid-history, never with a visible scroll. It does not
+  // affect load-older (that needs the user at the top, impossible while pinned
+  // to the bottom during this window).
   const openingRef = useRef(true);
   // Debounce timer for "heights have settled": while the chat is opening, every
   // total-height change (media load, measurement) resets this. When no change
-  // happens for a short window, the list is genuinely stable at the top and is
-  // revealed. This is what guarantees the user never sees the list move.
+  // happens for a short window, the list is genuinely stable at the bottom and
+  // is revealed. This is what guarantees the user never sees the list move.
   const settleTimerRef = useRef<number | undefined>(undefined);
 
-  const rows = useMemo(() => buildMessageRows(messages, true), [messages]);
+  const rows = useMemo(() => buildMessageRows(messages), [messages]);
   // Always-current row count for use inside callbacks/timers without re-binding.
   const rowsLenRef = useRef(rows.length);
   rowsLenRef.current = rows.length;
@@ -316,11 +310,11 @@ export function MessageList({
   const galleryImagesRef = useRef(galleryImages);
   galleryImagesRef.current = galleryImages;
 
-  // Pin the viewport to the newest message (top, index 0) instantly (no animation).
-  const pinToTop = useCallback(() => {
+  // Pin the viewport to the last message instantly (no animation).
+  const pinToBottom = useCallback(() => {
     virtuosoRef.current?.scrollToIndex({
-      index: 0,
-      align: "start",
+      index: rowsLenRef.current - 1,
+      align: "end",
       behavior: "auto",
     });
   }, []);
@@ -330,10 +324,10 @@ export function MessageList({
   const revealAndClose = useCallback(() => {
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     settleTimerRef.current = undefined;
-    pinToTop();
+    pinToBottom();
     openingRef.current = false;
     setPinned(true);
-  }, [pinToTop]);
+  }, [pinToBottom]);
 
   // (Re)start the settle countdown. Called on every height change while opening;
   // when heights stop changing for ~140ms the list is stable and we reveal it.
@@ -348,20 +342,20 @@ export function MessageList({
     if (conversationId === prevConversationIdRef.current) return;
     prevConversationIdRef.current = conversationId;
     setIsLoadingOlder(false);
-    setIsAtTop(true);
-    isAtTopRef.current = true;
-    stickToTopRef.current = true;
+    setIsAtBottom(true);
+    isAtBottomRef.current = true;
+    stickToBottomRef.current = true;
     setFirstItemIndex(START_INDEX);
     prevRowsLenRef.current = 0;
-    newestMsgIdRef.current = null;
-    // Disable the scroll detector until the new Virtuoso instance has
+    oldestMsgIdRef.current = null;
+    // Disable scroll-up detection until the new Virtuoso instance has
     // finished its initial render at initialTopMostItemIndex.
     listReadyRef.current = false;
-    // Re-arm the opening window so the new chat snaps to its newest message (top).
+    // Re-arm the opening window so the new chat snaps to its last message.
     openingRef.current = true;
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     settleTimerRef.current = undefined;
-    // Hide the new chat until it is pinned to its newest message.
+    // Hide the new chat until it is pinned to its last message.
     setPinned(false);
   }, [conversationId]);
 
@@ -374,17 +368,17 @@ export function MessageList({
     if (readyConvRef.current === conversationId) return;
     readyConvRef.current = conversationId;
     listReadyRef.current = false;
-    // Open the window: list stays hidden + pinned to the top on every height
+    // Open the window: list stays hidden + pinned to the bottom on every height
     // change until heights settle (armSettle), then it is revealed already at
-    // the newest message. The user never sees the positioning or any media reflow.
+    // the last message. The user never sees the positioning or any media reflow.
     openingRef.current = true;
     const raf = requestAnimationFrame(() => {
       listReadyRef.current = true;
-      pinToTop();
+      pinToBottom();
       armSettle();
     });
     // Hard cap: never stay hidden longer than 1.2s, even if media keeps loading
-    // (slow network). Reveal pinned-to-top regardless.
+    // (slow network). Reveal pinned-to-bottom regardless.
     const cap = window.setTimeout(revealAndClose, 1200);
     return () => {
       cancelAnimationFrame(raf);
@@ -395,19 +389,18 @@ export function MessageList({
     // the readyConvRef guard makes this a per-conversation one-shot, so loading
     // older messages (same conversationId) never re-arms the window.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, rows.length, pinToTop, armSettle, revealAndClose]);
+  }, [conversationId, rows.length, pinToBottom, armSettle, revealAndClose]);
 
-  // Detect a genuine user scroll-DOWN (away from the newest message at the top)
-  // to disarm auto-follow. Gated on listReadyRef so Virtuoso's own initial
-  // positioning is never misread as user intent.
+  // Detect genuine user scroll-up to disarm auto-follow. Gated on listReadyRef
+  // so Virtuoso's own initial positioning is never misread as user intent.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
     let lastTop = el.scrollTop;
     const onScroll = () => {
       const top = el.scrollTop;
-      if (listReadyRef.current && top > lastTop + 4) {
-        stickToTopRef.current = false;
+      if (listReadyRef.current && top < lastTop - 4) {
+        stickToBottomRef.current = false;
       }
       lastTop = top;
     };
@@ -415,33 +408,22 @@ export function MessageList({
     return () => el.removeEventListener("scroll", onScroll);
   }, [conversationId]);
 
-  // A NEW message becomes rows[0] (the head). Maintain firstItemIndex so the
-  // user's current scroll position stays anchored when that happens; loading
-  // older messages appends at the tail and needs no adjustment.
+  // Maintain Virtuoso's firstItemIndex when older messages are prepended at
+  // the head so the visible message stays anchored (no scroll jump).
   useLayoutEffect(() => {
-    const newestId = messages.length ? messages[messages.length - 1].id : null;
+    const oldestId = messages.length ? messages[0].id : null;
     const grew = rows.length - prevRowsLenRef.current;
-    const prependedAtHead =
-      grew > 0 && newestMsgIdRef.current != null && newestId !== newestMsgIdRef.current;
-    if (prependedAtHead) {
+    const prepended =
+      grew > 0 && oldestMsgIdRef.current != null && oldestId !== oldestMsgIdRef.current;
+    if (prepended) {
       setFirstItemIndex((idx) => idx - grew);
     }
     prevRowsLenRef.current = rows.length;
-    newestMsgIdRef.current = newestId;
+    oldestMsgIdRef.current = oldestId;
   }, [rows, messages]);
 
-  // When a new message arrives and the user is viewing the newest (at the top),
-  // scroll the new message into view at the top.
-  useEffect(() => {
-    if (!listReadyRef.current) return;
-    if (stickToTopRef.current && isAtTopRef.current) {
-      virtuosoRef.current?.scrollToIndex({ index: 0, align: "start", behavior: "auto" });
-    }
-    // Trigger only when the newest message changes.
-  }, [messages.length ? messages[messages.length - 1]?.id : null]);
-
-  // Mobile keyboard: snap back to the newest message when the keyboard shrinks
-  // the viewport, but only if the user is already at the top.
+  // Mobile keyboard: snap back to last message when the keyboard shrinks the
+  // viewport, but only if the user is already at the bottom.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -449,10 +431,10 @@ export function MessageList({
     const onResize = () => {
       const shrank = vv.height < lastHeight - 60;
       lastHeight = vv.height;
-      if (shrank && isAtTopRef.current) {
+      if (shrank && isAtBottomRef.current) {
         virtuosoRef.current?.scrollToIndex({
-          index: 0,
-          align: "start",
+          index: rows.length - 1,
+          align: "end",
           behavior: "auto",
         });
       }
@@ -490,9 +472,7 @@ export function MessageList({
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
-  // Older messages live at the TAIL of the inverted list, so they are fetched
-  // when the user scrolls DOWN to the end.
-  const handleLoadOlder = useCallback(() => {
+  const handleStartReached = useCallback(() => {
     if (isLoadingOlder || !hasOlderMessages || !onLoadOlder) return;
     setIsLoadingOlder(true);
     void onLoadOlder().finally(() => setIsLoadingOlder(false));
@@ -535,13 +515,14 @@ export function MessageList({
   return (
     <div className="chat-messages-wrap">
       {/*
-        INVERTED chat: rows[0] is the newest message and is shown at the TOP.
-        key={conversationId} recreates the Virtuoso instance per chat (clean
-        firstItemIndex / scroll / measured heights). initialTopMostItemIndex
-        { index: 0, align: "start" } starts the FIRST render already at the
-        newest message at the top — no scrollTo correction, no visible jump.
+        key={conversationId} destroys and recreates the Virtuoso instance on
+        every conversation switch, giving each chat a clean slate with its own
+        firstItemIndex / scroll position / measured heights. Combined with
+        initialTopMostItemIndex={{ index: last, align: "end" }}, Virtuoso starts
+        its FIRST render already at the last message, aligned to the bottom — no
+        scrollTo correction needed, no visible jump.
       */}
-      {/* Skeleton overlay covers the list while it positions itself to the newest
+      {/* Skeleton overlay covers the list while it positions itself to the last
           message, so the user never sees the scroll settling or a blank flash. */}
       {!pinned ? (
         <div className="chat-messages-pinning" aria-hidden>
@@ -558,37 +539,34 @@ export function MessageList({
         aria-live="polite"
         data={rows}
         firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={{ index: 0, align: "start" }}
-        alignToBottom={false}
+        initialTopMostItemIndex={{ index: rows.length - 1, align: "end" }}
+        alignToBottom={true}
+        followOutput={(atBottom) => (atBottom ? "auto" : false)}
         totalListHeightChanged={() => {
           // Async content (images, link previews, voice/video) and Virtuoso's
           // own height measurement change the total height after first paint.
-          // While opening, keep the viewport pinned to the TOP AND restart the
+          // While opening, keep the viewport pinned to the bottom AND restart the
           // settle countdown — the list is only revealed once these stop, so the
           // user never sees the reflow. (load-older is unaffected: it needs the
-          // user at the bottom, impossible while pinned during this window.)
+          // user at the top, impossible while pinned during this window.)
           if (openingRef.current) {
-            pinToTop();
+            pinToBottom();
             armSettle();
           }
         }}
         overscan={600}
-        endReached={hasOlderMessages && !isLoadingOlder ? handleLoadOlder : undefined}
+        startReached={hasOlderMessages && !isLoadingOlder ? handleStartReached : undefined}
         components={{
-          // Older history loads at the bottom of the inverted list; the spacer
-          // also keeps the oldest row clear of the floating composer.
+          Header: isLoadingOlder ? () => <div className="chat-history-loading">Loading…</div> : undefined,
           Footer: () => (
-            <>
-              {isLoadingOlder ? <div className="chat-history-loading">Loading…</div> : null}
-              <div style={{ height: "calc(4.5rem + var(--keyboard-inset, 0px))" }} aria-hidden />
-            </>
+            <div style={{ height: "calc(4.5rem + var(--keyboard-inset, 0px))" }} aria-hidden />
           ),
         }}
-        atTopStateChange={(atTop) => {
-          isAtTopRef.current = atTop;
-          setIsAtTop(atTop);
-          if (atTop) {
-            stickToTopRef.current = true;
+        atBottomStateChange={(atBottom) => {
+          isAtBottomRef.current = atBottom;
+          setIsAtBottom(atBottom);
+          if (atBottom) {
+            stickToBottomRef.current = true;
             onAtBottom?.();
           }
         }}
@@ -656,21 +634,20 @@ export function MessageList({
           );
         }}
       />
-      {!isAtTop ? (
+      {!isAtBottom ? (
         <button
           className="chat-scroll-bottom"
           onClick={() =>
             virtuosoRef.current?.scrollToIndex({
-              index: 0,
-              align: "start",
+              index: rows.length - 1,
+              align: "end",
               behavior: "smooth",
             })
           }
           aria-label="Jump to latest message"
         >
-          {/* Chevron points UP — the newest message is at the top. */}
           <svg width="22" height="13" viewBox="0 0 22 13" fill="none" aria-hidden>
-            <path d="M1 12L11 2L21 12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M1 1L11 11L21 1" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
       ) : null}

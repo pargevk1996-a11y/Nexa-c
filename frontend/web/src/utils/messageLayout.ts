@@ -42,27 +42,11 @@ function shouldGroupWithPrevious(prev: Message | undefined, current: Message): b
   return true;
 }
 
-/**
- * Build the flat row list (messages + date dividers) for the virtualized list.
- *
- * `inverted` controls the visual order:
- *  - false (default): chronological — oldest first (index 0), newest last; the
- *    newest message sits at the BOTTOM.
- *  - true: reversed — newest first (index 0), oldest last; the newest message
- *    sits at the TOP and scrolling DOWN reveals older messages.
- *
- * Grouping flags (`grouped` / `showTail`) are computed against the same
- * chronological neighbours in both modes, so bubbles group identically; only
- * the emission order and each day's divider placement change. In inverted mode
- * a day's divider is emitted just ABOVE that day's newest message.
- */
-export function buildMessageRows(messages: Message[], inverted = false): MessageRow[] {
+export function buildMessageRows(messages: Message[]): MessageRow[] {
   const rows: MessageRow[] = [];
   let lastDate = "";
 
-  const start = inverted ? messages.length - 1 : 0;
-  const step = inverted ? -1 : 1;
-  for (let i = start; i >= 0 && i < messages.length; i += step) {
+  for (let i = 0; i < messages.length; i++) {
     const m = messages[i];
     const label = dateLabelForMessage(m, i);
     if (label !== lastDate) {
