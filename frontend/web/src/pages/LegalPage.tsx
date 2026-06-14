@@ -27,7 +27,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
     sections: [
       {
         h: "1. Who is the data controller",
-        p: `${BRAND_NAME} messenger (nexa-c.com) is operated by [[LEGAL_ENTITY_NAME]], [[REGISTERED_ADDRESS]], [[COUNTRY/JURISDICTION]]. For all data protection and privacy inquiries, contact our Data Protection Officer (DPO) at privacy@nexa-c.com. EU residents may also contact the supervisory authority for their member state; California residents may file a complaint with the California Attorney General (oag.ca.gov).`,
+        p: `${BRAND_NAME} messenger (nexa-c.com) is operated by [[LEGAL_ENTITY_NAME]], [[REGISTERED_ADDRESS]], [[COUNTRY/JURISDICTION]]. For all data protection and privacy inquiries, contact our Data Protection Officer (DPO) at nexa@nexa-c.com. EU residents may also contact the supervisory authority for their member state; California residents may file a complaint with the California Attorney General (oag.ca.gov).`,
       },
       {
         h: "2. Data we collect",
@@ -97,7 +97,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "9. International data transfers",
-        p: "If you are located in the European Economic Area (EEA) or United Kingdom, your data may be transferred to countries outside the EEA, including the United States. We rely on Standard Contractual Clauses (SCCs) approved by the European Commission (Decision 2021/914) as the legal mechanism for such transfers. Transfer Impact Assessments are available on request at privacy@nexa-c.com.",
+        p: "If you are located in the European Economic Area (EEA) or United Kingdom, your data may be transferred to countries outside the EEA, including the United States. We rely on Standard Contractual Clauses (SCCs) approved by the European Commission (Decision 2021/914) as the legal mechanism for such transfers. Transfer Impact Assessments are available on request at nexa@nexa-c.com.",
       },
       {
         h: "10. Cookies and local storage",
@@ -111,7 +111,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "11. Your rights",
-        p: "Under GDPR (EEA and UK) and CCPA/CPRA (California) you have the following rights. To exercise any right, use the self-service tools in Settings or email privacy@nexa-c.com. We respond within 30 days (GDPR) / 45 days (CCPA).",
+        p: "Under GDPR (EEA and UK) and CCPA/CPRA (California) you have the following rights. To exercise any right, use the self-service tools in Settings or email nexa@nexa-c.com. We respond within 30 days (GDPR) / 45 days (CCPA).",
         items: [
           "Right of access: request a copy of the personal data we hold about you.",
           "Right to rectification: correct inaccurate or incomplete data.",
@@ -132,7 +132,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "13. Children's privacy",
-        p: `${BRAND_NAME} is not directed to children under 16. We do not knowingly collect personal data from children under 16. If you believe a child under 16 has created an account, contact privacy@nexa-c.com immediately and we will delete the account and all associated data without delay.`,
+        p: `${BRAND_NAME} is not directed to children under 16. We do not knowingly collect personal data from children under 16. If you believe a child under 16 has created an account, contact nexa@nexa-c.com immediately and we will delete the account and all associated data without delay.`,
       },
       {
         h: "14. Changes to this policy",
@@ -140,7 +140,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "15. Contact",
-        p: "Data Protection Officer: privacy@nexa-c.com · [[POSTAL_ADDRESS]]. For EU supervisory authority contacts: edpb.europa.eu/about-edpb/board/members_en. For California residents: oag.ca.gov/privacy.",
+        p: "Data Protection Officer: nexa@nexa-c.com · [[POSTAL_ADDRESS]]. For EU supervisory authority contacts: edpb.europa.eu/about-edpb/board/members_en. For California residents: oag.ca.gov/privacy.",
       },
     ],
   },
@@ -182,7 +182,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
         items: [
           "Keep your password, PIN, TOTP codes, and two-factor authentication credentials strictly confidential.",
           "Use a strong, unique password not used on any other service.",
-          "Immediately notify us at security@nexa-c.com of any suspected unauthorised access to or use of your account.",
+          "Immediately notify us at nexa@nexa-c.com of any suspected unauthorised access to or use of your account.",
           "Log out of shared or public devices after each session.",
           "Take responsibility for all activity that occurs under your account, whether or not authorised by you.",
           "Not share your account credentials with any third party.",
@@ -238,7 +238,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "10. Reporting violations",
-        p: `If you encounter content or behaviour that violates these Terms, you may report it via in-app reporting tools or by emailing abuse@nexa-c.com. We review all reports and will take appropriate action, which may include content removal, account suspension, or referral to law enforcement. ${BRAND_NAME} reserves the right to proactively moderate content where required by applicable law.`,
+        p: `If you encounter content or behaviour that violates these Terms, you may report it via in-app reporting tools or by emailing nexa@nexa-c.com. We review all reports and will take appropriate action, which may include content removal, account suspension, or referral to law enforcement. ${BRAND_NAME} reserves the right to proactively moderate content where required by applicable law.`,
       },
       {
         h: "11. Service availability and modifications",
@@ -286,7 +286,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "19. Contact",
-        p: "For questions about these Terms: legal@nexa-c.com · [[POSTAL_ADDRESS]]. For security issues: security@nexa-c.com. For abuse reports: abuse@nexa-c.com.",
+        p: "For questions about these Terms: nexa@nexa-c.com · [[POSTAL_ADDRESS]]. For security issues: nexa@nexa-c.com. For abuse reports: nexa@nexa-c.com.",
       },
     ],
   },
@@ -305,7 +305,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "Network use and source code (AGPL §13)",
-        p: "In accordance with Section 13 of the GNU Affero General Public License, users who interact with this software remotely through a computer network are offered the opportunity to receive a copy of the corresponding source code. The source code is available at [[GITHUB_REPO_URL]]. If you have difficulty accessing the repository, you may request a copy by emailing source@nexa-c.com.",
+        p: "In accordance with Section 13 of the GNU Affero General Public License, users who interact with this software remotely through a computer network are offered the opportunity to receive a copy of the corresponding source code. The source code is available at [[GITHUB_REPO_URL]]. If you have difficulty accessing the repository, you may request a copy by emailing nexa@nexa-c.com.",
       },
       {
         h: "Full license text",

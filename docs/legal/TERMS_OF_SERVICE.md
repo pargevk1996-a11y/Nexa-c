@@ -55,7 +55,7 @@ You are solely responsible for the security of your account credentials. You agr
 - Keep your password, PIN, TOTP codes, WebAuthn keys, and all two-factor authentication credentials
   strictly confidential.
 - Use a strong, unique password that is not used on any other service.
-- Immediately notify us at **security@nexa-c.com** of any suspected unauthorised access or use of
+- Immediately notify us at **nexa@nexa-c.com** of any suspected unauthorised access or use of
   your account.
 - Log out of shared or public devices at the end of each session.
 - Take full responsibility for all activity that occurs under your account, whether or not
@@ -172,8 +172,8 @@ capabilities will be communicated in-app and in our public changelog.
 If you encounter content or behaviour that violates these Terms, please report it via:
 
 - **In-app reporting tools** (where available).
-- **abuse@nexa-c.com** for content violations.
-- **security@nexa-c.com** for security vulnerabilities or account compromise.
+- **nexa@nexa-c.com** for content violations.
+- **nexa@nexa-c.com** for security vulnerabilities or account compromise.
 
 We review all reports and may take action including content removal, account suspension, or
 referral to law enforcement. NEXA reserves the right to proactively moderate content where required
@@ -306,9 +306,9 @@ full audit trail is available via git history.
 
 | Purpose | Contact |
 |---------|---------|
-| General legal questions | legal@nexa-c.com |
-| Privacy & data rights | privacy@nexa-c.com |
-| Security vulnerabilities | security@nexa-c.com |
-| Abuse reports | abuse@nexa-c.com |
-| Source code requests (AGPL §13) | source@nexa-c.com |
+| General legal questions | nexa@nexa-c.com |
+| Privacy & data rights | nexa@nexa-c.com |
+| Security vulnerabilities | nexa@nexa-c.com |
+| Abuse reports | nexa@nexa-c.com |
+| Source code requests (AGPL §13) | nexa@nexa-c.com |
 | Postal address | `[[POSTAL_ADDRESS]]` |
