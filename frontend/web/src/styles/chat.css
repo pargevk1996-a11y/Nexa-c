@@ -469,6 +469,17 @@
   flex-direction: column;
 }
 
+/* Covers the message list while Virtuoso pins itself to the last message on
+   open. Sits above the (temporarily invisible) list so the settling scroll is
+   never seen — the chat appears already at the latest message. */
+.chat-messages-pinning {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  background: var(--chat-bg, transparent);
+}
+
 /* Alignment wrapper that works inside Virtuoso block-level item divs */
 .msg-row {
   display: flex;

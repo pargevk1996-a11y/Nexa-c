@@ -257,6 +257,12 @@ export function MessageList({
   const [menu, setMenu] = useState<ContextState | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  // The list is rendered invisibly until it has been pinned to the last
+  // message. Virtuoso's initial positioning + variable-height measurement +
+  // async media loading all move the scroll position on first paint; hiding the
+  // list during that settling means the user only ever sees the final state —
+  // the latest message already in view — with zero visible scrolling.
+  const [pinned, setPinned] = useState(false);
   // Mirrors isAtBottom for use inside callbacks without re-subscribing.
   const isAtBottomRef = useRef(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
@@ -313,6 +319,8 @@ export function MessageList({
     listReadyRef.current = false;
     // Re-arm the opening window so the new chat snaps to its last message.
     openingRef.current = true;
+    // Hide the new chat until it is pinned to its last message.
+    setPinned(false);
   }, [conversationId]);
 
   // Arm the scroll-up detector after Virtuoso's first render with data.
@@ -327,6 +335,7 @@ export function MessageList({
     // Pin to the last message immediately, then keep re-pinning on every height
     // change until the settling window closes.
     openingRef.current = true;
+    let revealRaf = 0;
     const raf = requestAnimationFrame(() => {
       listReadyRef.current = true;
       virtuosoRef.current?.scrollToIndex({
@@ -334,13 +343,20 @@ export function MessageList({
         align: "end",
         behavior: "auto",
       });
+      // One more frame so the pinned-to-bottom position is painted, then reveal
+      // the list. The user never sees the positioning happen.
+      revealRaf = requestAnimationFrame(() => setPinned(true));
     });
+    // Safety net: always reveal even if a frame is dropped or media stalls.
+    const revealFallback = setTimeout(() => setPinned(true), 300);
     // Close the opening window once async content (media/previews) has settled.
     const close = setTimeout(() => {
       openingRef.current = false;
     }, 1500);
     return () => {
       cancelAnimationFrame(raf);
+      if (revealRaf) cancelAnimationFrame(revealRaf);
+      clearTimeout(revealFallback);
       clearTimeout(close);
     };
     // rows.length is intentionally a dep only to fire once rows first arrive;
@@ -480,11 +496,19 @@ export function MessageList({
         render already at the last message — no scrollTo correction needed,
         no visible jump.
       */}
+      {/* Skeleton overlay covers the list while it positions itself to the last
+          message, so the user never sees the scroll settling or a blank flash. */}
+      {!pinned ? (
+        <div className="chat-messages-pinning" aria-hidden>
+          <MessageListSkeleton />
+        </div>
+      ) : null}
       <Virtuoso
         key={conversationId ?? "none"}
         ref={virtuosoRef}
         scrollerRef={(ref) => { scrollerRef.current = ref as HTMLElement | null; }}
         className={`chat-messages ${isSecret ? "chat-messages--secret" : "chat-messages--copy-ok"}`}
+        style={{ opacity: pinned ? 1 : 0 }}
         role="log"
         aria-live="polite"
         data={rows}
