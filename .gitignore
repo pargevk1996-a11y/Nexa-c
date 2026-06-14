@@ -125,3 +125,12 @@ test-results/
 *.tfvars
 .terraform/
 .terraform.lock.hcl
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Internal documentation (not for public repo)
+# ──────────────────────────────────────────────────────────────────────────────
+docs/nexa/
+docs/security/
+SECURITY.md
+bandit.yaml
+.github/workflows/security.yml
