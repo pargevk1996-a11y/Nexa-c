@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from enum import Enum
+from enum import StrEnum
 from time import time
 from typing import Literal
 
 
-class LoginPhase(str, Enum):
+class LoginPhase(StrEnum):
     NORMAL = "normal"
     GRACE = "grace"
     LOCKED = "locked"

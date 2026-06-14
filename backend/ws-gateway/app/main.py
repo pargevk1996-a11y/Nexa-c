@@ -77,7 +77,7 @@ async def _publish_event(event: RealtimeEvent) -> None:
 
 async def _on_nats_event(event_name: str, conversation_id: str, payload: dict[str, Any]) -> None:
     """Deliver a NATS-sourced chat event to locally connected WebSocket clients."""
-    event = RealtimeEvent(
+    RealtimeEvent(
         name=event_name,
         conversation_id=conversation_id,
         target_user_ids=[],  # broadcast to all local subscribers of this conversation
