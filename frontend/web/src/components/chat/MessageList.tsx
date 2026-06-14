@@ -293,14 +293,48 @@ export function MessageList({
   // affect load-older (that needs the user at the top, impossible while pinned
   // to the bottom during this window).
   const openingRef = useRef(true);
+  // Debounce timer for "heights have settled": while the chat is opening, every
+  // total-height change (media load, measurement) resets this. When no change
+  // happens for a short window, the list is genuinely stable at the bottom and
+  // is revealed. This is what guarantees the user never sees the list move.
+  const settleTimerRef = useRef<number | undefined>(undefined);
 
   const rows = useMemo(() => buildMessageRows(messages), [messages]);
+  // Always-current row count for use inside callbacks/timers without re-binding.
+  const rowsLenRef = useRef(rows.length);
+  rowsLenRef.current = rows.length;
   const galleryImages = useMemo(() => collectGalleryImages(messages), [messages]);
   // Hold the latest gallery list in a ref so openGallery can stay referentially
   // stable (empty deps). Otherwise its identity would change on every new
   // message and break the memoized MessageBody for all visible rows.
   const galleryImagesRef = useRef(galleryImages);
   galleryImagesRef.current = galleryImages;
+
+  // Pin the viewport to the last message instantly (no animation).
+  const pinToBottom = useCallback(() => {
+    virtuosoRef.current?.scrollToIndex({
+      index: rowsLenRef.current - 1,
+      align: "end",
+      behavior: "auto",
+    });
+  }, []);
+
+  // Reveal the list and end the opening window in one shot, so there can be no
+  // post-reveal re-pin (= no visible jump once the user can see the list).
+  const revealAndClose = useCallback(() => {
+    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = undefined;
+    pinToBottom();
+    openingRef.current = false;
+    setPinned(true);
+  }, [pinToBottom]);
+
+  // (Re)start the settle countdown. Called on every height change while opening;
+  // when heights stop changing for ~140ms the list is stable and we reveal it.
+  const armSettle = useCallback(() => {
+    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = window.setTimeout(revealAndClose, 140);
+  }, [revealAndClose]);
 
   // Reset all per-conversation state on conversation switch.
   useEffect(() => {
@@ -319,6 +353,8 @@ export function MessageList({
     listReadyRef.current = false;
     // Re-arm the opening window so the new chat snaps to its last message.
     openingRef.current = true;
+    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = undefined;
     // Hide the new chat until it is pinned to its last message.
     setPinned(false);
   }, [conversationId]);
@@ -332,38 +368,28 @@ export function MessageList({
     if (readyConvRef.current === conversationId) return;
     readyConvRef.current = conversationId;
     listReadyRef.current = false;
-    // Pin to the last message immediately, then keep re-pinning on every height
-    // change until the settling window closes.
+    // Open the window: list stays hidden + pinned to the bottom on every height
+    // change until heights settle (armSettle), then it is revealed already at
+    // the last message. The user never sees the positioning or any media reflow.
     openingRef.current = true;
-    let revealRaf = 0;
     const raf = requestAnimationFrame(() => {
       listReadyRef.current = true;
-      virtuosoRef.current?.scrollToIndex({
-        index: rows.length - 1,
-        align: "end",
-        behavior: "auto",
-      });
-      // One more frame so the pinned-to-bottom position is painted, then reveal
-      // the list. The user never sees the positioning happen.
-      revealRaf = requestAnimationFrame(() => setPinned(true));
+      pinToBottom();
+      armSettle();
     });
-    // Safety net: always reveal even if a frame is dropped or media stalls.
-    const revealFallback = setTimeout(() => setPinned(true), 300);
-    // Close the opening window once async content (media/previews) has settled.
-    const close = setTimeout(() => {
-      openingRef.current = false;
-    }, 1500);
+    // Hard cap: never stay hidden longer than 1.2s, even if media keeps loading
+    // (slow network). Reveal pinned-to-bottom regardless.
+    const cap = window.setTimeout(revealAndClose, 1200);
     return () => {
       cancelAnimationFrame(raf);
-      if (revealRaf) cancelAnimationFrame(revealRaf);
-      clearTimeout(revealFallback);
-      clearTimeout(close);
+      window.clearTimeout(cap);
+      if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     };
     // rows.length is intentionally a dep only to fire once rows first arrive;
     // the readyConvRef guard makes this a per-conversation one-shot, so loading
     // older messages (same conversationId) never re-arms the window.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, rows.length]);
+  }, [conversationId, rows.length, pinToBottom, armSettle, revealAndClose]);
 
   // Detect genuine user scroll-up to disarm auto-follow. Gated on listReadyRef
   // so Virtuoso's own initial positioning is never misread as user intent.
@@ -492,9 +518,9 @@ export function MessageList({
         key={conversationId} destroys and recreates the Virtuoso instance on
         every conversation switch, giving each chat a clean slate with its own
         firstItemIndex / scroll position / measured heights. Combined with
-        initialTopMostItemIndex={rows.length - 1}, Virtuoso starts its FIRST
-        render already at the last message — no scrollTo correction needed,
-        no visible jump.
+        initialTopMostItemIndex={{ index: last, align: "end" }}, Virtuoso starts
+        its FIRST render already at the last message, aligned to the bottom — no
+        scrollTo correction needed, no visible jump.
       */}
       {/* Skeleton overlay covers the list while it positions itself to the last
           message, so the user never sees the scroll settling or a blank flash. */}
@@ -519,14 +545,13 @@ export function MessageList({
         totalListHeightChanged={() => {
           // Async content (images, link previews, voice/video) and Virtuoso's
           // own height measurement change the total height after first paint.
-          // During the opening window, snap back to the last message instantly
-          // (no animation) so the chat never settles mid-history or scrolls.
+          // While opening, keep the viewport pinned to the bottom AND restart the
+          // settle countdown — the list is only revealed once these stop, so the
+          // user never sees the reflow. (load-older is unaffected: it needs the
+          // user at the top, impossible while pinned during this window.)
           if (openingRef.current) {
-            virtuosoRef.current?.scrollToIndex({
-              index: rows.length - 1,
-              align: "end",
-              behavior: "auto",
-            });
+            pinToBottom();
+            armSettle();
           }
         }}
         overscan={600}
