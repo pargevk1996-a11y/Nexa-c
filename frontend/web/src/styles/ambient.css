@@ -102,3 +102,29 @@
     opacity: 0.55;
   }
 }
+
+/*
+  PERF (hard-lag fix): the logged-in shell overlays large full-viewport
+  backdrop-filter panels (.chat-main, .chat-sidebar, .chat-header,
+  .chat-left-panel) on top of this star field. A backdrop-filter must
+  re-blur whenever the pixels BEHIND it change — and the star field layers
+  animate continuously (twinkle = opacity, drift = transform). The result is
+  a full-screen re-blur every frame at 60fps, which tanks FPS on real GPUs
+  even while idle.
+
+  Fix: hold the star field still *inside the app shell only*. The stars stay
+  fully visible (most are hidden behind the blurred panels anyway); they just
+  no longer animate, so each blurred surface is composited once instead of
+  60×/second. The landing / auth screens keep the full animation because they
+  render `.auth-starfield` directly, not inside `.ambient-bg`.
+*/
+.ambient-bg .auth-starfield::before,
+.ambient-bg .auth-starfield::after {
+  animation: none;
+  will-change: auto;
+}
+.ambient-bg .shooting-star {
+  /* default state is opacity:0, so this simply removes them from the app's
+     compositing work without any frozen-streak artefact. */
+  animation: none;
+}
