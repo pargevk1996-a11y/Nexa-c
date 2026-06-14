@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { buildMessageRows } from "@/utils/messageLayout";
 import { IconChats } from "@/components/icons/Icons";
@@ -55,7 +55,10 @@ interface ContextState {
 // rows prepended so the viewport stays pinned to the same message (no jump).
 const START_INDEX = 1_000_000;
 
-function MessageBadges({ message }: { message: Message }) {
+// memo: row sub-components receive a stable `message` reference (the array item
+// is unchanged unless that specific message updated), so a new message or any
+// parent state change re-runs Virtuoso's itemContent but these short-circuit.
+const MessageBadges = memo(function MessageBadges({ message }: { message: Message }) {
   const badges: string[] = [];
   if (message.editedAt) badges.push("edited");
   if (message.silent) badges.push("silent");
@@ -70,9 +73,9 @@ function MessageBadges({ message }: { message: Message }) {
       ))}
     </span>
   );
-}
+});
 
-function MessageMeta({
+const MessageMeta = memo(function MessageMeta({
   message,
   sending,
   showReadReceipts,
@@ -116,9 +119,9 @@ function MessageMeta({
       ) : null}
     </div>
   );
-}
+});
 
-function MessageBody({
+const MessageBody = memo(function MessageBody({
   message,
   isSecret,
   isSuperSecret,
@@ -190,7 +193,7 @@ function MessageBody({
       {message.linkPreview ? <LinkPreview preview={message.linkPreview} /> : null}
     </>
   );
-}
+});
 
 function EphemeralMessageRow({
   message,
@@ -278,6 +281,11 @@ export function MessageList({
 
   const rows = useMemo(() => buildMessageRows(messages), [messages]);
   const galleryImages = useMemo(() => collectGalleryImages(messages), [messages]);
+  // Hold the latest gallery list in a ref so openGallery can stay referentially
+  // stable (empty deps). Otherwise its identity would change on every new
+  // message and break the memoized MessageBody for all visible rows.
+  const galleryImagesRef = useRef(galleryImages);
+  galleryImagesRef.current = galleryImages;
 
   // Reset all per-conversation state on conversation switch.
   useEffect(() => {
@@ -412,13 +420,10 @@ export function MessageList({
     return <MessageBody message={m} isSecret={isSecret} isSuperSecret={isSuperSecret} onImageClick={openGallery} />;
   }
 
-  const openGallery = useCallback(
-    (messageId: string) => {
-      const idx = galleryImages.findIndex((g) => g.messageId === messageId);
-      if (idx >= 0) setGalleryIndex(idx);
-    },
-    [galleryImages],
-  );
+  const openGallery = useCallback((messageId: string) => {
+    const idx = galleryImagesRef.current.findIndex((g) => g.messageId === messageId);
+    if (idx >= 0) setGalleryIndex(idx);
+  }, []);
 
   // Show skeleton while data is loading or not yet arrived — never mount
   // Virtuoso with an empty array and then repopulate it, which would cause

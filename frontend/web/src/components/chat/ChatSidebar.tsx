@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import type { ChatMenuAction } from "@/components/chat/ChatContextMenu";
 import { ChatContextMenu } from "@/components/chat/ChatContextMenu";
 import { ChatTypeBadge } from "@/components/chat/ChatTypeBadge";
@@ -39,7 +39,10 @@ interface MenuState {
   y: number;
 }
 
-function ConvList({
+// memo: the section item lists are useMemo-stable and the handlers are
+// useCallback-stable, so opening the context menu (sidebar `menu` state) no
+// longer re-renders every conversation button.
+const ConvList = memo(function ConvList({
   items,
   activeId,
   onSelect,
@@ -107,7 +110,7 @@ function ConvList({
       })}
     </>
   );
-}
+});
 
 function applyFilters(
   list: Conversation[],

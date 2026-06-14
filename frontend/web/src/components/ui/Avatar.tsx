@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { AvatarKind } from "@/types/profile";
 
 interface AvatarProps {
@@ -17,7 +18,9 @@ function isAnimatedKind(kind?: AvatarKind, url?: string | null): boolean {
   return /\.(gif|webp)(\?|$)/i.test(url);
 }
 
-export function Avatar({
+// memo: all props are primitives, so conversation/contact lists re-render
+// without recomputing the hue/initial or remounting <img> for unchanged rows.
+export const Avatar = memo(function Avatar({
   name,
   size = "md",
   online,
@@ -49,4 +52,4 @@ export function Avatar({
       ) : null}
     </span>
   );
-}
+});

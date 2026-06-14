@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { isEmailVerificationUiEnabled, isQrLoginEnabled } from "@/config/features";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -5,23 +6,57 @@ import { SessionGate } from "@/components/SessionGate";
 import { PrivacyRoot } from "@/components/privacy/PrivacyRoot";
 import { PrivacyRouteSync } from "@/components/privacy/PrivacyRouteSync";
 import { AuthLayout } from "@/components/auth/AuthLayout";
-import { AppShell } from "@/components/layout/AppShell";
 import { GuestRoute } from "@/components/GuestRoute";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { CallsPage } from "@/pages/CallsPage";
-import { ChatPage } from "@/pages/ChatPage";
-import { ContactsPage } from "@/pages/ContactsPage";
-import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
-import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
-import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
-import { QrLoginPage } from "@/pages/QrLoginPage";
-import { OAuthCallbackPage } from "@/pages/OAuthCallbackPage";
-import { PostsPage } from "@/pages/PostsPage";
-import { SettingsPage } from "@/pages/SettingsPage";
-import { ProfilePage } from "@/pages/ProfilePage";
-import { UserProfilePage } from "@/pages/UserProfilePage";
 import { LandingPage } from "@/pages/LandingPage";
-import { LegalPage } from "@/pages/LegalPage";
+
+// LandingPage stays eager: it is the first paint for guests (home / login /
+// register) and must not flash. Everything else is split into its own chunk
+// and fetched on demand, so a logged-out visitor never downloads the chat,
+// calls, media, or settings code. Named exports are adapted to lazy()'s
+// default-export contract.
+const AppShell = lazy(() =>
+  import("@/components/layout/AppShell").then((m) => ({ default: m.AppShell })),
+);
+const ChatPage = lazy(() =>
+  import("@/pages/ChatPage").then((m) => ({ default: m.ChatPage })),
+);
+const ContactsPage = lazy(() =>
+  import("@/pages/ContactsPage").then((m) => ({ default: m.ContactsPage })),
+);
+const CallsPage = lazy(() =>
+  import("@/pages/CallsPage").then((m) => ({ default: m.CallsPage })),
+);
+const PostsPage = lazy(() =>
+  import("@/pages/PostsPage").then((m) => ({ default: m.PostsPage })),
+);
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const ProfilePage = lazy(() =>
+  import("@/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })),
+);
+const UserProfilePage = lazy(() =>
+  import("@/pages/UserProfilePage").then((m) => ({ default: m.UserProfilePage })),
+);
+const LegalPage = lazy(() =>
+  import("@/pages/LegalPage").then((m) => ({ default: m.LegalPage })),
+);
+const ForgotPasswordPage = lazy(() =>
+  import("@/pages/ForgotPasswordPage").then((m) => ({ default: m.ForgotPasswordPage })),
+);
+const ResetPasswordPage = lazy(() =>
+  import("@/pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })),
+);
+const VerifyEmailPage = lazy(() =>
+  import("@/pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage })),
+);
+const QrLoginPage = lazy(() =>
+  import("@/pages/QrLoginPage").then((m) => ({ default: m.QrLoginPage })),
+);
+const OAuthCallbackPage = lazy(() =>
+  import("@/pages/OAuthCallbackPage").then((m) => ({ default: m.OAuthCallbackPage })),
+);
 
 export default function App() {
   return (
@@ -30,6 +65,9 @@ export default function App() {
     <SessionGate>
       <BrowserRouter>
       <PrivacyRouteSync />
+      {/* fallback={null} keeps splitting invisible: no spinner that wasn't
+          there before, and the briefly-fetched chunk swaps in seamlessly. */}
+      <Suspense fallback={null}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
 
@@ -79,6 +117,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
       </BrowserRouter>
     </SessionGate>
     </PrivacyRoot>

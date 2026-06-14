@@ -19,6 +19,25 @@ export default defineConfig(({ command }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // Keep the rarely-changing React framework in its own long-cached
+          // chunk so app-code deploys don't bust it. Everything else (e.g.
+          // react-virtuoso) is left to Rollup so it follows the lazy route
+          // chunk that actually imports it instead of loading up-front.
+          manualChunks(id) {
+            if (
+              /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
+                id,
+              )
+            ) {
+              return "vendor-react";
+            }
+          },
+        },
+      },
+    },
     server: {
       host: "0.0.0.0",
       port: 5173,
