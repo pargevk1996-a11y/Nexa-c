@@ -492,7 +492,7 @@
   margin-top: 1.5rem;
 }
 
-/* —— Static legal/trust pages (Privacy, Terms) —— */
+/* —— Static legal/trust pages (Privacy, Terms, License) —— */
 .legal-page {
   min-height: 100dvh;
   display: flex;
@@ -509,35 +509,69 @@
 
 .legal-page__card h1 {
   font-size: clamp(1.8rem, 5vw, 2.6rem);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.legal-page__meta {
+  font-size: 0.82rem;
+  color: var(--text-faint, #555570);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.01em;
 }
 
 .legal-page__intro {
   color: var(--text-muted);
-  line-height: 1.6;
+  line-height: 1.65;
   margin-bottom: 2rem;
+  border-left: 3px solid var(--accent, #4d7fff);
+  padding-left: 1rem;
 }
 
 .legal-page__card section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .legal-page__card h2 {
-  font-size: 1.15rem;
-  margin-bottom: 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+  color: var(--text, #f4f4f8);
 }
 
 .legal-page__card p {
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.legal-page__list {
+  margin: 0.6rem 0 0 0;
+  padding-left: 1.3rem;
+}
+
+.legal-page__list li {
   line-height: 1.65;
   color: var(--text-muted);
+  margin-bottom: 0.45rem;
+}
+
+.legal-page__list li::marker {
+  color: var(--accent, #4d7fff);
 }
 
 .legal-page__back {
   margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.08));
 }
 
 .legal-page__back a {
   color: #6aa3ff;
   font-weight: 600;
   text-decoration: none;
+}
+
+/* Copyright label in the legal footer */
+.auth-legal__copy {
+  color: var(--text-faint, #555570);
+  font-size: 0.78rem;
 }

@@ -36,6 +36,7 @@ export default function App() {
         {/* Public legal/trust pages — reachable signed-in or out (BUG-023) */}
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route path="/license" element={<LegalPage kind="license" />} />
 
         <Route element={<GuestRoute />}>
           {/* Login & Register render the home page with a floating auth modal */}
