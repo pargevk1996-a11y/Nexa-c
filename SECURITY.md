@@ -6,7 +6,7 @@ research. This document is our public, machine-discoverable policy (linked from
 
 ## Reporting a vulnerability
 
-Email **security@nexa-c.com** with:
+Email **nexa@nexa-c.com** with:
 
 - a description of the issue and its impact,
 - step-by-step reproduction (PoC welcome),

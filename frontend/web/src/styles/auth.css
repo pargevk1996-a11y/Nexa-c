@@ -656,6 +656,10 @@ html:has(.auth-layout) body {
   border-radius: var(--radius-md);
   font-size: 0.9rem;
   line-height: 1.4;
+  /* Space below the alert so it never touches the OAuth buttons / form that
+     follow it. Only applies when an alert is actually rendered (AuthAlert
+     returns null when empty), so empty states keep their original rhythm. */
+  margin-bottom: 1.25rem;
 }
 
 .auth-alert--error {
