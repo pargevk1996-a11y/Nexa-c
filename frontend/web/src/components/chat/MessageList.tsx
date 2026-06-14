@@ -278,6 +278,15 @@ export function MessageList({
   const listReadyRef = useRef(false);
   // Per-conversation guard: arm listReadyRef exactly once per chat open.
   const readyConvRef = useRef<string | undefined>(undefined);
+  // "Opening window": true for a short settling period right after a chat is
+  // opened. While true, ANY change to the list's total height (async media,
+  // link previews, voice waveforms, video thumbs, or Virtuoso's own
+  // variable-height measurement) instantly re-pins the viewport to the very
+  // last message. This guarantees the chat always lands exactly on the latest
+  // message — never mid-history, never with a visible scroll. It does not
+  // affect load-older (that needs the user at the top, impossible while pinned
+  // to the bottom during this window).
+  const openingRef = useRef(true);
 
   const rows = useMemo(() => buildMessageRows(messages), [messages]);
   const galleryImages = useMemo(() => collectGalleryImages(messages), [messages]);
@@ -302,6 +311,8 @@ export function MessageList({
     // Disable scroll-up detection until the new Virtuoso instance has
     // finished its initial render at initialTopMostItemIndex.
     listReadyRef.current = false;
+    // Re-arm the opening window so the new chat snaps to its last message.
+    openingRef.current = true;
   }, [conversationId]);
 
   // Arm the scroll-up detector after Virtuoso's first render with data.
@@ -313,10 +324,29 @@ export function MessageList({
     if (readyConvRef.current === conversationId) return;
     readyConvRef.current = conversationId;
     listReadyRef.current = false;
+    // Pin to the last message immediately, then keep re-pinning on every height
+    // change until the settling window closes.
+    openingRef.current = true;
     const raf = requestAnimationFrame(() => {
       listReadyRef.current = true;
+      virtuosoRef.current?.scrollToIndex({
+        index: rows.length - 1,
+        align: "end",
+        behavior: "auto",
+      });
     });
-    return () => cancelAnimationFrame(raf);
+    // Close the opening window once async content (media/previews) has settled.
+    const close = setTimeout(() => {
+      openingRef.current = false;
+    }, 1500);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(close);
+    };
+    // rows.length is intentionally a dep only to fire once rows first arrive;
+    // the readyConvRef guard makes this a per-conversation one-shot, so loading
+    // older messages (same conversationId) never re-arms the window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, rows.length]);
 
   // Detect genuine user scroll-up to disarm auto-follow. Gated on listReadyRef
@@ -459,9 +489,22 @@ export function MessageList({
         aria-live="polite"
         data={rows}
         firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={rows.length - 1}
+        initialTopMostItemIndex={{ index: rows.length - 1, align: "end" }}
         alignToBottom={true}
         followOutput={(atBottom) => (atBottom ? "auto" : false)}
+        totalListHeightChanged={() => {
+          // Async content (images, link previews, voice/video) and Virtuoso's
+          // own height measurement change the total height after first paint.
+          // During the opening window, snap back to the last message instantly
+          // (no animation) so the chat never settles mid-history or scrolls.
+          if (openingRef.current) {
+            virtuosoRef.current?.scrollToIndex({
+              index: rows.length - 1,
+              align: "end",
+              behavior: "auto",
+            });
+          }
+        }}
         overscan={600}
         startReached={hasOlderMessages && !isLoadingOlder ? handleStartReached : undefined}
         components={{
