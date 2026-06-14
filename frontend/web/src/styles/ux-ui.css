@@ -47,7 +47,9 @@
   /* No horizontal padding — .msg-row provides a symmetric 2% gap on both sides
      (container padding + full-width virtualised rows broke the symmetry). */
   padding: 16px 0 5.5rem;
-  scroll-behavior: smooth;
+  /* Instant programmatic scrolling (jump-to-latest, open-pin): no smooth
+     animation — scrolling down is effectively instant. */
+  scroll-behavior: auto;
 }
 
 /* Floating composer (glass card) */

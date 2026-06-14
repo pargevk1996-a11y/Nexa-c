@@ -685,7 +685,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  scroll-behavior: smooth;
+  /* Instant programmatic scrolling — no smooth animation on scroll-down. */
+  scroll-behavior: auto;
 }
 
 .chat-shell--telegram .chat-composer {

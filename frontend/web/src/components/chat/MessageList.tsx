@@ -641,7 +641,7 @@ export function MessageList({
             virtuosoRef.current?.scrollToIndex({
               index: rows.length - 1,
               align: "end",
-              behavior: "smooth",
+              behavior: "auto",
             })
           }
           aria-label="Jump to latest message"
