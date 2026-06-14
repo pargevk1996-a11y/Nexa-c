@@ -17,7 +17,7 @@
 
 <br/>
 
-<img src="frontend/web/public/og-image.png" width="720" alt="Nexa — secure messenger" />
+<img src="frontend/web/public/favicon.png" width="160" alt="Nexa logo" />
 
 <br/><br/>
 
