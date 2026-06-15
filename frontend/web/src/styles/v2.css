@@ -1643,6 +1643,23 @@ body::before {
   box-shadow: var(--nav-ball-active-shadow) !important;
 }
 
+/* Category filters (All / Groups / Channels) as TRUE CIRCLES — equal width &
+   height, not stretched capsules. Scoped + !important to beat the font-size /
+   padding from telegram-layout's more-specific selector. */
+.chat-folders--categories .chat-folder-pill {
+  width: 60px;
+  height: 60px;
+  padding: 0 !important;
+  display: inline-grid;
+  place-items: center;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.62rem !important;
+  line-height: 1.05;
+  border-radius: 50% !important;
+  flex-shrink: 0;
+}
+
 /* Mobile: keep the section nav balls at their previous (pre-1.2x) size so the
    bottom bar stays compact on small screens. Everything else (glossy look,
    floating over the UI, the active bob) is unchanged. */
