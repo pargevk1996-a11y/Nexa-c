@@ -1529,33 +1529,46 @@ body::before {
 }
 
 /* ============================================================
-   Section nav as round "balls" — Chats / Contacts / Calls /
-   Profile / Settings. Bigger circular icon containers with a
-   subtly dynamic feel: hover lift + a gentle bob on the active
-   item. Applies to BOTH nav variants — the Chats-section bottom
-   bar (.chat-left-panel__app-nav) and the other-sections bottom
-   bar (.side-nav). The bob is a transform on a small element in
-   front of the blur (no backdrop re-blur) and is auto-disabled
-   on low-end devices via the existing [data-perf="low"] rules.
+   Section nav as floating round "balls" — Chats / Contacts /
+   Calls / Profile / Settings. Glossy spheres ~1.2x bigger (58px),
+   separated, floating OVER the interface (the bar chrome —
+   background / border / blur / shadow — is removed so it is no
+   longer a "block"). Subtly dynamic: hover lift + a gentle bob on
+   the active ball. Transform-only (no backdrop re-blur) and
+   auto-disabled on low-end devices via [data-perf="low"].
    ============================================================ */
 @keyframes nav-ball-bob {
   0%, 100% { transform: translateY(0) scale(1.05); }
-  50%      { transform: translateY(-3px) scale(1.1); }
+  50%      { transform: translateY(-4px) scale(1.1); }
 }
 
-/* --- Chats-section bottom nav --- */
+/* Glossy sphere surfaces (idle + active) reused by both nav variants. */
+:root {
+  --nav-ball-idle: radial-gradient(circle at 50% 32%, rgba(255,255,255,0.16), rgba(255,255,255,0.05) 62%, rgba(255,255,255,0.02));
+  --nav-ball-active: radial-gradient(circle at 50% 30%, #9db0ff, var(--accent, #4f7cff) 58%, #4733c2);
+  --nav-ball-active-shadow: 0 10px 22px rgba(79,124,255,0.5), inset 0 2px 6px rgba(255,255,255,0.35), 0 0 0 1px rgba(167,139,250,0.4);
+}
+
+/* --- Chats-section bottom nav: float the balls, drop the bar block --- */
+.chat-left-panel__app-nav {
+  gap: 0.35rem !important;
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
 .chat-left-panel__app-nav-item,
 .chat-left-panel__app-nav-item--active {
   background: transparent !important; /* highlight now lives on the ball */
 }
 .chat-left-panel__nav-icon-wrap {
-  width: 48px;
-  height: 48px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  background: var(--nav-ball-idle);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.18), 0 4px 12px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.06);
   transition:
     transform 220ms var(--ease-spring),
     background 160ms var(--ease),
@@ -1563,29 +1576,35 @@ body::before {
 }
 .chat-left-panel__app-nav-item:hover .chat-left-panel__nav-icon-wrap {
   transform: translateY(-3px) scale(1.07);
-  background: rgba(255, 255, 255, 0.1);
 }
 .chat-left-panel__app-nav-item--active .chat-left-panel__nav-icon-wrap {
-  background: var(--accent-gradient);
-  box-shadow: 0 8px 20px rgba(79, 124, 255, 0.45), 0 0 0 1px rgba(167, 139, 250, 0.4);
+  background: var(--nav-ball-active);
+  box-shadow: var(--nav-ball-active-shadow);
   animation: nav-ball-bob 2.6s var(--ease) infinite;
 }
 .chat-left-panel__app-nav-item--active .chat-left-panel__nav-icon-wrap svg {
   color: #fff;
 }
 
-/* --- Other-sections bottom nav (side-nav as a bottom bar) --- */
+/* --- Other-sections bottom nav (side-nav): same floating balls --- */
+.app-shell:not(.app-shell--nexa-chats) .side-nav {
+  gap: 0.35rem !important;
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
 .app-shell:not(.app-shell--nexa-chats) .side-nav__item,
 .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active {
   background: transparent !important;
   box-shadow: none !important;
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__icon {
-  width: 48px;
-  height: 48px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  background: var(--nav-ball-idle);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.18), 0 4px 12px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.06);
   display: grid;
   place-items: center;
   transition:
@@ -1594,16 +1613,15 @@ body::before {
     box-shadow 220ms var(--ease);
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__icon svg {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__item:hover .side-nav__icon {
   transform: translateY(-3px) scale(1.07);
-  background: rgba(255, 255, 255, 0.1);
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active .side-nav__icon {
-  background: var(--accent-gradient);
-  box-shadow: 0 8px 20px rgba(79, 124, 255, 0.45), 0 0 0 1px rgba(167, 139, 250, 0.4);
+  background: var(--nav-ball-active);
+  box-shadow: var(--nav-ball-active-shadow);
   animation: nav-ball-bob 2.6s var(--ease) infinite;
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active .side-nav__icon svg {
@@ -1611,4 +1629,16 @@ body::before {
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active {
   color: var(--accent);
+}
+
+/* ── Chat category filters as little glossy "balls"/bubbles ─────────── */
+.chat-folder-pill {
+  background: var(--nav-ball-idle);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.16), 0 3px 9px rgba(0,0,0,0.28);
+}
+.chat-folder-pill--active {
+  background: var(--nav-ball-active) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: var(--nav-ball-active-shadow) !important;
 }
