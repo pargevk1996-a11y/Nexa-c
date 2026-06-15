@@ -54,6 +54,8 @@ export function ImageGallery({ images, index, onClose, onIndexChange }: ImageGal
   // Resolved full-resolution URL for the current image (fetched on demand).
   const [fullUrl, setFullUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  // mediaIds whose stale signed URL already triggered one auto re-fetch.
+  const retriedRef = useRef<Set<string>>(new Set());
 
   // Zoom / pan transform state. Reset whenever the visible image changes.
   const [zoom, setZoom] = useState(1);
@@ -260,7 +262,17 @@ export function ImageGallery({ images, index, onClose, onIndexChange }: ImageGal
             alt={current.alt}
             draggable={false}
             onLoad={() => setStatus("ready")}
-            onError={() => setStatus(showImg === placeholder ? "ready" : "error")}
+            onError={() => {
+              // Old image: its stored signed URL likely expired — re-fetch a
+              // fresh one via mediaId once before giving up.
+              const id = current?.mediaId;
+              if (id && showImg !== placeholder && !retriedRef.current.has(id)) {
+                retriedRef.current.add(id);
+                retry();
+              } else {
+                setStatus(showImg === placeholder ? "ready" : "error");
+              }
+            }}
             style={{
               transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${zoom})`,
               transition: dragRef.current ? "none" : "transform 0.12s ease-out",

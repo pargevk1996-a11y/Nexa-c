@@ -50,9 +50,12 @@ export function FileMessage({ message, onOpen, onImageClick, isSuperSecret = fal
       openImageGallery();
       return;
     }
-    const streamUrl = viewerUrl ?? (await fetchUrls())?.stream ?? null;
-    if (!streamUrl && !message.fileUrl) return;
-    setViewerUrl(streamUrl ?? message.fileUrl ?? null);
+    // Prefer a FRESH signed URL when we have a mediaId — the stored streamUrl on
+    // old messages may already be expired (short signed-URL TTL).
+    const streamUrl =
+      (message.mediaId ? (await fetchUrls())?.stream : null) ?? viewerUrl ?? message.fileUrl ?? null;
+    if (!streamUrl) return;
+    setViewerUrl(streamUrl);
     setViewerOpen(true);
   }
 

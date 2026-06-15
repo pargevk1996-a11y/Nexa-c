@@ -22,6 +22,25 @@ export function LazyMediaImage({
   const [src, setSrc] = useState<string | null>(previewUrl ?? streamUrl ?? null);
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLButtonElement | null>(null);
+  // Old messages keep a signed URL that has since EXPIRED (short TTL). If the
+  // seeded src fails to load, re-fetch a FRESH signed URL via mediaId. Guarded
+  // so it runs at most once (no reload loop on a genuinely broken asset).
+  const triedRefresh = useRef(false);
+
+  async function refreshFromMediaId() {
+    if (!mediaId || triedRefresh.current) return;
+    triedRefresh.current = true;
+    try {
+      const urls = await getMediaUrls(mediaId);
+      const url = urls.preview_url ?? urls.stream_url;
+      if (url) {
+        cacheSignedUrl(`${mediaId}:preview`, url, urls.expires_in);
+        setSrc(url);
+      }
+    } catch {
+      /* leave placeholder */
+    }
+  }
 
   useEffect(() => {
     const el = ref.current;
@@ -83,7 +102,14 @@ export function LazyMediaImage({
 
   return (
     <button type="button" ref={ref} className={className} onClick={onClick}>
-      <img src={src} alt={alt} className="file-msg__thumb" loading="lazy" decoding="async" />
+      <img
+        src={src}
+        alt={alt}
+        className="file-msg__thumb"
+        loading="lazy"
+        decoding="async"
+        onError={() => void refreshFromMediaId()}
+      />
     </button>
   );
 }
