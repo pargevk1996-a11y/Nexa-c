@@ -1642,3 +1642,14 @@ body::before {
   color: #fff !important;
   box-shadow: var(--nav-ball-active-shadow) !important;
 }
+
+/* Mobile: keep the section nav balls at their previous (pre-1.2x) size so the
+   bottom bar stays compact on small screens. Everything else (glossy look,
+   floating over the UI, the active bob) is unchanged. */
+@media (max-width: 768px) {
+  .chat-left-panel__nav-icon-wrap,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__icon {
+    width: 48px;
+    height: 48px;
+  }
+}
