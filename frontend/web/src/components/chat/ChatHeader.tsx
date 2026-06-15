@@ -60,13 +60,15 @@ export function ChatHeader({
       return `${conversation.memberCount.toLocaleString()} members`;
     }
     if (conversation.typing) return "typing…";
-    // Drive the text from the SAME live `online` as the green dot so they never
-    // disagree; the last-seen time comes from the (poll-refreshed) peer profile.
-    if (peer) {
-      return online ? (peer.status_text?.trim() || "Online") : formatLastSeen(peer.last_seen_at);
-    }
-    return online ? "Online" : "Offline";
+    // Online → always the green "Online" label (same live source as the dot);
+    // offline → the poll-refreshed last-seen time.
+    if (online) return "Online";
+    if (peer) return formatLastSeen(peer.last_seen_at);
+    return "Offline";
   })();
+
+  // Green text + dot only for a real one-to-one online peer (not channels/typing).
+  const showOnline = online && !conversation.typing && !isChannel;
 
   const showCalls = !isSecret && !isChannel && !isSaved;
   const showSuperSecretToggle = !isChannel && !isSaved && onToggleSuperSecret;
@@ -120,8 +122,8 @@ export function ChatHeader({
           <span className="privacy-no-copy">{title}</span>
           {peer ? <VerificationBadge badge={peer.verification_badge} /> : null}
         </h3>
-        <p className="chat-header__status-line">
-          <span className={online && !conversation.typing ? "chat-header__online-dot" : ""} />
+        <p className={`chat-header__status-line ${showOnline ? "chat-header__status-line--online" : ""}`}>
+          <span className={showOnline ? "chat-header__online-dot" : ""} />
           {statusLine}
         </p>
       </button>

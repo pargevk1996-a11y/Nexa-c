@@ -216,6 +216,12 @@
   text-transform: capitalize;
 }
 
+/* Online peer: green "Online" label to match the green presence dot. */
+.chat-header__status-line--online {
+  color: var(--success);
+  font-weight: 600;
+}
+
 .chat-header__menu-icon {
   font-size: 1.1rem;
   line-height: 1;
