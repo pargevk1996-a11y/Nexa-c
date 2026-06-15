@@ -10,6 +10,7 @@ import {
 } from "react";
 import { getCachedSession } from "@/api/auth";
 import { fetchPublicProfile } from "@/api/profile";
+import { primePublicProfile } from "@/api/publicProfileCache";
 import { resolvePeer } from "@/utils/peerResolve";
 import { verifySignatureForUser } from "@/security/signaturePin";
 import { listConversations, listMessages, sendMessageRest } from "@/api/chat";
@@ -598,7 +599,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const refresh = async () => {
       try {
         const p = await fetchPublicProfile(activePeerId);
-        if (!cancelled) onLivePresence(activePeerId, Boolean(p.is_online));
+        if (!cancelled) {
+          // Push the FULL fresh profile into the shared cache so the dot AND the
+          // "last seen" text use the same live data (is_online + last_seen_at),
+          // then drive the conversation-list dot through state.
+          primePublicProfile(activePeerId, p);
+          onLivePresence(activePeerId, Boolean(p.is_online));
+        }
       } catch {
         /* transient failure — keep the last known state */
       }

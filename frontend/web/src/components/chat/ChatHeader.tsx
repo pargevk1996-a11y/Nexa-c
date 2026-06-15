@@ -9,7 +9,7 @@ import {
   IconVideo,
 } from "@/components/icons/Icons";
 import { usePublicProfile } from "@/hooks/usePublicProfile";
-import { displayName, presenceLine } from "@/utils/presenceText";
+import { displayName, formatLastSeen } from "@/utils/presenceText";
 import { ChatTypeBadge } from "@/components/chat/ChatTypeBadge";
 import { isBroadcastChannel, resolveChatType } from "@/utils/chatTypes";
 import type { Conversation } from "@/types";
@@ -60,8 +60,12 @@ export function ChatHeader({
       return `${conversation.memberCount.toLocaleString()} members`;
     }
     if (conversation.typing) return "typing…";
-    if (peer) return presenceLine(peer);
-    return online ? "online" : "offline";
+    // Drive the text from the SAME live `online` as the green dot so they never
+    // disagree; the last-seen time comes from the (poll-refreshed) peer profile.
+    if (peer) {
+      return online ? (peer.status_text?.trim() || "Online") : formatLastSeen(peer.last_seen_at);
+    }
+    return online ? "Online" : "Offline";
   })();
 
   const showCalls = !isSecret && !isChannel && !isSaved;

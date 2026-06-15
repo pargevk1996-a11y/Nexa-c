@@ -17,6 +17,36 @@ import type { PublicProfile } from "@/types/profile";
 const cache = new Map<string, PublicProfile | null>();
 const inflight = new Map<string, Promise<PublicProfile | null>>();
 
+// Per-user change listeners so hooks re-render when a cached profile is
+// refreshed out-of-band (e.g. the presence poll updating is_online/last_seen_at).
+type Listener = () => void;
+const listeners = new Map<string, Set<Listener>>();
+
+function notify(userId: string): void {
+  listeners.get(userId)?.forEach((fn) => fn());
+}
+
+/** Subscribe to changes for one user's cached profile. Returns an unsubscribe fn. */
+export function subscribePublicProfile(userId: string, fn: Listener): () => void {
+  let set = listeners.get(userId);
+  if (!set) {
+    set = new Set();
+    listeners.set(userId, set);
+  }
+  set.add(fn);
+  return () => {
+    set?.delete(fn);
+    if (set && set.size === 0) listeners.delete(userId);
+  };
+}
+
+/** Overwrite the cached profile with a fresh copy (e.g. live presence poll) and
+ *  notify subscribers so the dot AND the last-seen text update everywhere. */
+export function primePublicProfile(userId: string, profile: PublicProfile): void {
+  cache.set(userId, profile);
+  notify(userId);
+}
+
 /** Synchronous read. `undefined` = unknown, `null` = known 404, else the profile. */
 export function getCachedPublicProfile(
   userId: string | undefined | null,
@@ -35,6 +65,7 @@ export function loadPublicProfile(userId: string): Promise<PublicProfile | null>
   const p = fetchPublicProfile(userId)
     .then((profile) => {
       cache.set(userId, profile);
+      notify(userId);
       return profile;
     })
     .catch((e: unknown) => {
@@ -57,6 +88,7 @@ export function loadPublicProfile(userId: string): Promise<PublicProfile | null>
 /** Drop a cached entry (e.g. after the peer updates their profile). */
 export function invalidatePublicProfile(userId: string): void {
   cache.delete(userId);
+  notify(userId);
 }
 
 /** Test-only: reset module state between cases. */

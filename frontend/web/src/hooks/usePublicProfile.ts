@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { getCachedSession } from "@/api/auth";
-import { getCachedPublicProfile, loadPublicProfile } from "@/api/publicProfileCache";
+import {
+  getCachedPublicProfile,
+  loadPublicProfile,
+  subscribePublicProfile,
+} from "@/api/publicProfileCache";
 import type { PublicProfile } from "@/types/profile";
 
 export function usePublicProfile(userId: string | undefined) {
@@ -41,6 +45,15 @@ export function usePublicProfile(userId: string | undefined) {
     return () => {
       cancelled = true;
     };
+  }, [userId]);
+
+  // Re-render when the cached profile is refreshed out-of-band (presence poll),
+  // so the online dot and last-seen text stay live and in sync.
+  useEffect(() => {
+    if (!userId) return;
+    return subscribePublicProfile(userId, () => {
+      setProfile(getCachedPublicProfile(userId) ?? null);
+    });
   }, [userId]);
 
   return { profile, loading };
