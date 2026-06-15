@@ -3,6 +3,11 @@ import { getSecureItem, removeSecureItem, setSecureItem, wipeLocalSecurityState 
 import { storageKeys } from "./storageKeys";
 import { getOrCreateDeviceBaseKey } from "./deviceKey";
 
+// Active user id is stored in localStorage (NOT sessionStorage) so the session
+// is SHARED across all tabs of the browser and survives tab close — one account
+// per browser, not per tab. The encrypted session blob already lives in
+// localStorage too. (Cross-browser/device login is a separate device-handover
+// flow with PIN.)
 const ACTIVE_UID_KEY = "securechat_active_uid_v1";
 
 let cachedSession: AuthSession | null = null;
@@ -12,18 +17,18 @@ export function getCachedSession(): AuthSession | null {
 }
 
 export function getActiveUserId(): string | null {
-  return sessionStorage.getItem(ACTIVE_UID_KEY);
+  return localStorage.getItem(ACTIVE_UID_KEY);
 }
 
 export async function refreshSessionCache(): Promise<AuthSession | null> {
-  const uid = sessionStorage.getItem(ACTIVE_UID_KEY);
+  const uid = localStorage.getItem(ACTIVE_UID_KEY);
   if (!uid) {
     cachedSession = null;
     return null;
   }
   cachedSession = await getSecureItem<AuthSession>(storageKeys.session, uid);
   if (!cachedSession) {
-    sessionStorage.removeItem(ACTIVE_UID_KEY);
+    localStorage.removeItem(ACTIVE_UID_KEY);
   }
   return cachedSession;
 }
@@ -31,7 +36,7 @@ export async function refreshSessionCache(): Promise<AuthSession | null> {
 export async function persistSession(session: AuthSession): Promise<void> {
   // Ensure device base key exists before writing encrypted session data.
   await getOrCreateDeviceBaseKey();
-  sessionStorage.setItem(ACTIVE_UID_KEY, session.user.id);
+  localStorage.setItem(ACTIVE_UID_KEY, session.user.id);
   // Mark this tab as explicitly unlocked so the new-tab lock doesn't re-trigger.
   sessionStorage.setItem(storageKeys.tabUnlocked, "1");
   await setSecureItem(storageKeys.session, session.user.id, session);
@@ -40,11 +45,11 @@ export async function persistSession(session: AuthSession): Promise<void> {
 }
 
 export async function clearSession(): Promise<void> {
-  const uid = sessionStorage.getItem(ACTIVE_UID_KEY);
+  const uid = localStorage.getItem(ACTIVE_UID_KEY);
   if (uid) {
     removeSecureItem(storageKeys.session);
   }
-  sessionStorage.removeItem(ACTIVE_UID_KEY);
+  localStorage.removeItem(ACTIVE_UID_KEY);
   sessionStorage.removeItem(storageKeys.tabUnlocked);
   try { localStorage.removeItem(storageKeys.globalUnlocked); } catch { /* ignore */ }
   // Drop the persistent screen-lock flag: a full logout / session reset is a
@@ -53,4 +58,18 @@ export async function clearSession(): Promise<void> {
   try { localStorage.removeItem("nexa-screen-lock"); } catch { /* ignore */ }
   cachedSession = null;
   await wipeLocalSecurityState();
+}
+
+// Cross-tab sync: a login/logout (or remote session-kill) in ANY tab changes the
+// shared active-uid in localStorage. The `storage` event fires only in OTHER
+// tabs, so we re-read the shared session and notify the app — keeping every tab
+// of the browser on the same account, and logging them all out together when the
+// session dies. No loop risk (the originating tab doesn't receive the event).
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== ACTIVE_UID_KEY) return;
+    void refreshSessionCache().then(() => {
+      window.dispatchEvent(new Event("securechat-session"));
+    });
+  });
 }
