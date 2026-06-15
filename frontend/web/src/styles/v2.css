@@ -209,15 +209,17 @@ body::before {
 .chat-folder-pill {
   font-size: 0.76rem;
   font-weight: 600;
-  padding: 0.3rem 0.68rem;
+  /* Taller padding + full radius = a clearly round capsule "pill". */
+  padding: 0.5rem 1.05rem;
   border: 1px solid rgba(255,255,255,0.08);
   color: var(--text-muted);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-full) !important;
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease),
     border-color 140ms var(--ease),
-    transform 80ms ease;
+    box-shadow 200ms var(--ease),
+    transform 120ms var(--ease-spring);
 }
 
 .chat-folder-pill:hover {
@@ -227,10 +229,10 @@ body::before {
 }
 
 .chat-folder-pill--active {
-  background: rgba(79, 124, 255,0.17);
-  border-color: rgba(79, 124, 255,0.42);
-  color: #c4b5fd;
-  box-shadow: 0 0 14px rgba(59, 109, 255,0.18);
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(79, 124, 255,0.4), 0 0 0 1px rgba(167,139,250,0.35);
   transform: none;
 }
 
