@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { getCachedSession } from "@/api/auth";
-import { fetchPublicProfile } from "@/api/profile";
+import { fetchPublicProfile, updatePresence } from "@/api/profile";
 import { primePublicProfile } from "@/api/publicProfileCache";
 import { resolvePeer } from "@/utils/peerResolve";
 import { verifySignatureForUser } from "@/security/signaturePin";
@@ -624,6 +624,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [activePeerId, liveChatEnabled, onLivePresence]);
+
+  // OWN presence heartbeat: the server treats a user as online only while a
+  // heartbeat is fresh (90s TTL), so the app must beat ~every 60s while visible.
+  // Without it nobody ever shows online (the dot never lit green). Going hidden /
+  // closing the tab marks offline immediately; privacy (show_online_status) is
+  // still enforced server-side, so an "appear offline" user stays invisible.
+  useEffect(() => {
+    if (!liveChatEnabled || !userId) return;
+    const beat = (online: boolean) => {
+      void updatePresence(online).catch(() => {});
+    };
+    beat(true);
+    const interval = window.setInterval(() => {
+      if (!document.hidden) beat(true);
+    }, 60_000);
+    const onVis = () => beat(!document.hidden);
+    const onHide = () => beat(false);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
+      beat(false);
+    };
+  }, [liveChatEnabled, userId]);
 
   const sendTyping = useCallback(
     (conversationId: string, isTyping: boolean) => {

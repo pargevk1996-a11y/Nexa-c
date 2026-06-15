@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { VerificationBadge } from "@/components/profile/VerificationBadge";
 import { IconButton } from "@/components/ui/IconButton";
@@ -47,6 +48,15 @@ export function ChatHeader({
   // whose is_online would otherwise stay frozen green after the peer goes offline.
   const online = conversation.online ?? peer?.is_online ?? false;
 
+  // Live 1s ticker while offline so the "last seen Ns ago" counter updates in
+  // real time. Disabled when online (nothing to count) to avoid needless renders.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (online) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [online]);
+
   const statusLine = (() => {
     if (isSaved) return "Saved messages";
     if (isChannel) {
@@ -63,7 +73,7 @@ export function ChatHeader({
     // Online → always the green "Online" label (same live source as the dot);
     // offline → the poll-refreshed last-seen time.
     if (online) return "Online";
-    if (peer) return formatLastSeen(peer.last_seen_at);
+    if (peer) return formatLastSeen(peer.last_seen_at, nowMs);
     return "Offline";
   })();
 

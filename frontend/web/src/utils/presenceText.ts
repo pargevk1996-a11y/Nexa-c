@@ -1,10 +1,11 @@
-export function formatLastSeen(iso: string | null | undefined): string {
+// `nowMs` is injectable so a 1s ticker can drive a live-updating counter.
+export function formatLastSeen(iso: string | null | undefined, nowMs: number = Date.now()): string {
   if (!iso) return "Last seen recently";
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return "Last seen recently";
-  const diffMs = Date.now() - then.getTime();
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "Last seen just now";
+  const secs = Math.max(0, Math.floor((nowMs - then.getTime()) / 1000));
+  if (secs < 60) return `Last seen ${secs}s ago`;
+  const mins = Math.floor(secs / 60);
   if (mins < 60) return `Last seen ${mins} min ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `Last seen ${hours}h ago`;
