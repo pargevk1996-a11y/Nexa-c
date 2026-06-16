@@ -357,7 +357,10 @@
    from the browser walls. height/overflow are clamped by .app-shell (100dvh)
    so nothing ever spills off-screen. */
 .app-shell--nexa-chats .app-shell__frame {
-  padding: 0.85rem;
+  /* Match the non-chat sections exactly (same tokens) so the left rail sits in
+     the identical spot across every section — no shift between Chats and the
+     rest. Was 0.85rem, which pushed the rail ~6px down/right vs other tabs. */
+  padding: var(--app-gap) var(--app-pad) var(--app-pad);
   box-sizing: border-box;
   min-height: 0;
   overflow: hidden;

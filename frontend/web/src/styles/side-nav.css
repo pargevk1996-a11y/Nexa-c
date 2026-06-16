@@ -184,7 +184,8 @@
 } /* end @media (max-width: 768px) */
 
 /* Desktop: hide the Chats in-panel bottom nav — the unified left rail replaces
-   it everywhere. */
+   it everywhere. Higher specificity (app-shell--nexa-chats …) so it beats
+   telegram-layout.css's later `.chat-left-panel__app-nav { display: grid }`. */
 @media (min-width: 769px) {
-  .chat-left-panel__app-nav { display: none; }
+  .app-shell--nexa-chats .chat-left-panel__app-nav { display: none; }
 }
