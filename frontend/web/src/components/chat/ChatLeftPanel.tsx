@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   IconCalls,
   IconChats,
@@ -67,6 +67,7 @@ export function ChatLeftPanel({
   onCreateGroup,
   drafts,
 }: ChatLeftPanelProps) {
+  const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
@@ -123,10 +124,8 @@ export function ChatLeftPanel({
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
         {CHAT_CATEGORIES.map((c) => {
           const active = category === c.id;
-          // The "+" only creates groups/channels now — the generic "All → find
-          // contact" plus was removed. So it shows only for those categories.
-          const addTitle = c.id === "channels" ? "New channel" : "New group";
-          const showAdd = active && c.id !== "all";
+          const addTitle =
+            c.id === "channels" ? "New channel" : c.id === "groups" ? "New group" : "Find contact";
           return (
             <span key={c.id} className="chat-folder-wrap">
               <button
@@ -136,13 +135,13 @@ export function ChatLeftPanel({
               >
                 {c.label}
               </button>
-              {showAdd ? (
+              {active ? (
                 <button
                   type="button"
                   className="chat-folder-add"
                   title={addTitle}
                   aria-label={addTitle}
-                  onClick={onCreateGroup}
+                  onClick={() => (c.id === "all" ? navigate("/app/contacts") : onCreateGroup())}
                 >
                   +
                 </button>

@@ -337,11 +337,9 @@
   color: var(--text-muted);
 }
 
-/* Full-bleed chats layout — hide the side rail, but keep the shared TopNav so
-   the top block matches every other section. */
-.app-shell--nexa-chats .side-nav {
-  display: none !important;
-}
+/* The unified left rail now shows on Chats too (desktop). It is hidden only on
+   mobile Chats — see side-nav.css @media (max-width: 768px) — where the in-panel
+   bottom nav takes over. The old blanket `display:none` here was removed. */
 
 /* On mobile, opening a conversation hides the TopNav so the chat uses the full
    height (it has its own header). `chat-shell--conversation-open` is only set

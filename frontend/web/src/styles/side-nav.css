@@ -105,6 +105,17 @@
   flex-direction: column;
 }
 
+/* Section nav split into a main group + a separate bottom group (Settings). On
+   the desktop vertical rail the bottom group is pinned to the bottom-left; the
+   mobile bottom-bar overrides below flip these to a row. */
+.side-nav__group--main {
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%;
+}
+.side-nav__group--bottom {
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%;
+  margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border);
+}
+
 /* ── MOBILE ONLY ─────────────────────────────────────────────────────────
    On desktop the rail is a vertical column on the LEFT of every section. On
    phones it collapses to a full-width bottom bar for non-chat sections (the
@@ -163,16 +174,7 @@
   font-weight: 600;
 }
 
-/* Section nav split into a main group + a separate bottom group (Settings). On a
-   vertical rail the bottom group is pinned to the bottom; in the horizontal
-   bottom-bar layout the groups flow inline in a row (no break). */
-.side-nav__group--main {
-  display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%;
-}
-.side-nav__group--bottom {
-  display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%;
-  margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border);
-}
+/* Mobile bottom-bar: flip the groups to a row (no bottom-pin). */
 .app-shell:not(.app-shell--nexa-chats) .side-nav__group--main {
   flex-direction: row; width: auto; flex: 1; justify-content: center;
 }
