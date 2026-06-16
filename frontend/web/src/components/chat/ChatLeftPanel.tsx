@@ -117,30 +117,38 @@ export function ChatLeftPanel({
           </label>
           <div className="chat-left-panel__head-actions">
             <StoryPeek />
-            <button
-              type="button"
-              className="chat-left-panel__add-btn"
-              onClick={() => navigate("/app/contacts")}
-              title="Add contact"
-              aria-label="Add contact"
-            >
-              +
-            </button>
           </div>
         </div>
       </header>
 
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
-        {CHAT_CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={`chat-folder-pill ${category === c.id ? "chat-folder-pill--active" : ""}`}
-            onClick={() => onCategoryChange(c.id)}
-          >
-            {c.label}
-          </button>
-        ))}
+        {CHAT_CATEGORIES.map((c) => {
+          const active = category === c.id;
+          const addTitle =
+            c.id === "channels" ? "New channel" : c.id === "groups" ? "New group" : "Find contact";
+          return (
+            <span key={c.id} className="chat-folder-wrap">
+              <button
+                type="button"
+                className={`chat-folder-pill ${active ? "chat-folder-pill--active" : ""}`}
+                onClick={() => onCategoryChange(c.id)}
+              >
+                {c.label}
+              </button>
+              {active ? (
+                <button
+                  type="button"
+                  className="chat-folder-add"
+                  title={addTitle}
+                  aria-label={addTitle}
+                  onClick={() => (c.id === "all" ? navigate("/app/contacts") : onCreateGroup())}
+                >
+                  +
+                </button>
+              ) : null}
+            </span>
+          );
+        })}
       </nav>
 
       <ChatSidebar

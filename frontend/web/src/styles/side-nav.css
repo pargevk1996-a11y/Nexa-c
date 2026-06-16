@@ -159,3 +159,20 @@
   font-size: 0.7rem;
   font-weight: 600;
 }
+
+/* Section nav split into a main group + a separate bottom group (Settings). On a
+   vertical rail the bottom group is pinned to the bottom; in the horizontal
+   bottom-bar layout the groups flow inline in a row (no break). */
+.side-nav__group--main {
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%;
+}
+.side-nav__group--bottom {
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%;
+  margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border);
+}
+.app-shell:not(.app-shell--nexa-chats) .side-nav__group--main {
+  flex-direction: row; width: auto; flex: 1; justify-content: center;
+}
+.app-shell:not(.app-shell--nexa-chats) .side-nav__group--bottom {
+  flex-direction: row; width: auto; margin-top: 0; padding-top: 0; border-top: none;
+}
