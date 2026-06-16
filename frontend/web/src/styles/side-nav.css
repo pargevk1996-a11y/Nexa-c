@@ -3,10 +3,11 @@
   flex-direction: column;
   align-items: center;
   gap: 0.2rem;
-  width: 52px;
+  width: auto;
   flex-shrink: 0;
-  align-self: flex-start;
-  padding: 0.45rem 0.3rem;
+  /* Full-height rail so the bottom (Settings) group pins to the bottom-left. */
+  align-self: stretch;
+  padding: 0.6rem 0.45rem;
   border-radius: var(--radius-xl);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
@@ -104,12 +105,14 @@
   flex-direction: column;
 }
 
-/* The section switcher sits at the BOTTOM in every section on every device —
-   identical to the bottom tab bar in the Chats section. Stack the frame so the
-   body fills the screen and the nav becomes a full-width bottom bar (in normal
-   flow, so it never overlaps content).
-   Scoped to non-chat sections; the Chats section has its own full-screen shell
-   with the bottom tab bar already built into ChatLeftPanel. */
+/* ── MOBILE ONLY ─────────────────────────────────────────────────────────
+   On desktop the rail is a vertical column on the LEFT of every section. On
+   phones it collapses to a full-width bottom bar for non-chat sections (the
+   Chats section keeps its own in-panel bottom nav and the rail is hidden). */
+@media (max-width: 768px) {
+/* Hide the unified left rail on Chats — ChatLeftPanel's app-nav handles it. */
+.app-shell--nexa-chats .side-nav { display: none; }
+
 .app-shell:not(.app-shell--nexa-chats) .app-shell__frame {
   flex-direction: column;
   gap: 0;
@@ -175,4 +178,11 @@
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav__group--bottom {
   flex-direction: row; width: auto; margin-top: 0; padding-top: 0; border-top: none;
+}
+} /* end @media (max-width: 768px) */
+
+/* Desktop: hide the Chats in-panel bottom nav — the unified left rail replaces
+   it everywhere. */
+@media (min-width: 769px) {
+  .chat-left-panel__app-nav { display: none; }
 }

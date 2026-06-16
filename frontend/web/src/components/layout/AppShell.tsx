@@ -41,7 +41,10 @@ function AppShellInner() {
       {/* Same top block on every section, including Chats. */}
       <TopNav />
       <div className="app-shell__frame">
-        {!isChats ? <SideNav /> : null}
+        {/* Unified left rail on every section (desktop). On mobile it collapses
+            to the bottom bar for non-chat sections and is hidden on Chats, which
+            keeps its own in-panel bottom nav. */}
+        <SideNav />
         <div className="app-shell__body">
           {/* Suspense lives here, not above the shell, so loading a lazy page
               chunk only shows a fallback in the content area — TopNav / SideNav

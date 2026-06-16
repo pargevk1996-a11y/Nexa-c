@@ -1364,7 +1364,7 @@ body::before {
 }
 [data-theme="light"] .page-shell__inner.glass-panel,
 [data-theme="light"] .settings-nav,
-[data-theme="light"] .app-shell:not(.app-shell--nexa-chats) .side-nav {
+[data-theme="light"] .side-nav {
   background: rgba(255, 255, 255, 0.56);
   border-color: rgba(124, 92, 255, 0.18);
 }
@@ -1587,19 +1587,19 @@ body::before {
 }
 
 /* --- Other-sections bottom nav (side-nav): same floating balls --- */
-.app-shell:not(.app-shell--nexa-chats) .side-nav {
+.side-nav {
   gap: 0.35rem !important;
   background: transparent !important;
   border: none !important;
   backdrop-filter: none !important;
   box-shadow: none !important;
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item,
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item--active {
+.side-nav__item,
+.side-nav__item--active {
   background: transparent !important;
   box-shadow: none !important;
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__icon {
+.side-nav__icon {
   width: 58px;
   height: 58px;
   border-radius: 50%;
@@ -1612,22 +1612,22 @@ body::before {
     background 160ms var(--ease),
     box-shadow 220ms var(--ease);
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__icon svg {
+.side-nav__icon svg {
   width: 26px;
   height: 26px;
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item:hover .side-nav__icon {
+.side-nav__item:hover .side-nav__icon {
   transform: translateY(-3px) scale(1.07);
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item--active .side-nav__icon {
+.side-nav__item--active .side-nav__icon {
   background: var(--nav-ball-active);
   box-shadow: var(--nav-ball-active-shadow);
   animation: nav-ball-bob 2.6s var(--ease) infinite;
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item--active .side-nav__icon svg {
+.side-nav__item--active .side-nav__icon svg {
   color: #fff;
 }
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item--active {
+.side-nav__item--active {
   color: var(--accent);
 }
 
@@ -1665,9 +1665,11 @@ body::before {
    folder, so it "moves" to whichever is selected and leaves the previous spot. */
 .chat-folder-wrap { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .chat-folder-add {
-  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  /* Same footprint as the round category pills (60×60) so it reads as a peer
+     button, not a tiny adornment. */
+  flex: none; width: 60px; height: 60px; border-radius: 50%;
   background: var(--accent-gradient); color: #fff; border: none;
-  font-size: 21px; font-weight: 600; line-height: 1; cursor: pointer;
+  font-size: 30px; font-weight: 600; line-height: 1; cursor: pointer;
   display: grid; place-items: center; box-shadow: var(--shadow-glow, 0 0 18px rgba(77,124,255,.45));
   animation: folder-add-in .26s cubic-bezier(.34,1.56,.64,1);
   transition: transform .14s var(--ease), filter .14s var(--ease);
@@ -1683,7 +1685,7 @@ body::before {
    floating over the UI, the active bob) is unchanged. */
 @media (max-width: 768px) {
   .chat-left-panel__nav-icon-wrap,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__icon {
+  .side-nav__icon {
     width: 48px;
     height: 48px;
   }
