@@ -437,13 +437,14 @@ h3,
     display: none;
   }
 
-  /* Tighter panel padding so the "‹ Settings" back button sits higher & more to
-     the left — in line with the floating logo (top-right). */
+  /* Back button higher (small top padding) but keep comfortable side gutters so
+     nothing is flush against the screen edges (~16px, ~symmetric to the logo's
+     14px right inset). */
   .page-shell--settings .page-shell__inner {
-    padding: 10px 12px;
+    padding: 12px 16px;
   }
   .page-shell--settings .settings-page-layout {
-    padding: 0 0 24px;
+    padding: 0 0 28px;
   }
   .settings-layout__bar {
     margin: 0 0 10px;
