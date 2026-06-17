@@ -172,3 +172,44 @@ h3,
 .chat-bubble {
   box-shadow: none !important;
 }
+
+/* —— Compose field: no border / no focus glow (Apple-flat) —— */
+.chat-composer,
+.chat-composer__inner,
+.chat-shell--telegram .chat-composer,
+.chat-shell--telegram .chat-composer__inner {
+  border: none !important;
+  box-shadow: none !important;
+}
+.chat-composer:focus-within,
+.chat-composer__inner:focus-within,
+.chat-shell--telegram .chat-composer:focus-within,
+.chat-shell--telegram .chat-composer__inner:focus-within {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* —— iOS: kill the extra page scroll below the composer ——
+   Mobile Safari's URL-bar + keyboard make `100vh` taller than the visible
+   area, so the page scrolls past the floating composer into empty space.
+   Lock the app to the dynamic viewport (dvh) and disable page-level scroll;
+   the chat list keeps its own internal overflow-y. */
+@media (max-width: 768px) {
+  html,
+  body {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  #root {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .app-shell,
+  .app-shell--nexa-chats,
+  .app-shell--nexa-chats .app-shell__frame {
+    height: 100dvh;
+    min-height: 0;
+  }
+}
