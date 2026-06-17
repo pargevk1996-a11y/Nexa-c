@@ -441,13 +441,14 @@ h3,
      nothing is flush against the screen edges (~16px, ~symmetric to the logo's
      14px right inset). */
   .page-shell--settings .page-shell__inner {
-    padding: 12px 16px;
+    padding: 14px 20px;
   }
   .page-shell--settings .settings-page-layout {
     padding: 0 0 28px;
   }
+  /* Back button nudged a bit right (margin-left) and down (margin-top). */
   .settings-layout__bar {
-    margin: 0 0 10px;
+    margin: 8px 0 12px 6px;
   }
 
   /* Initial list page sits below the logo so its borders don't touch it. */
