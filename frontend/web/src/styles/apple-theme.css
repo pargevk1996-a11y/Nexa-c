@@ -285,4 +285,56 @@ h3,
     width: 56px !important;
     height: 56px !important;
   }
+  /* Mobile keeps its own logo in the folder row — no brand in the rail. */
+  .side-nav__brand {
+    display: none;
+  }
+}
+
+/* ===== Web: brand logo as the first item inside the left rail ===== */
+
+/* The logo now lives at the top of the rail, so the floating top-left brand is
+   redundant on desktop — hide it (it was also overlapping the rail's first
+   icon). */
+@media (min-width: 769px) {
+  .app-brand {
+    display: none;
+  }
+}
+
+/* Logo + clean NEXA wordmark stacked at the top of the rail, sized to sit in
+   line with the section icons below it. */
+.side-nav__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+.side-nav__brand-logo {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.side-nav__brand-logo canvas {
+  width: 50px !important;
+  height: 50px !important;
+}
+.side-nav__brand-text {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  /* Transparent / clean wordmark — subtle, not a solid label. */
+  color: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+
+/* "The rest of the background transparent, but not so strongly" — lift the chat
+   list panel from a near-clear 0.22 glass to a softer, more present surface. */
+.chat-left-panel {
+  background: rgba(12, 10, 24, 0.5);
 }

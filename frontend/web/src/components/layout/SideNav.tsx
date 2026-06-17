@@ -6,6 +6,7 @@ import {
   IconProfile,
   IconSettings,
 } from "@/components/icons/Icons";
+import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
 import { useChatOptional } from "@/store/ChatContext";
 
 // Settings is rendered separately (pinned to the bottom-left on desktop), so the
@@ -41,6 +42,14 @@ export function SideNav() {
   return (
     <nav className="side-nav" aria-label="Main">
       <div className="side-nav__group side-nav__group--main">
+        {/* Brand logo as the FIRST rail item (desktop), sized like the section
+            icons; doubles as the day/night toggle. The clean, transparent NEXA
+            wordmark sits just below it. Hidden on mobile (the logo lives in the
+            chat folder row there). */}
+        <div className="side-nav__brand">
+          <LogoThemeToggle size={46} className="side-nav__brand-logo" />
+          <span className="side-nav__brand-text">NEXA</span>
+        </div>
         {NAV.map((item) => (
           <NavItem key={item.to} {...item} badge={item.to === "/app/chats" ? unread : undefined} />
         ))}
