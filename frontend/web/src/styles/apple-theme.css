@@ -1,0 +1,174 @@
+/* =========================================================================
+   APPLE THEME (preview) — "black void with one lit object"
+   Reskins Nexa to the Apple MacBook-Pro design language by overriding the
+   design tokens in tokens.css. Imported LAST in global.css so it wins.
+   Dark-only: the same values are applied to :root and both data-theme states
+   so the app always renders the Apple dark look regardless of the theme flag.
+   To revert: remove the @import "./apple-theme.css" line in global.css.
+   ========================================================================= */
+
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+  color-scheme: dark;
+
+  /* —— Typography: SF Pro (system on Apple devices), Inter fallback —— */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Helvetica Neue", Arial, sans-serif;
+  --font-brand: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    sans-serif;
+
+  /* Tight, engineered tracking; no heavy weights */
+  --tracking-tight: -0.022em;
+  --tracking-normal: -0.01em;
+  --tracking-brand: 0.01em;
+  --leading-tight: 1.08;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.5;
+
+  /* —— Surfaces: pure black canvas, grayscale step layering —— */
+  --bg-root: #000000;
+  --bg-gradient-1: #000000;
+  --bg-gradient-2: #000000;
+  --bg-gradient-3: #000000;
+
+  /* No glass — solid graphite cards (depth via tone, not blur/shadow) */
+  --glass-bg: #1d1d1f;
+  --glass-bg-strong: #1d1d1f;
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 0px;
+
+  --bg-surface: #161617;
+  --bg-elevated: #1d1d1f;
+  --surface-elevated: #1d1d1f;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-input: #1d1d1f;
+
+  --border: rgba(255, 255, 255, 0.10);
+  --border-focus: #2997ff;
+
+  /* —— Text: pearl / fog —— */
+  --text: #f5f5f7;
+  --text-muted: #86868b;
+  --text-faint: #6e6e73;
+
+  /* —— Rationed blue: link #2997ff, CTA #0071e3 (no gradients) —— */
+  --accent: #0071e3;
+  --accent-hover: #2997ff;
+  --accent-strong: #0066cc;
+  --accent-muted: rgba(41, 151, 255, 0.14);
+  --accent-glow: transparent;
+  --accent-gradient: #0071e3;
+  --accent-gradient-soft: #0071e3;
+
+  /* iMessage-like bubbles: blue out, smoke-gray in */
+  --bubble-out-gradient: #0071e3;
+  --bubble-in-bg: #2c2c2e;
+  --bubble-in-border: transparent;
+
+  /* Security pill: recolor off teal onto the rationed grayscale + blue */
+  --secure-teal: #f5f5f7;
+  --secure-teal-muted: #333336;
+  --secure-border: rgba(255, 255, 255, 0.10);
+
+  /* Status colors kept close to Apple system */
+  --danger: #ff453a;
+  --warning: #ffd60a;
+  --success: #30d158;
+
+  /* —— Radii: Apple set (cards 28, pill 999) —— */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
+  --radius-full: 980px;
+
+  /* —— No shadows. Depth = surface tone + radius only. —— */
+  --shadow-subtle: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-glow: none;
+  --shadow-neu: none;
+  --shadow-inset: none;
+}
+
+/* —— Kill the aurora / starfield background → pure black stage —— */
+html,
+body {
+  background: #000000 !important;
+}
+body::before,
+body::after,
+body:has(.app-shell)::before,
+.ambient-bg .auth-starfield::before,
+.ambient-bg .auth-starfield::after {
+  display: none !important;
+}
+
+/* —— Remove glass blur everywhere; flat graphite surfaces —— */
+.glass-panel,
+.chat-main,
+.chat-sidebar,
+.chat-header,
+.chat-left-panel,
+.top-nav,
+.profile-panel,
+.settings-page-layout,
+.chat-context-menu,
+.message-context-menu,
+.auth-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+/* —— Buttons: fully-rounded pills, solid fill, no shadow —— */
+.btn,
+.btn--primary,
+.chat-left-panel__new-btn,
+.home__btn,
+.auth-security-pill,
+.realtime-status {
+  border-radius: var(--radius-full) !important;
+  box-shadow: none !important;
+}
+.btn--primary {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover) !important;
+}
+
+/* —— Links use the signal blue, underline only —— */
+a {
+  color: var(--accent-hover);
+}
+
+/* —— Headlines: SF Pro Display, semibold max (no 700+) —— */
+h1,
+h2,
+h3,
+.auth-card__title,
+.chat-left-panel__title {
+  font-weight: 600;
+}
+
+/* —— Inputs: graphite fill, subtle hairline, generous radius —— */
+.field__input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+.field__input:focus {
+  border-color: var(--border-focus);
+  box-shadow: none;
+}
+
+/* —— Chat bubbles: flat, no shadow —— */
+.chat-bubble {
+  box-shadow: none !important;
+}

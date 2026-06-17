@@ -20,6 +20,7 @@
 @import "./ux-ui.css";
 @import "./v2.css";
 @import "./landing.css";
+@import "./apple-theme.css"; /* Apple reskin (preview) — last wins; remove to revert */
 
 *,
 *::before,
