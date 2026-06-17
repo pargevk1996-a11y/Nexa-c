@@ -529,7 +529,14 @@ h3,
     width: 100%;
     box-sizing: border-box;
   }
+  /* Give the IN-CARD content (button + alerts) the same horizontal inset as the
+     rows, so nothing is flush against the card's inner edge. */
   .settings-card__actions {
-    width: 100%;
+    padding: 0.6rem 1rem 1rem;
+    justify-content: flex-start;
+  }
+  .settings-card .auth-alert {
+    margin-left: 1rem;
+    margin-right: 1rem;
   }
 }
