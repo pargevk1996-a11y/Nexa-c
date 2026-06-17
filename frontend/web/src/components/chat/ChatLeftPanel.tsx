@@ -85,6 +85,41 @@ export function ChatLeftPanel({
       .catch(() => {});
   }, []);
 
+  // Two-finger horizontal swipe cycles the All / Groups / Channels filter
+  // (the visible pills are hidden on mobile).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let startX = 0;
+    let lastX = 0;
+    let two = false;
+    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const onStart = (e: TouchEvent) => {
+      two = e.touches.length === 2;
+      if (two) startX = lastX = mid(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (two && e.touches.length === 2) lastX = mid(e);
+    };
+    const onEnd = () => {
+      if (!two) return;
+      two = false;
+      const dx = lastX - startX;
+      if (Math.abs(dx) < 50) return;
+      const ids = CHAT_CATEGORIES.map((c) => c.id);
+      const idx = ids.indexOf(category);
+      const next = dx < 0 ? idx + 1 : idx - 1;
+      if (next >= 0 && next < ids.length) onCategoryChange(ids[next]);
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [category, onCategoryChange]);
+
   const effectiveSearch = pinUnlocked && search.startsWith("#") ? "" : search;
 
   const allConversations = useMemo(
@@ -139,15 +174,14 @@ export function ChatLeftPanel({
             >
               <IconLock size={18} />
             </button>
+            {/* Logo (day/night toggle) sits to the RIGHT of the lock. */}
+            <LogoThemeToggle size={30} className="chat-left-panel__head-logo" />
             <StoryPeek />
           </div>
         </div>
       </header>
 
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
-        {/* Mobile-only: logo doubles as the theme toggle, placed before the
-            All/Groups/Channels pills (the NEXA wordmark is hidden on mobile). */}
-        <LogoThemeToggle size={56} className="chat-folders__logo" />
         {CHAT_CATEGORIES.map((c) => {
           const active = category === c.id;
           const addTitle =
