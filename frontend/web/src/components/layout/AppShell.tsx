@@ -8,7 +8,8 @@ import { SettingsProvider } from "@/store/SettingsContext";
 import { SocialProvider } from "@/store/SocialContext";
 import { AmbientBackground } from "./AmbientBackground";
 import { SideNav } from "./SideNav";
-import { TopNav } from "./TopNav";
+import { LogoThemeToggle } from "./LogoThemeToggle";
+import { BRAND_NAME } from "@/config/brand";
 
 // Warm the secondary route chunks once the shell is interactive so switching
 // sections never pays a cold network fetch. Purely a cache warm-up — Vite
@@ -38,8 +39,13 @@ function AppShellInner() {
     <div className={`app-shell ${isChats ? "app-shell--nexa-chats" : ""}`}>
       <GlobalCallUi />
       <AmbientBackground />
-      {/* Same top block on every section, including Chats. */}
-      <TopNav />
+      {/* No top bar — the brand floats over the shared background instead.
+          On mobile the wordmark is hidden (CSS) and the logo moves into the
+          chat folder row as the theme toggle. */}
+      <div className="app-brand" aria-label={BRAND_NAME}>
+        <LogoThemeToggle size={40} className="app-brand__logo" />
+        <span className="app-brand__text">{BRAND_NAME}</span>
+      </div>
       <div className="app-shell__frame">
         {/* Unified left rail on every section (desktop). On mobile it collapses
             to the bottom bar for non-chat sections and is hidden on Chats, which

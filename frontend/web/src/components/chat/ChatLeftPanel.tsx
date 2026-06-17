@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
+  IconBell,
   IconCalls,
   IconChats,
   IconContacts,
+  IconLock,
   IconProfile,
   IconSearch,
   IconSettings,
 } from "@/components/icons/Icons";
 import { features } from "@/features/registry";
+import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
+import { useLock } from "@/store/LockContext";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { getCachedSession } from "@/api/auth";
 import { listIncomingRequests } from "@/api/contacts";
@@ -68,6 +72,7 @@ export function ChatLeftPanel({
   drafts,
 }: ChatLeftPanelProps) {
   const navigate = useNavigate();
+  const { lock } = useLock();
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
@@ -116,12 +121,33 @@ export function ChatLeftPanel({
             />
           </label>
           <div className="chat-left-panel__head-actions">
+            <button
+              type="button"
+              className="chat-left-panel__head-btn"
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              <IconBell size={18} />
+            </button>
+            {/* Manual screen lock — moved here from the removed top bar. */}
+            <button
+              type="button"
+              className="chat-left-panel__head-btn"
+              onClick={() => lock("pin_required")}
+              aria-label="Lock screen"
+              title="Lock screen (PIN required to unlock)"
+            >
+              <IconLock size={18} />
+            </button>
             <StoryPeek />
           </div>
         </div>
       </header>
 
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
+        {/* Mobile-only: logo doubles as the theme toggle, placed before the
+            All/Groups/Channels pills (the NEXA wordmark is hidden on mobile). */}
+        <LogoThemeToggle size={28} className="chat-folders__logo" />
         {CHAT_CATEGORIES.map((c) => {
           const active = category === c.id;
           const addTitle =

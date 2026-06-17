@@ -213,3 +213,68 @@ h3,
     min-height: 0;
   }
 }
+
+/* ===== Nav restructure: no top bar; brand floats over the background ===== */
+
+/* Floating brand (logo + NEXA wordmark) over the shared background */
+.app-brand {
+  position: fixed;
+  top: 8px;
+  left: 14px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-brand__logo {
+  flex-shrink: 0;
+}
+.app-brand__text {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+/* Bell + lock icon buttons sitting in the search row */
+.chat-left-panel__head-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.chat-left-panel__head-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* Logo-as-theme-toggle inside the folder row — mobile only */
+.chat-folders__logo {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Mobile: hide the floating brand (no NEXA wordmark); logo lives in the
+     folder row instead, before the All/Groups/Channels pills. */
+  .app-brand {
+    display: none;
+  }
+  .chat-folders__logo {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-self: center;
+    margin: 0 2px 0 0;
+    padding: 0;
+  }
+}
