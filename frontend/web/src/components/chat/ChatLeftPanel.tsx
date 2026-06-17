@@ -94,6 +94,10 @@ export function ChatLeftPanel({
     let two = false;
     const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
     const onStart = (e: TouchEvent) => {
+      if (window.innerWidth > 768) {
+        two = false;
+        return;
+      }
       two = e.touches.length === 2;
       if (two) startX = lastX = mid(e);
     };
@@ -169,7 +173,7 @@ export function ChatLeftPanel({
             {/* Saved Messages shortcut — right of search, left of the bell. */}
             <button
               type="button"
-              className="chat-left-panel__head-btn"
+              className="chat-left-panel__head-btn chat-left-panel__head-btn--saved"
               onClick={() => savedConversation && onSelect(savedConversation.id)}
               aria-label="Saved Messages"
               title="Saved Messages"

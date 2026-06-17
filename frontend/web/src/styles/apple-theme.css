@@ -840,3 +840,67 @@ body {
     z-index: 6;
   }
 }
+
+/* ============================================================
+   PC / TABLET = back to normal (solid Apple). The scenic transparent
+   sky/stars look, the create row, the Saved-by-search button, the
+   logo-by-lock and the mobile transition are MOBILE-ONLY. Re-assert the
+   solid surfaces on >=769px (this block is last, so it wins on desktop;
+   phones keep the scenic theme).
+   ============================================================ */
+@media (min-width: 769px) {
+  :root,
+  [data-theme="dark"],
+  [data-theme="light"] {
+    --glass-bg: #1d1d1f;
+    --glass-bg-strong: #1d1d1f;
+    --bg-surface: #161617;
+    --bg-elevated: #1d1d1f;
+    --bg-input: #1d1d1f;
+    --bg-hover: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.1);
+    --glass-blur: 0px;
+    --text: #f5f5f7;
+    --text-muted: #86868b;
+    --text-faint: #6e6e73;
+  }
+
+  html,
+  body,
+  [data-theme="light"] body {
+    background: #000000 !important;
+  }
+
+  /* Solid, no-blur panels (kill the see-through glass). */
+  .glass-panel,
+  .chat-main,
+  .chat-sidebar,
+  .chat-header,
+  .chat-left-panel,
+  .profile-panel,
+  .settings-page-layout,
+  .settings-card,
+  .chat-context-menu,
+  .message-context-menu,
+  .auth-card,
+  .page-shell__inner {
+    background: var(--glass-bg) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* No stars / sun / clouds on desktop. */
+  .ambient-bg::before,
+  .ambient-bg::after,
+  .ambient-bg .auth-starfield::before,
+  .ambient-bg .auth-starfield::after {
+    display: none !important;
+  }
+
+  /* Mobile-only extras hidden on desktop/tablet. */
+  .chat-create-row,
+  .chat-left-panel__head-logo,
+  .chat-left-panel__head-btn--saved {
+    display: none !important;
+  }
+}
