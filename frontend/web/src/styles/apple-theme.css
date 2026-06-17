@@ -555,3 +555,32 @@ h3,
     animation: none !important;
   }
 }
+
+/* ===== Mobile: section content centered/padded + unified bottom nav ===== */
+@media (max-width: 768px) {
+  /* Section content must not stick to the side walls — comfortable gutters. */
+  .app-shell:not(.app-shell--nexa-chats) .page-shell__inner {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  /* Make the Chats bottom nav and the sections bottom bar visually IDENTICAL
+     (same surface, border, height, padding) so switching Chats↔sections shows
+     no "jump"/transition of the nav buttons. */
+  .chat-left-panel__app-nav,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav {
+    background: var(--bg-elevated) !important;
+    border-top: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    padding: 0.5rem 0.5rem calc(0.5rem + var(--safe-bottom, 0px)) !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  /* Match the two nav items so icons/labels line up across the switch. */
+  .chat-left-panel__app-nav-item,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__item {
+    padding: 0.45rem 0.25rem !important;
+    gap: 0.2rem !important;
+    font-size: 0.7rem !important;
+  }
+}
