@@ -437,6 +437,23 @@ h3,
     display: none;
   }
 
+  /* Tighter panel padding so the "‹ Settings" back button sits higher & more to
+     the left — in line with the floating logo (top-right). */
+  .page-shell--settings .page-shell__inner {
+    padding: 10px 12px;
+  }
+  .page-shell--settings .settings-page-layout {
+    padding: 0 0 24px;
+  }
+  .settings-layout__bar {
+    margin: 0 0 10px;
+  }
+
+  /* Initial list page sits below the logo so its borders don't touch it. */
+  .settings-layout:not(.settings-layout--detail-open) .settings-nav {
+    padding-top: 48px;
+  }
+
   .settings-layout {
     display: block;
   }

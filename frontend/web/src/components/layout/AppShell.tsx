@@ -43,7 +43,7 @@ function AppShellInner() {
           On mobile the wordmark is hidden (CSS) and the logo moves into the
           chat folder row as the theme toggle. */}
       <div className="app-brand" aria-label={BRAND_NAME}>
-        <LogoThemeToggle size={40} className="app-brand__logo" />
+        <LogoThemeToggle size={48} className="app-brand__logo" />
         <span className="app-brand__text">{BRAND_NAME}</span>
       </div>
       <div className="app-shell__frame">
