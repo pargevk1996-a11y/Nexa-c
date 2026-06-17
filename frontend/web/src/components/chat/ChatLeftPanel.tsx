@@ -135,6 +135,16 @@ export function ChatLeftPanel({
     () => sortChatList(allConversations.filter((c) => !c.pinned), drafts),
     [allConversations, drafts],
   );
+
+  // Context-aware create action per category (drives both the "+" head button
+  // and the create row at the top of the list).
+  const createMeta =
+    category === "groups"
+      ? { label: "Create group", onClick: onCreateGroup }
+      : category === "channels"
+        ? { label: "Create channel", onClick: onCreateGroup }
+        : { label: "Add contact", onClick: () => navigate("/app/contacts") };
+
   return (
     <aside className="chat-left-panel glass-panel" aria-label="Chat list">
       {/* Faint NEXA logo + wordmark watermark behind the chat list */}
@@ -156,6 +166,16 @@ export function ChatLeftPanel({
             />
           </label>
           <div className="chat-left-panel__head-actions">
+            {/* Context create "+" — right of search, left of the bell. */}
+            <button
+              type="button"
+              className="chat-left-panel__head-btn chat-left-panel__head-btn--add"
+              onClick={createMeta.onClick}
+              aria-label={createMeta.label}
+              title={createMeta.label}
+            >
+              <span aria-hidden>+</span>
+            </button>
             <button
               type="button"
               className="chat-left-panel__head-btn"
@@ -210,6 +230,13 @@ export function ChatLeftPanel({
           );
         })}
       </nav>
+
+      {/* Category-aware create entry — avatar-style "+" + label
+          (All → Add contact · Groups → Create group · Channels → Create channel). */}
+      <button type="button" className="chat-create-row" onClick={createMeta.onClick}>
+        <span className="chat-create-row__avatar" aria-hidden>+</span>
+        <span className="chat-create-row__label">{createMeta.label}</span>
+      </button>
 
       <ChatSidebar
         loading={loading}

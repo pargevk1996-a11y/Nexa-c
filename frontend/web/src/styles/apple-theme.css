@@ -781,3 +781,53 @@ body {
     display: none !important;
   }
 }
+
+/* ===== Category-aware create entries ===== */
+/* "+" head button (right of search, left of the bell). */
+.chat-left-panel__head-btn--add {
+  color: var(--accent-hover);
+}
+.chat-left-panel__head-btn--add span {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* Create row at the top of the list — looks like a conversation row:
+   round avatar with "+" + label (Add contact / Create group / Create channel). */
+.chat-create-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: calc(100% - 1rem);
+  margin: 4px 0.5rem 6px;
+  padding: 0.6rem var(--panel-pad, 1rem);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+  transition: background var(--dur) var(--ease);
+}
+.chat-create-row:hover {
+  background: var(--bg-hover);
+}
+.chat-create-row__avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.7rem;
+  font-weight: 300;
+  line-height: 1;
+}
+.chat-create-row__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
