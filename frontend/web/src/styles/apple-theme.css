@@ -541,3 +541,17 @@ h3,
     margin-right: 1rem;
   }
 }
+
+/* ===== Mobile: no shell/page entry animation on section switch =====
+   The chat shell's scale-in / shell-in replays on every navigation, so moving
+   between Chats and the other sections looks like the content "jumps". Disable
+   these entry animations on phones — section switches are instant, no shift.
+   (Desktop keeps them.) */
+@media (max-width: 768px) {
+  .chat-shell,
+  .chat-shell--telegram,
+  .page-shell,
+  .page-shell__inner {
+    animation: none !important;
+  }
+}
