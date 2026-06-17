@@ -604,3 +604,31 @@ h3,
     max-width: none !important;
   }
 }
+
+/* ===== Mobile: make Chats nav buttons identical to section nav buttons ===== */
+@media (max-width: 768px) {
+  /* Same icon size (Chats used 18, sections 20). */
+  .chat-left-panel__app-nav-item svg,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__item svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  /* Same label size/weight. */
+  .chat-left-panel__app-nav-item,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__item {
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+  }
+  /* Same active state — flat (Apple): bg + color only, no glow/drop-shadow
+     (sections had box-shadow glow + an icon drop-shadow that Chats didn't). */
+  .chat-left-panel__app-nav-item--active,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active {
+    background: var(--accent-muted) !important;
+    color: var(--accent) !important;
+    box-shadow: none !important;
+  }
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active .side-nav__icon,
+  .chat-left-panel__app-nav-item--active .chat-left-panel__nav-icon-wrap {
+    filter: none !important;
+  }
+}
