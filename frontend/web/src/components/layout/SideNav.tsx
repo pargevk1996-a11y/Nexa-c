@@ -43,12 +43,11 @@ export function SideNav() {
     <nav className="side-nav" aria-label="Main">
       <div className="side-nav__group side-nav__group--main">
         {/* Brand logo as the FIRST rail item (desktop), sized like the section
-            icons; doubles as the day/night toggle. The clean, transparent NEXA
-            wordmark sits just below it. Hidden on mobile (the logo lives in the
-            chat folder row there). */}
+            icons; doubles as the day/night toggle. The NEXA wordmark itself is a
+            single page-wide background watermark (AmbientBackground), not here.
+            Hidden on mobile (the logo lives in the chat folder row there). */}
         <div className="side-nav__brand">
           <LogoThemeToggle size={46} className="side-nav__brand-logo" />
-          <span className="side-nav__brand-text">NEXA</span>
         </div>
         {NAV.map((item) => (
           <NavItem key={item.to} {...item} badge={item.to === "/app/chats" ? unread : undefined} />

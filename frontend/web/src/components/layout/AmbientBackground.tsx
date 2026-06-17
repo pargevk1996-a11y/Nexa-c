@@ -13,6 +13,9 @@ export function AmbientBackground() {
         <span className="shooting-star" />
       </div>
       <div className="ambient-bg__glow" />
+      {/* Single NEXA wordmark across the whole page background (the only one in
+          the app — the rail label and the chat-panel watermark were removed). */}
+      <div className="ambient-bg__wordmark">NEXA</div>
     </div>
   );
 }
