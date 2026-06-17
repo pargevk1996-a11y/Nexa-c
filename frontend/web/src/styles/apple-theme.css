@@ -446,9 +446,9 @@ h3,
   .page-shell--settings .settings-page-layout {
     padding: 0 0 28px;
   }
-  /* Back button nudged a bit right (margin-left) and down (margin-top). */
+  /* Back button nudged a bit right (margin-left) and further down (margin-top). */
   .settings-layout__bar {
-    margin: 8px 0 12px 6px;
+    margin: 22px 0 12px 6px;
   }
 
   /* Initial list page sits below the logo so its borders don't touch it. */
