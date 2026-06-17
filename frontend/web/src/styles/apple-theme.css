@@ -337,12 +337,12 @@ h3,
   letter-spacing: 0.18em;
   line-height: 1;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.09);
   pointer-events: none;
   user-select: none;
 }
 [data-theme="light"] .ambient-bg__wordmark {
-  color: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.08);
 }
 
 /* Drop the per-panel NEXA watermark — replaced by the single page-wide one. */
