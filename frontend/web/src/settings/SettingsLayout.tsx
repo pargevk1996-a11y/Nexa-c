@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "./types";
 
 interface SettingsLayoutProps {
@@ -42,14 +43,18 @@ export function SettingsLayout({ active, onSelect, children }: SettingsLayoutPro
         ))}
       </nav>
       <div className="settings-layout__content">
-        {/* Mobile-only back button (hidden on desktop via CSS). */}
-        <button
-          type="button"
-          className="settings-layout__back"
-          onClick={() => setDetailOpen(false)}
-        >
-          <span aria-hidden>‹</span> Settings
-        </button>
+        {/* Mobile-only top bar: back-to-list (left) + logo/theme-toggle (right).
+            Hidden on desktop via CSS. */}
+        <div className="settings-layout__bar">
+          <button
+            type="button"
+            className="settings-layout__back"
+            onClick={() => setDetailOpen(false)}
+          >
+            <span aria-hidden>‹</span> Settings
+          </button>
+          <LogoThemeToggle size={36} className="settings-layout__logo" />
+        </div>
         <div className="settings-layout__detail-title">{activeLabel}</div>
         {children}
       </div>

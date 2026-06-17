@@ -423,17 +423,24 @@ h3,
 
 /* ===== Settings: mobile drill-in (list → open section); desktop unchanged ===== */
 
-/* Back button + detail title are mobile-only chrome. */
+/* Drill-in chrome (bar/back/title/logo) is mobile-only. */
+.settings-layout__bar,
 .settings-layout__back,
-.settings-layout__detail-title {
+.settings-layout__detail-title,
+.settings-layout__logo {
   display: none;
 }
 
 @media (max-width: 768px) {
+  /* Drop the top "Settings / Signed in / Reset preferences" block on phones. */
+  .settings-page__header {
+    display: none;
+  }
+
   .settings-layout {
     display: block;
   }
-  /* List view: section nav visible, content hidden (no more overlap). */
+  /* List view: section nav visible, content hidden (no overlap). */
   .settings-layout .settings-nav {
     display: block;
   }
@@ -447,11 +454,19 @@ h3,
   .settings-layout--detail-open .settings-layout__content {
     display: block;
   }
+
+  /* Opened-section top bar: back-to-list (left) + logo/theme-toggle (right). */
+  .settings-layout__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 14px;
+  }
   .settings-layout__back {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    margin: 0 0 14px;
+    margin: 0;
     padding: 8px 16px;
     border: none;
     border-radius: var(--radius-full);
@@ -464,6 +479,11 @@ h3,
     font-size: 1.25rem;
     line-height: 1;
   }
+  .settings-layout__logo {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
   .settings-layout__detail-title {
     display: block;
     font-family: var(--font-display);
@@ -471,5 +491,27 @@ h3,
     font-size: 1.4rem;
     letter-spacing: var(--tracking-tight);
     margin: 0 0 12px;
+  }
+
+  /* Fix the shifted borders: stack each row (title/desc on top, control full
+     width below) so every section lines up cleanly on narrow screens. */
+  .setting-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .setting-row__control {
+    width: 100%;
+  }
+  .setting-row__control .field,
+  .setting-row__control .field__input,
+  .setting-row__control input,
+  .setting-row__control select,
+  .setting-row__control .settings-select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .settings-card__actions {
+    width: 100%;
   }
 }
