@@ -441,7 +441,7 @@ h3,
      nothing is flush against the screen edges (~16px, ~symmetric to the logo's
      14px right inset). */
   .page-shell--settings .page-shell__inner {
-    padding: 14px 20px;
+    padding: 44px 20px 20px;
   }
   .page-shell--settings .settings-page-layout {
     padding: 0 0 28px;
@@ -542,15 +542,20 @@ h3,
   }
 }
 
-/* ===== Mobile: no shell/page entry animation on section switch =====
-   The chat shell's scale-in / shell-in replays on every navigation, so moving
-   between Chats and the other sections looks like the content "jumps". Disable
-   these entry animations on phones — section switches are instant, no shift.
-   (Desktop keeps them.) */
+/* ===== Mobile: smooth cross-fade between sections (no "jump") =====
+   The original scale-in / shell-in MOVES content (scale/translate), which read
+   as a jump when swiping sections. Replace it on phones with a pure opacity
+   fade — smooth transition, zero positional movement. (Desktop keeps its own.) */
+@keyframes apple-section-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @media (max-width: 768px) {
   .chat-shell,
   .chat-shell--telegram,
-  .page-shell,
+  .page-shell {
+    animation: apple-section-in 240ms var(--ease) both !important;
+  }
   .page-shell__inner {
     animation: none !important;
   }
