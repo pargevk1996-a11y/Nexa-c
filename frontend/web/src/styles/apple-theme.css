@@ -265,9 +265,19 @@ h3,
 }
 
 @media (max-width: 768px) {
-  /* Mobile: hide the floating brand (no NEXA wordmark); logo lives in the
-     folder row instead, before the All/Groups/Channels pills. */
-  .app-brand {
+  /* Mobile — Chats: logo lives in the folder row, so hide the floating brand. */
+  .app-shell--nexa-chats .app-brand {
+    display: none;
+  }
+  /* Mobile — every OTHER section: show just the logo, pinned to the top-RIGHT
+     corner (no NEXA wordmark). It still doubles as the day/night toggle. */
+  .app-shell:not(.app-shell--nexa-chats) .app-brand {
+    display: flex;
+    top: 8px;
+    left: auto;
+    right: 14px;
+  }
+  .app-shell:not(.app-shell--nexa-chats) .app-brand__text {
     display: none;
   }
   .chat-folders__logo {
