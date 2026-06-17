@@ -166,15 +166,22 @@ export function ChatLeftPanel({
             />
           </label>
           <div className="chat-left-panel__head-actions">
-            {/* Context create "+" — right of search, left of the bell. */}
+            {/* Saved Messages shortcut — right of search, left of the bell. */}
             <button
               type="button"
-              className="chat-left-panel__head-btn chat-left-panel__head-btn--add"
-              onClick={createMeta.onClick}
-              aria-label={createMeta.label}
-              title={createMeta.label}
+              className="chat-left-panel__head-btn"
+              onClick={() => savedConversation && onSelect(savedConversation.id)}
+              aria-label="Saved Messages"
+              title="Saved Messages"
             >
-              <span aria-hidden>+</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
             <button
               type="button"

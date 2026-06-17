@@ -311,6 +311,9 @@ export function MessageComposer({
 
   useEffect(() => {
     if (!conversationId || disabled || recordingMode || selectionMode || isEditing) return;
+    // Don't auto-open the on-screen keyboard on phones/touch — only auto-focus
+    // on desktop for convenience. (User: the keyboard must not open by itself.)
+    if (window.matchMedia?.("(max-width: 768px), (pointer: coarse)").matches) return;
     const t = window.setTimeout(() => {
       textareaRef.current?.focus();
     }, 50);
