@@ -584,3 +584,23 @@ h3,
     font-size: 0.7rem !important;
   }
 }
+
+/* ===== Mobile: section bottom-bar items spread exactly like the Chats nav ===== */
+/* Sections split the 5 nav items into two groups (4 + Settings) with max-width
+   caps + center justify, so their positions differ from the Chats app-nav (one
+   even flex row). Switching Chats→section then shifts the buttons right. Flatten
+   the groups (display:contents) and let all 5 items flex:1 = identical layout. */
+@media (max-width: 768px) {
+  .app-shell:not(.app-shell--nexa-chats) .side-nav {
+    justify-content: stretch !important;
+    gap: 0 !important;
+  }
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__group--main,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__group--bottom {
+    display: contents !important;
+  }
+  .app-shell:not(.app-shell--nexa-chats) .side-nav__item {
+    flex: 1 1 0 !important;
+    max-width: none !important;
+  }
+}
