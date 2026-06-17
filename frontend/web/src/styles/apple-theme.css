@@ -312,26 +312,31 @@ h3,
   }
 }
 
-/* Logo + clean NEXA wordmark stacked at the top of the rail, sized to sit in
-   line with the section icons below it. */
-.side-nav__brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  width: 100%;
-  margin-bottom: 4px;
-}
-.side-nav__brand-logo {
-  width: 60px;
-  height: 60px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
-.side-nav__brand-logo canvas {
-  width: 50px !important;
-  height: 50px !important;
+/* Logo at the top of the rail — DESKTOP ONLY. Scoped to min-width:769px so it
+   never reappears in the mobile bottom bar (the unconditional rule used to win
+   over the mobile `display:none` by source order, leaving a logo bottom-left in
+   non-chat sections). On mobile the logo lives in the chat folder row / the
+   top-right floating brand instead. */
+@media (min-width: 769px) {
+  .side-nav__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+  .side-nav__brand-logo {
+    width: 60px;
+    height: 60px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+  .side-nav__brand-logo canvas {
+    width: 50px !important;
+    height: 50px !important;
+  }
 }
 /* Single NEXA wordmark spanning the whole page background — the only one in the
    app. Sits in the fixed full-viewport ambient layer, behind every panel; the
