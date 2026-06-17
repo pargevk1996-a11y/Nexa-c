@@ -632,3 +632,17 @@ h3,
     filter: none !important;
   }
 }
+
+/* ===== Mobile: no bottom nav bar — sections switched by horizontal swipe ===== */
+@media (max-width: 768px) {
+  .chat-left-panel__app-nav,
+  .app-shell:not(.app-shell--nexa-chats) .side-nav {
+    display: none !important;
+  }
+  /* Remove the selected sub-section marker/highlight in the Settings list. */
+  .settings-nav__item--active {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--text) !important;
+  }
+}

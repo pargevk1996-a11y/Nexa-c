@@ -10,6 +10,7 @@ import { AmbientBackground } from "./AmbientBackground";
 import { SideNav } from "./SideNav";
 import { LogoThemeToggle } from "./LogoThemeToggle";
 import { BRAND_NAME } from "@/config/brand";
+import { useSectionSwipe } from "@/hooks/useSectionSwipe";
 
 // Warm the secondary route chunks once the shell is interactive so switching
 // sections never pays a cold network fetch. Purely a cache warm-up — Vite
@@ -25,6 +26,9 @@ function prefetchSecondaryRoutes() {
 function AppShellInner() {
   const location = useLocation();
   const isChats = location.pathname.startsWith("/app/chats");
+
+  // Mobile: bottom nav is hidden; sections are switched by horizontal swipe.
+  useSectionSwipe();
 
   useEffect(() => {
     if (typeof window.requestIdleCallback === "function") {
