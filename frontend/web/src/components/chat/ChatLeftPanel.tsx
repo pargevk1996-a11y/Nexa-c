@@ -147,7 +147,7 @@ export function ChatLeftPanel({
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
         {/* Mobile-only: logo doubles as the theme toggle, placed before the
             All/Groups/Channels pills (the NEXA wordmark is hidden on mobile). */}
-        <LogoThemeToggle size={28} className="chat-folders__logo" />
+        <LogoThemeToggle size={56} className="chat-folders__logo" />
         {CHAT_CATEGORIES.map((c) => {
           const active = category === c.id;
           const addTitle =

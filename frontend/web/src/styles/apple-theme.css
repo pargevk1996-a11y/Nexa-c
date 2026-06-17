@@ -271,10 +271,18 @@ h3,
     display: none;
   }
   .chat-folders__logo {
-    display: inline-flex;
+    display: inline-grid;
+    place-items: center;
     flex-shrink: 0;
     align-self: center;
+    /* Match the 60×60 circular All/Groups/Channels pills */
+    width: 60px;
+    height: 60px;
     margin: 0 2px 0 0;
     padding: 0;
+  }
+  .chat-folders__logo canvas {
+    width: 56px !important;
+    height: 56px !important;
   }
 }
