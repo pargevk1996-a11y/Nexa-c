@@ -420,3 +420,56 @@ h3,
     height: 38px !important;
   }
 }
+
+/* ===== Settings: mobile drill-in (list → open section); desktop unchanged ===== */
+
+/* Back button + detail title are mobile-only chrome. */
+.settings-layout__back,
+.settings-layout__detail-title {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .settings-layout {
+    display: block;
+  }
+  /* List view: section nav visible, content hidden (no more overlap). */
+  .settings-layout .settings-nav {
+    display: block;
+  }
+  .settings-layout .settings-layout__content {
+    display: none;
+  }
+  /* Detail view: opened section full-width, nav hidden. */
+  .settings-layout--detail-open .settings-nav {
+    display: none;
+  }
+  .settings-layout--detail-open .settings-layout__content {
+    display: block;
+  }
+  .settings-layout__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 14px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--bg-elevated);
+    color: var(--accent-hover);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .settings-layout__back span {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+  .settings-layout__detail-title {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.4rem;
+    letter-spacing: var(--tracking-tight);
+    margin: 0 0 12px;
+  }
+}
