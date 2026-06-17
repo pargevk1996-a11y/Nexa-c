@@ -360,6 +360,12 @@ h3,
    viewports. */
 .chat-folders--categories {
   gap: 0.65rem;
+  /* The row has overflow-x:auto (which also clips vertically). The "+" appear
+     spring overshoots past 1.0 and hover scales the circles to 1.12, so without
+     vertical breathing room the top of an animating circle gets clipped under
+     the row edge. Give it padding top & bottom to contain the animation. */
+  padding-top: 0.6rem;
+  padding-bottom: 0.7rem;
 }
 
 /* Desktop: slightly smaller category circles (and the matching "+") than the
