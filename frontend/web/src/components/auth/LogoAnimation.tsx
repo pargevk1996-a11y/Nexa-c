@@ -160,8 +160,9 @@ export function LogoAnimation({ size = 220 }: Props) {
     }
 
     function drawChatBubble() {
-      const rx  = 28;
-      const ry  = 21;
+      // Absolutely round chat bubble (perfect circle: rx === ry), per design PNG.
+      const rx  = 25;
+      const ry  = 25;
       const ecx = cx;
       const ecy = cy - 3;
 

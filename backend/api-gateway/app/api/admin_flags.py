@@ -12,7 +12,7 @@ Access is restricted to requests with a valid internal service secret
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from nexa_shared.features.flags import FeatureFlags, FlagConfig
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
@@ -94,5 +94,6 @@ async def delete_flag(
     name: str,
     flags: FeatureFlags = Depends(_get_flags),
     _auth: None = Depends(_check_secret),
-) -> None:
+) -> Response:
     await flags.delete(name)
+    return Response(status_code=204)

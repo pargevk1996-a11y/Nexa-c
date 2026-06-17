@@ -8,6 +8,11 @@ version = "0.1.0"
 description = "Shared security utilities and schemas for Nexa microservices"
 requires-python = ">=3.12"
 dependencies = [
+    # Pin FastAPI/Starlette to a consistent compatible pair. Unpinned, a from-scratch
+    # build pulls FastAPI 0.137 + Starlette 1.x, which breaks the api-gateway proxy
+    # catch-all route (OAuth → 500 `_IncludedRouter has no attribute 'path'`).
+    "fastapi==0.115.6",
+    "starlette==0.41.3",
     "argon2-cffi>=23.1.0",
     "cryptography>=43.0.0",
     "pyjwt>=2.8.0",
