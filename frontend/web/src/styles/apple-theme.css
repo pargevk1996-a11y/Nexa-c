@@ -362,25 +362,38 @@ h3,
   gap: 0.65rem;
 }
 
-/* Mobile: smaller category circles (and the matching "+" and folder-row logo)
-   so the row stays compact on phones. */
+/* Desktop: slightly smaller category circles (and the matching "+") than the
+   original 60px. */
+.chat-folders--categories .chat-folder-pill {
+  width: 52px;
+  height: 52px;
+  font-size: 0.58rem !important;
+}
+.chat-folder-add {
+  width: 52px;
+  height: 52px;
+  font-size: 26px;
+}
+
+/* Mobile: smaller still (and the folder-row logo matches) so the row stays
+   compact on phones. */
 @media (max-width: 768px) {
   .chat-folders--categories .chat-folder-pill {
-    width: 46px;
-    height: 46px;
-    font-size: 0.52rem !important;
+    width: 42px;
+    height: 42px;
+    font-size: 0.5rem !important;
   }
   .chat-folder-add {
-    width: 46px;
-    height: 46px;
-    font-size: 23px;
+    width: 42px;
+    height: 42px;
+    font-size: 21px;
   }
   .chat-folders__logo {
-    width: 46px;
-    height: 46px;
+    width: 42px;
+    height: 42px;
   }
   .chat-folders__logo canvas {
-    width: 42px !important;
-    height: 42px !important;
+    width: 38px !important;
+    height: 38px !important;
   }
 }
