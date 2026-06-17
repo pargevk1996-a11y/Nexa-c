@@ -355,3 +355,32 @@ h3,
 .chat-left-panel {
   background: rgba(12, 10, 24, 0.5);
 }
+
+/* A touch more breathing room between the All / Groups / Channels circles — all
+   viewports. */
+.chat-folders--categories {
+  gap: 0.65rem;
+}
+
+/* Mobile: smaller category circles (and the matching "+" and folder-row logo)
+   so the row stays compact on phones. */
+@media (max-width: 768px) {
+  .chat-folders--categories .chat-folder-pill {
+    width: 46px;
+    height: 46px;
+    font-size: 0.52rem !important;
+  }
+  .chat-folder-add {
+    width: 46px;
+    height: 46px;
+    font-size: 23px;
+  }
+  .chat-folders__logo {
+    width: 46px;
+    height: 46px;
+  }
+  .chat-folders__logo canvas {
+    width: 42px !important;
+    height: 42px !important;
+  }
+}
