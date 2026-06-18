@@ -15,6 +15,22 @@ import { resolveChatType } from "@/utils/chatTypes";
 import type { Conversation } from "@/types";
 import type { CallType } from "@/types";
 
+/** Compact "time since last seen": 60s / 10m / 2h / 3d / 1y. */
+function shortAgo(iso?: string | null, nowMs = Date.now()): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const s = Math.max(0, Math.floor((nowMs - t) / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 365) return `${d}d`;
+  return `${Math.floor(d / 365)}y`;
+}
+
 interface ChatHeaderProps {
   conversation: Conversation;
   onStartCall: (type: CallType) => void;
@@ -41,6 +57,15 @@ export function ChatHeader({
   const { profile: peer } = usePublicProfile(conversation.peerUserId);
   const title = isSaved ? conversation.name : peer ? displayName(peer) : conversation.name;
   const online = conversation.online ?? peer?.is_online ?? false;
+
+  // Live 1s ticker (only while offline) so the compact "last seen" stays current.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (online) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [online]);
+  const lastSeenShort = online ? "" : shortAgo(peer?.last_seen_at, nowMs);
 
   const showCalls = !isSecret && !isChannel && !isSaved;
   const showSuperSecretToggle = !isChannel && !isSaved && onToggleSuperSecret;
@@ -136,23 +161,32 @@ export function ChatHeader({
             <IconProfile size={20} />
           </button>
         </div>
-        <button
-          type="button"
-          className="chat-header__hub-avatar"
-          onClick={() => setOpen((o) => !o)}
-          aria-label={`${title} — actions`}
-          aria-haspopup="menu"
-          aria-expanded={open}
-        >
-          <Avatar
-            name={title}
-            online={online && !isChannel}
-            size="lg"
-            avatarUrl={peer?.avatar_url}
-            animatedUrl={peer?.animated_avatar_url}
-            avatarKind={peer?.avatar_kind}
-          />
-        </button>
+        <div className="chat-header__hub-av">
+          <button
+            type="button"
+            className="chat-header__hub-avatar"
+            onClick={() => setOpen((o) => !o)}
+            aria-label={`${title} — actions`}
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            <Avatar
+              name={title}
+              size="lg"
+              avatarUrl={peer?.avatar_url}
+              animatedUrl={peer?.animated_avatar_url}
+              avatarKind={peer?.avatar_kind}
+            />
+          </button>
+          {!isChannel && !isSaved ? (
+            <span
+              className={`chat-header__presence ${online ? "chat-header__presence--on" : ""}`}
+              title={online ? "Online" : "Last seen"}
+            >
+              {online ? "" : lastSeenShort}
+            </span>
+          ) : null}
+        </div>
       </div>
     </header>
   );
