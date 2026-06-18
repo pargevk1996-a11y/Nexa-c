@@ -45,6 +45,7 @@ export function mapApiConversation(c: ApiConversation): Conversation {
     peerUserId: c.peer_user_id ?? undefined,
     memberIds: c.member_ids?.length ? c.member_ids : undefined,
     isLocked: (c as any).is_locked ?? false,
+    hidden: c.hidden ?? false,
   };
 }
 

@@ -27,11 +27,20 @@ async def _init_postgres() -> None:
     chat_store._switch_to_postgres(PostgresChatStore(sm))
 
     # Ensure the "send later" queue table exists (idempotent; leaves every other
-    # table — incl. the partitioned messages table — untouched).
+    # table — incl. the partitioned messages table — untouched) and that the
+    # per-user "hide chat" column exists on conversation_members.
+    from sqlalchemy import text as _sql_text
+
     from app.db.models import ScheduledMessageRow
 
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: ScheduledMessageRow.__table__.create(c, checkfirst=True))
+        await conn.execute(
+            _sql_text(
+                "ALTER TABLE conversation_members "
+                "ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false"
+            )
+        )
 
 
 logger = logging.getLogger("nexa.chat.scheduler")

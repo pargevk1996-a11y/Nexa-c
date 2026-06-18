@@ -19,6 +19,11 @@ class ConversationResponse(BaseModel):
     peer_user_id: str | None = None
     member_ids: list[str] = Field(default_factory=list)
     is_locked: bool = False
+    hidden: bool = False
+
+
+class SetHiddenRequest(BaseModel):
+    hidden: bool
 
 
 class CreateConversationRequest(BaseModel):

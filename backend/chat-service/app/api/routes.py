@@ -12,6 +12,7 @@ from app.schemas.chat import (
     ScheduledMessageResponse,
     ScheduleMessageRequest,
     SendMessageRequest,
+    SetHiddenRequest,
 )
 from app.services.ai_client import maybe_ai_moderate
 from app.services.chat_store import SpaceSettings, chat_store
@@ -44,6 +45,7 @@ async def _conv_response(c, user_id: str) -> ConversationResponse:
         peer_user_id=_peer_user_id(c, user_id),
         member_ids=[m.user_id for m in c.members if m.user_id != user_id],
         is_locked=is_locked,
+        hidden=bool(getattr(next((m for m in c.members if m.user_id == user_id), None), "hidden", False)),
     )
 
 
@@ -489,3 +491,19 @@ async def cancel_scheduled_message(
             detail={"error": {"code": "NOT_FOUND", "message": "Scheduled message not found"}},
         )
     return {"ok": True}
+
+
+@router.patch("/conversations/{conversation_id}/hidden")
+async def set_conversation_hidden(
+    conversation_id: str,
+    body: SetHiddenRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    conv = await chat_store.get_conversation_member(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}},
+        )
+    await chat_store.set_hidden(conversation_id, user_id, body.hidden)
+    return {"ok": True, "hidden": body.hidden}

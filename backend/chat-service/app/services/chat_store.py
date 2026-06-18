@@ -27,6 +27,7 @@ class Member:
     role: str = ROLE_MEMBER
     is_verified: bool = False
     joined_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    hidden: bool = False
 
 
 @dataclass
@@ -313,6 +314,16 @@ class ChatStore:
         if not conv:
             raise ValueError("NOT_FOUND")
         conv.muted_until.pop(target_id, None)
+
+    async def set_hidden(self, conv_id: str, user_id: str, hidden: bool) -> bool:
+        conv = self._conversations.get(conv_id)
+        if not conv:
+            return False
+        for m in conv.members:
+            if m.user_id == user_id:
+                m.hidden = hidden
+                return True
+        return False
 
     async def list_channels_in_community(self, community_id: str) -> list[Conversation]:
         return [

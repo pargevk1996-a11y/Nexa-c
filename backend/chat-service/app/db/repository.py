@@ -61,6 +61,7 @@ def _to_member(row: MemberRow) -> Member:
         role=row.role,
         is_verified=False,
         joined_at=row.joined_at,
+        hidden=bool(getattr(row, "hidden", False)),
     )
 
 
@@ -758,6 +759,22 @@ class PostgresChatStore:
 
     async def mark_delivered(self, msg_id: str, user_id: str) -> None:
         pass  # Delivery receipts tracked via separate delivery_receipts table; no-op here.
+
+    async def set_hidden(self, conv_id: str, user_id: str, hidden: bool) -> bool:
+        """Per-user 'hide chat' flag — persists across re-login (server-side)."""
+        async with self._sm() as session:
+            res = await session.execute(
+                update(MemberRow)
+                .where(
+                    MemberRow.conversation_id == _uuid(conv_id),
+                    MemberRow.user_id == _uuid(user_id),
+                    MemberRow.left_at.is_(None),
+                )
+                .values(hidden=hidden)
+                .returning(MemberRow.user_id)
+            )
+            await session.commit()
+            return res.scalar_one_or_none() is not None
 
     # ── Scheduled ("send later") messages ───────────────────────────────────
     async def create_scheduled(

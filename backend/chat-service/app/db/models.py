@@ -43,6 +43,7 @@ class MemberRow(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     muted_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class BanRow(Base):

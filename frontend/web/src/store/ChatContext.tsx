@@ -13,7 +13,12 @@ import { fetchPublicProfile, updatePresence } from "@/api/profile";
 import { primePublicProfile } from "@/api/publicProfileCache";
 import { resolvePeer } from "@/utils/peerResolve";
 import { verifySignatureForUser } from "@/security/signaturePin";
-import { listConversations, listMessages, sendMessageRest } from "@/api/chat";
+import {
+  listConversations,
+  listMessages,
+  sendMessageRest,
+  setConversationHidden,
+} from "@/api/chat";
 import { mapApiConversation } from "@/realtime/useRealtimeChat";
 import { apiMessageToUi } from "@/realtime/mapMessage";
 import type { DemoGif, DemoSticker } from "@/data/mockMedia";
@@ -1458,6 +1463,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           );
           setHiddenChatIds((prev) => new Set(prev).add(conversation.id));
           if (activeId === conversation.id) setActiveId(null);
+          // Persist server-side so the chat stays hidden after re-login.
+          if (!session?.demoMode) void setConversationHidden(conversation.id, true).catch(() => {});
           break;
         case "unhide":
           setConversations((prev) =>
@@ -1468,6 +1475,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             next.delete(conversation.id);
             return next;
           });
+          if (!session?.demoMode) void setConversationHidden(conversation.id, false).catch(() => {});
           break;
         case "delete":
           setConversations((prev) =>

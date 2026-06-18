@@ -17,6 +17,7 @@ export interface ApiConversation {
   peer_user_id?: string | null;
   member_ids?: string[];
   is_locked?: boolean;
+  hidden?: boolean;
 }
 
 export interface ApiMessage {
@@ -146,4 +147,11 @@ export async function listScheduledMessages(conversationId: string): Promise<Sch
 
 export async function cancelScheduledMessage(scheduledId: string): Promise<void> {
   await apiFetch(`/chat/scheduled/${scheduledId}`, { method: "DELETE" });
+}
+
+export async function setConversationHidden(conversationId: string, hidden: boolean): Promise<void> {
+  await apiFetch(`/chat/conversations/${conversationId}/hidden`, {
+    method: "PATCH",
+    body: JSON.stringify({ hidden }),
+  });
 }
