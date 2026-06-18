@@ -1227,11 +1227,10 @@ body {
   .chat-left-panel .chat-sidebar {
     padding-top: 0 !important;
   }
-  /* The scroller starts just BELOW the floating search block so the first rows
-     (create row + first chats) are fully visible, not hidden behind it. The
-     search overlays the list, so this is clearance, not an extra gap. */
+  /* Tiny clearance only — the chats slide UP under the translucent search block
+     and stay visible through it (glass), instead of being pushed below it. */
   .chat-conversations {
-    padding-top: 58px !important;
+    padding-top: 10px !important;
   }
 }
 
@@ -1627,5 +1626,16 @@ body {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Frosted-glass search header (mobile): the scrolling chats stay visible
+   (blurred) THROUGH the translucent header block, instead of being hidden
+   behind it or pushed below it. Overrides the earlier transparent/no-blur head. */
+@media (max-width: 768px) {
+  .chat-left-panel__head {
+    background: linear-gradient(180deg, rgba(8, 10, 22, 0.55), rgba(8, 10, 22, 0.15)) !important;
+    backdrop-filter: blur(22px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.3) !important;
   }
 }
