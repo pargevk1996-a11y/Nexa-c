@@ -110,7 +110,26 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>
         });
         streamRef.current = stream;
         setPreviewStream(stream);
-        const recorder = new MediaRecorder(stream);
+        // Prefer Opus (clear voice, good compression) + a solid bitrate so voice
+        // notes don't sound muffled. Fall back to whatever the browser supports.
+        const preferredMime =
+          [
+            "audio/webm;codecs=opus",
+            "audio/ogg;codecs=opus",
+            "audio/mp4",
+            "audio/webm",
+          ].find((t) => {
+            try {
+              return MediaRecorder.isTypeSupported?.(t);
+            } catch {
+              return false;
+            }
+          }) ?? "";
+        const recorder = new MediaRecorder(stream, {
+          ...(preferredMime ? { mimeType: preferredMime } : {}),
+          audioBitsPerSecond: 128000,
+        });
+        const blobType = preferredMime || "audio/webm";
         chunksRef.current = [];
 
         recorder.ondataavailable = (e) => {
@@ -121,7 +140,7 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>
           clearTimer();
           const duration = secondsRef.current || 1;
           const shouldDiscard = discardRef.current;
-          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          const blob = new Blob(chunksRef.current, { type: blobType });
           chunksRef.current = [];
           releaseStream();
           setRecording(false);

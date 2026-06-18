@@ -58,7 +58,11 @@ function PinForm({ onSuccess }: { onSuccess: () => void }) {
   useEffect(() => {
     if (!session) return;
     void hasSignatureForUser(session.user.id).then((has) => setSetupMode(!has));
-    inputRef.current?.focus();
+    // Don't auto-focus on touch devices — that pops the on-screen keyboard before
+    // the user taps the field. Focus only with a fine pointer (desktop).
+    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches) {
+      inputRef.current?.focus();
+    }
   }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit() {
