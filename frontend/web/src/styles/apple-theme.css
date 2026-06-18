@@ -1227,9 +1227,9 @@ body {
   .chat-left-panel .chat-sidebar {
     padding-top: 0 !important;
   }
-  /* "Add contact" is the first row inside the scroller; rest it just below the
-     search, and it scrolls up under the search with the chats. */
+  /* "Add contact" is the first row inside the scroller; sit it tight under the
+     search row (the search head is in normal flow above the list). */
   .chat-conversations {
-    padding-top: 46px !important;
+    padding-top: 6px !important;
   }
 }
