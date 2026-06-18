@@ -1227,20 +1227,10 @@ body {
   .chat-left-panel .chat-sidebar {
     padding-top: 0 !important;
   }
-  /* "Add contact" is pinned (sticky) right under the search and never scrolls
-     away; the chats slide UP under both. Top padding = search-block height so
-     the pinned row sits flush below it (the search overlays that space, so it's
-     not an empty gap). */
+  /* Tiny clearance — the list (with Add contact as its first row) scrolls up
+     under the transparent search and stays visible. */
   .chat-conversations {
-    padding-top: 56px !important;
-  }
-  .chat-create-row {
-    position: sticky;
-    top: 56px;
-    z-index: 6;
-    background: linear-gradient(180deg, rgba(8, 10, 22, 0.65), rgba(8, 10, 22, 0.35)) !important;
-    backdrop-filter: blur(20px) saturate(1.2) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
+    padding-top: 8px !important;
   }
 }
 
@@ -1618,34 +1608,3 @@ body {
   }
 }
 
-/* Header "+" create button — surfaces next to search when the in-list create
-   row scrolls under it. */
-.chat-left-panel__head-add {
-  background: var(--accent) !important;
-  color: #fff !important;
-  font-size: 1.35rem;
-  font-weight: 400;
-  line-height: 1;
-  animation: nexa-head-add-in 0.18s ease;
-}
-@keyframes nexa-head-add-in {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Frosted-glass search header (mobile): the scrolling chats stay visible
-   (blurred) THROUGH the translucent header block, instead of being hidden
-   behind it or pushed below it. Overrides the earlier transparent/no-blur head. */
-@media (max-width: 768px) {
-  .chat-left-panel__head {
-    background: linear-gradient(180deg, rgba(8, 10, 22, 0.55), rgba(8, 10, 22, 0.15)) !important;
-    backdrop-filter: blur(22px) saturate(1.3) !important;
-    -webkit-backdrop-filter: blur(22px) saturate(1.3) !important;
-  }
-}
