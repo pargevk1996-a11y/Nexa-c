@@ -242,15 +242,9 @@ export function ChatLeftPanel({
         })}
       </nav>
 
-      {/* Category-aware create entry — avatar-style "+" + label
-          (All → Add contact · Groups → Create group · Channels → Create channel). */}
-      <button type="button" className="chat-create-row" onClick={createMeta.onClick}>
-        <span className="chat-create-row__avatar" aria-hidden>+</span>
-        <span className="chat-create-row__label">{createMeta.label}</span>
-      </button>
-
       <ChatSidebar
         loading={loading}
+        createMeta={createMeta}
         savedConversation={savedConversation}
         pinnedConversations={pinned}
         conversations={regular}

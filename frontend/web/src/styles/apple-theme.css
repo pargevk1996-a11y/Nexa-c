@@ -1133,26 +1133,25 @@ body {
   }
 }
 
-/* ===== Mobile: headers OVERLAY the content — messages / chat list scroll
-   behind the transparent controls and are visible from under them. ===== */
-@media (max-width: 768px) {
-  /* Chat view: header floats over the messages. */
-  .chat-main {
-    position: relative;
-  }
-  .chat-main .chat-header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    pointer-events: none; /* let messages scroll under the empty header area */
-  }
-  .chat-main .chat-header > * {
-    pointer-events: auto; /* …but keep the controls clickable */
-  }
+/* ===== Chat view: header overlays the messages — full-screen scroll, ALL
+   versions. Messages scroll behind the transparent back/avatar controls. ===== */
+.chat-main {
+  position: relative;
+}
+.chat-main .chat-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  pointer-events: none; /* messages scroll under the empty header area */
+}
+.chat-main .chat-header > * {
+  pointer-events: auto; /* …but keep the controls clickable */
+}
 
-  /* Chat list: the search row floats over the conversation list. */
+/* ===== Mobile: the chat-list search row overlays the conversation list. ===== */
+@media (max-width: 768px) {
   .chat-left-panel {
     position: relative;
   }
@@ -1166,10 +1165,6 @@ body {
   }
   .chat-left-panel__head > * {
     pointer-events: auto;
-  }
-  /* The list peeks out from under the search row. */
-  .chat-left-panel .chat-sidebar {
-    padding-top: 64px;
   }
 }
 
@@ -1226,23 +1221,15 @@ body {
   }
 }
 
-/* ===== Mobile: chats scroll UP behind ALL the floating controls =====
-   The conversation scroller spans to the very top (behind the search row, the
-   Add-contact row and the header buttons). A top padding rests the first chat
-   below them; scrolling brings every chat up and visibly under the controls. */
+/* ===== Mobile: the chat list (with Add-contact as its first, scrolling row)
+   slides up behind the fixed search bar — everything passes under it. ===== */
 @media (max-width: 768px) {
-  .chat-create-row {
-    position: absolute;
-    top: 54px;
-    left: 8px;
-    right: 8px;
-    z-index: 19;
-    margin: 0;
-  }
   .chat-left-panel .chat-sidebar {
     padding-top: 0 !important;
   }
+  /* "Add contact" is the first row inside the scroller; rest it just below the
+     search, and it scrolls up under the search with the chats. */
   .chat-conversations {
-    padding-top: 118px !important;
+    padding-top: 60px !important;
   }
 }

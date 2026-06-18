@@ -31,6 +31,8 @@ interface ChatSidebarProps {
   onSelect: (id: string) => void;
   onChatMenuAction: (conversation: Conversation, action: ChatMenuAction) => void;
   drafts: Record<string, string>;
+  /** Category-aware create entry pinned at the top of the scrollable list. */
+  createMeta?: { label: string; onClick: () => void };
 }
 
 interface MenuState {
@@ -143,6 +145,7 @@ export function ChatSidebar({
   onSelect,
   onChatMenuAction,
   drafts,
+  createMeta,
 }: ChatSidebarProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
 
@@ -186,6 +189,14 @@ export function ChatSidebar({
   return (
     <aside className="chat-sidebar">
       <nav className="chat-conversations" aria-label="Chats">
+        {createMeta ? (
+          <button type="button" className="chat-create-row" onClick={createMeta.onClick}>
+            <span className="chat-create-row__avatar" aria-hidden>
+              +
+            </span>
+            <span className="chat-create-row__label">{createMeta.label}</span>
+          </button>
+        ) : null}
         {loading ? (
           <ChatSidebarSkeleton />
         ) : empty ? (
