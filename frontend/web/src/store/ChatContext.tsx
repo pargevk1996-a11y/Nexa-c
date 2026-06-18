@@ -1761,6 +1761,36 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [liveChatEnabled, userId]);
 
+  // Micro auto-refresh: keep data fresh without aggressive polling. Refresh the
+  // conversation list + the open chat whenever the tab regains focus, the
+  // network reconnects, or the tab becomes visible, plus a gentle background
+  // tick. Skipped while hidden so it never burns battery in the background.
+  useEffect(() => {
+    if (!liveChatEnabled) return;
+    let last = 0;
+    const refreshNow = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (now - last < 3000) return; // coalesce bursts (focus+visible firing together)
+      last = now;
+      void refreshConversations();
+      if (activeId) void refreshMessagesForConversation(activeId);
+    };
+    const onVis = () => {
+      if (!document.hidden) refreshNow();
+    };
+    window.addEventListener("focus", refreshNow);
+    window.addEventListener("online", refreshNow);
+    document.addEventListener("visibilitychange", onVis);
+    const interval = window.setInterval(refreshNow, 25_000);
+    return () => {
+      window.removeEventListener("focus", refreshNow);
+      window.removeEventListener("online", refreshNow);
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(interval);
+    };
+  }, [liveChatEnabled, activeId, refreshConversations, refreshMessagesForConversation]);
+
   const [hasOlderByConv, setHasOlderByConv] = useState<Record<string, boolean>>({});
   const loadingOlderRef = useRef(false);
 

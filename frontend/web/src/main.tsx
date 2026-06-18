@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { registerServiceWorker } from "@/pwa/registerServiceWorker";
+import { startPerformanceGovernor } from "@/perf/performanceGovernor";
 import { initScreenCaptureDefense } from "@/security/screenCaptureDefense";
 import { applyTheme, getGlobalTheme } from "@/store/settings";
 import App from "./App";
@@ -14,6 +15,8 @@ applyTheme(getGlobalTheme());
 // native apps — a browser cannot truly stop screenshots.)
 initScreenCaptureDefense();
 registerServiceWorker();
+// Auto-optimization: drop heavy visual effects under sustained jank, recover when smooth.
+startPerformanceGovernor();
 
 // Recover from stale lazy-chunk failures after a deploy: a cached index.html can
 // reference hashed chunks that no longer exist (404) → blank screen on a route
