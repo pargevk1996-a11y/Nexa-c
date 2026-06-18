@@ -1106,12 +1106,19 @@ body {
     width: 17px;
     height: 17px;
   }
-  /* Perfectly round avatar (reinforced). */
+  /* Perfectly round avatar. v2.css's mobile `.chat-header .avatar { max-width:
+     38px }` was clamping the WIDTH to 38 while height stayed 64 → an oval. Force
+     a square box (min == max == width == height) so it's a perfect circle. */
   .chat-header__hub-avatar,
   .chat-header__hub-avatar .avatar,
   .chat-header__hub-avatar .avatar img,
+  .chat-header__hub-avatar .avatar__img,
   .chat-header__hub-avatar img,
   .chat-header__hub-avatar canvas {
+    width: 64px !important;
+    height: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
     border-radius: 50% !important;
     aspect-ratio: 1 / 1;
     object-fit: cover;
