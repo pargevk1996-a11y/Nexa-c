@@ -15,6 +15,17 @@ applyTheme(getGlobalTheme());
 initScreenCaptureDefense();
 registerServiceWorker();
 
+// Recover from stale lazy-chunk failures after a deploy: a cached index.html can
+// reference hashed chunks that no longer exist (404) → blank screen on a route
+// switch. Reload once (rate-limited) to pull a fresh index.html + correct chunks.
+window.addEventListener("vite:preloadError", () => {
+  const last = Number(sessionStorage.getItem("nexa-chunk-reload") || 0);
+  if (Date.now() - last > 10000) {
+    sessionStorage.setItem("nexa-chunk-reload", String(Date.now()));
+    window.location.reload();
+  }
+});
+
 const rootEl = document.getElementById("root");
 if (rootEl) {
   createRoot(rootEl).render(
