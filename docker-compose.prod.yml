@@ -49,3 +49,25 @@ services:
 
   call-service:
     restart: unless-stopped
+
+  # TURN/STUN relay for WebRTC media (calls). Host networking so the wide UDP
+  # relay range works without mapping thousands of ports. Requires the AWS
+  # Security Group to allow: 3478 udp+tcp, and 49152-65535 udp (relay range).
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -n
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET}
+      - --realm=nexa-c.com
+      - --listening-port=3478
+      - --min-port=49152
+      - --max-port=65535
+      - --external-ip=18.145.177.213
+      - --no-tls
+      - --no-dtls
+      - --no-cli
+      - --log-file=stdout
+      - --fingerprint
