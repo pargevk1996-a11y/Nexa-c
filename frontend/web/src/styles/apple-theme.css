@@ -956,3 +956,12 @@ body {
   gap: 1rem;
   margin: 0 0 10px;
 }
+
+/* Header identity cluster (avatar + name) — both open the popup. */
+.chat-header__id {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  min-width: 0;
+}

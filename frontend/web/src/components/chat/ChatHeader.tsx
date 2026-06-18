@@ -122,7 +122,8 @@ export function ChatHeader({
           <IconChevronLeft size={22} />
         </IconButton>
       ) : null}
-      <div className="chat-header__avatar-wrap" ref={menuRef}>
+      <div className="chat-header__id" ref={menuRef}>
+        <div className="chat-header__avatar-wrap">
         <button
           type="button"
           className="chat-header__profile-trigger"
@@ -201,7 +202,7 @@ export function ChatHeader({
       <button
         type="button"
         className="chat-header__profile-trigger chat-header__info"
-        onClick={() => onOpenProfile?.()}
+        onClick={() => setMenuOpen((o) => !o)}
       >
         <h3 className="chat-header__title-row">
           {isSecret ? (
@@ -225,6 +226,7 @@ export function ChatHeader({
           {statusLine}
         </p>
       </button>
+      </div>
       <div className="chat-header__actions">
         {onOpenSearch ? (
           <IconButton label="Search in chat" variant="ghost" onClick={onOpenSearch}>
