@@ -1230,6 +1230,6 @@ body {
   /* "Add contact" is the first row inside the scroller; rest it just below the
      search, and it scrolls up under the search with the chats. */
   .chat-conversations {
-    padding-top: 60px !important;
+    padding-top: 46px !important;
   }
 }
