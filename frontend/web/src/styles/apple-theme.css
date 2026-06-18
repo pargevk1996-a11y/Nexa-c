@@ -1091,3 +1091,37 @@ body {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* ===== Mobile: smaller hub buttons; perfectly round avatar; hide Back while
+   the hub is open (returns on close). ===== */
+@media (max-width: 768px) {
+  .chat-header__hub {
+    gap: 6px;
+  }
+  .chat-header__hub-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .chat-header__hub-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+  /* Perfectly round avatar (reinforced). */
+  .chat-header__hub-avatar,
+  .chat-header__hub-avatar .avatar,
+  .chat-header__hub-avatar .avatar img,
+  .chat-header__hub-avatar img,
+  .chat-header__hub-avatar canvas {
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+  }
+  /* Back arrow fades out while the hub is open, returns when it closes. */
+  .chat-header__back {
+    transition: opacity 240ms ease;
+  }
+  .chat-header:has(.chat-header__hub--open) .chat-header__back {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
