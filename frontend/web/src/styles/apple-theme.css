@@ -1209,3 +1209,19 @@ body {
   padding: 0;
   background: var(--success);
 }
+
+/* ===== Mobile: chat-list area fully transparent — the conversation list shows
+   the shared background through it (like the messages), so the overlaid search
+   row doesn't sit on an opaque block. ===== */
+@media (max-width: 768px) {
+  .chat-left-panel,
+  .chat-left-panel.glass-panel,
+  .chat-sidebar,
+  .chat-conversations,
+  .chat-sidebar__section,
+  .chat-create-row {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
