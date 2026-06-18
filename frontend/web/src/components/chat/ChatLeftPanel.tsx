@@ -76,6 +76,9 @@ export function ChatLeftPanel({
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  // When the in-list "+ create" row scrolls up under the search, surface a
+  // compact "+" next to the search so the create action stays reachable.
+  const [showHeadAdd, setShowHeadAdd] = useState(false);
 
   useEffect(() => {
     const s = getCachedSession();
@@ -127,6 +130,16 @@ export function ChatLeftPanel({
     };
   }, [category, onCategoryChange]);
 
+  // Show the header "+" once the list is scrolled past the create row.
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>(".chat-left-panel .chat-conversations");
+    if (!el) return;
+    const onScroll = () => setShowHeadAdd(el.scrollTop > 8);
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [category]);
+
   const effectiveSearch = pinUnlocked && search.startsWith("#") ? "" : search;
 
   const allConversations = useMemo(
@@ -173,6 +186,19 @@ export function ChatLeftPanel({
             />
           </label>
           <div className="chat-left-panel__head-actions">
+            {/* Category-aware create "+" — appears once the in-list create row
+                scrolls up under the search. */}
+            {showHeadAdd ? (
+              <button
+                type="button"
+                className="chat-left-panel__head-btn chat-left-panel__head-add"
+                onClick={createMeta.onClick}
+                aria-label={createMeta.label}
+                title={createMeta.label}
+              >
+                +
+              </button>
+            ) : null}
             {/* Saved Messages shortcut — right of search, left of the bell. */}
             <button
               type="button"

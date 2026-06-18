@@ -1607,3 +1607,24 @@ body {
     -webkit-touch-callout: none;
   }
 }
+
+/* Header "+" create button — surfaces next to search when the in-list create
+   row scrolls under it. */
+.chat-left-panel__head-add {
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1;
+  animation: nexa-head-add-in 0.18s ease;
+}
+@keyframes nexa-head-add-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
