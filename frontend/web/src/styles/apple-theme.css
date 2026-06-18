@@ -1225,3 +1225,24 @@ body {
     -webkit-backdrop-filter: none !important;
   }
 }
+
+/* ===== Mobile: chats scroll UP behind ALL the floating controls =====
+   The conversation scroller spans to the very top (behind the search row, the
+   Add-contact row and the header buttons). A top padding rests the first chat
+   below them; scrolling brings every chat up and visibly under the controls. */
+@media (max-width: 768px) {
+  .chat-create-row {
+    position: absolute;
+    top: 54px;
+    left: 8px;
+    right: 8px;
+    z-index: 19;
+    margin: 0;
+  }
+  .chat-left-panel .chat-sidebar {
+    padding-top: 0 !important;
+  }
+  .chat-conversations {
+    padding-top: 118px !important;
+  }
+}
