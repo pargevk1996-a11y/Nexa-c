@@ -1227,10 +1227,11 @@ body {
   .chat-left-panel .chat-sidebar {
     padding-top: 0 !important;
   }
-  /* "Add contact" is the first row inside the scroller; sit it tight under the
-     search row (the search head is in normal flow above the list). */
+  /* The scroller starts just BELOW the floating search block so the first rows
+     (create row + first chats) are fully visible, not hidden behind it. The
+     search overlays the list, so this is clearance, not an extra gap. */
   .chat-conversations {
-    padding-top: 6px !important;
+    padding-top: 58px !important;
   }
 }
 
