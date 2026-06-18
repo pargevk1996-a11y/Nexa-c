@@ -1227,10 +1227,20 @@ body {
   .chat-left-panel .chat-sidebar {
     padding-top: 0 !important;
   }
-  /* Tiny clearance only — the chats slide UP under the translucent search block
-     and stay visible through it (glass), instead of being pushed below it. */
+  /* "Add contact" is pinned (sticky) right under the search and never scrolls
+     away; the chats slide UP under both. Top padding = search-block height so
+     the pinned row sits flush below it (the search overlays that space, so it's
+     not an empty gap). */
   .chat-conversations {
-    padding-top: 10px !important;
+    padding-top: 56px !important;
+  }
+  .chat-create-row {
+    position: sticky;
+    top: 56px;
+    z-index: 6;
+    background: linear-gradient(180deg, rgba(8, 10, 22, 0.65), rgba(8, 10, 22, 0.35)) !important;
+    backdrop-filter: blur(20px) saturate(1.2) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
   }
 }
 
