@@ -111,7 +111,12 @@ export class CallEngine {
     if (!from || !this.call) return;
 
     if (signalType === "offer" && payload.sdp) {
+      // Capture + attach our mic/camera BEFORE answering. If the offer is handled
+      // before acceptIncoming() finished acquiring media, the answer would carry
+      // no tracks and the caller couldn't hear/see us (one-way call).
+      await this.ensureLocalMedia((this.call.call_type ?? "audio") as CallType);
       const pc = await this.ensurePeer(from, false);
+      this.ensureLocalTracks(pc);
       await pc.setRemoteDescription(payload.sdp as RTCSessionDescriptionInit);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -135,6 +140,18 @@ export class CallEngine {
   private async ensureLocalMedia(callType: CallType): Promise<void> {
     if (this.localStream) return;
     this.localStream = await navigator.mediaDevices.getUserMedia(buildMediaConstraints(callType));
+  }
+
+  /** Attach any local tracks that aren't already on the peer (covers the case
+   *  where the connection was created before local media was ready). */
+  private ensureLocalTracks(pc: RTCPeerConnection): void {
+    if (!this.localStream) return;
+    const senders = pc.getSenders();
+    for (const track of this.localStream.getTracks()) {
+      if (!senders.some((s) => s.track === track)) {
+        pc.addTrack(track, this.localStream);
+      }
+    }
   }
 
   private createPeerConnection(remoteUserId: string): RTCPeerConnection {
