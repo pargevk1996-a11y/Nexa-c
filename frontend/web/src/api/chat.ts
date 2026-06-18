@@ -117,3 +117,33 @@ export async function markConversationRead(
     body: JSON.stringify({ up_to_seq: upToSeq }),
   });
 }
+
+// ── Scheduled ("send later") messages ───────────────────────────────────────
+export interface ScheduledMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  content_type: string;
+  reply_to_id: string | null;
+  scheduled_at: string | null;
+  status: string;
+}
+
+export async function createScheduledMessage(
+  conversationId: string,
+  body: { body: string; scheduled_at: string; content_type?: string; reply_to_id?: string },
+): Promise<ScheduledMessage> {
+  return apiFetch<ScheduledMessage>(`/chat/conversations/${conversationId}/scheduled`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function listScheduledMessages(conversationId: string): Promise<ScheduledMessage[]> {
+  return apiFetch<ScheduledMessage[]>(`/chat/conversations/${conversationId}/scheduled`);
+}
+
+export async function cancelScheduledMessage(scheduledId: string): Promise<void> {
+  await apiFetch(`/chat/scheduled/${scheduledId}`, { method: "DELETE" });
+}

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -87,3 +88,21 @@ class ReadReceiptRequest(BaseModel):
 class PinRequest(BaseModel):
     message_id: str
     pinned: bool = True
+
+
+class ScheduleMessageRequest(BaseModel):
+    body: str = Field(default="", max_length=8000)
+    content_type: str = "text"
+    reply_to_id: str | None = None
+    scheduled_at: datetime
+
+
+class ScheduledMessageResponse(BaseModel):
+    id: str
+    conversation_id: str
+    sender_id: str
+    body: str
+    content_type: str
+    reply_to_id: str | None = None
+    scheduled_at: str | None = None
+    status: str

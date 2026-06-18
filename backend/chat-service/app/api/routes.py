@@ -9,6 +9,8 @@ from app.schemas.chat import (
     PinRequest,
     ReactionRequest,
     ReadReceiptRequest,
+    ScheduledMessageResponse,
+    ScheduleMessageRequest,
     SendMessageRequest,
 )
 from app.services.ai_client import maybe_ai_moderate
@@ -433,3 +435,57 @@ async def pin_message(
     if not conv:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Not found"}})
     return await _conv_response(conv, user_id)
+
+
+# ── Scheduled ("send later") messages ──────────────────────────────────────
+@router.post(
+    "/conversations/{conversation_id}/scheduled",
+    response_model=ScheduledMessageResponse,
+    status_code=201,
+)
+async def create_scheduled_message(
+    conversation_id: str,
+    body: ScheduleMessageRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> ScheduledMessageResponse:
+    conv = await chat_store.get_conversation_member(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}},
+        )
+    item = await chat_store.create_scheduled(
+        conversation_id,
+        user_id,
+        body.body,
+        content_type=body.content_type,
+        reply_to_id=body.reply_to_id,
+        scheduled_at=body.scheduled_at,
+    )
+    return ScheduledMessageResponse(**item)
+
+
+@router.get(
+    "/conversations/{conversation_id}/scheduled",
+    response_model=list[ScheduledMessageResponse],
+)
+async def list_scheduled_messages(
+    conversation_id: str,
+    user_id: str = Depends(get_current_user_id),
+) -> list[ScheduledMessageResponse]:
+    items = await chat_store.list_scheduled(conversation_id, user_id)
+    return [ScheduledMessageResponse(**i) for i in items]
+
+
+@router.delete("/scheduled/{scheduled_id}")
+async def cancel_scheduled_message(
+    scheduled_id: str,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    ok = await chat_store.cancel_scheduled(scheduled_id, user_id)
+    if not ok:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "NOT_FOUND", "message": "Scheduled message not found"}},
+        )
+    return {"ok": True}

@@ -144,3 +144,19 @@ class RetentionPolicy(Base):
     hard_delete_after_days: Mapped[int | None] = mapped_column()
     legal_hold: Mapped[bool] = mapped_column(Boolean, default=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ScheduledMessageRow(Base):
+    """Queued "send later" messages — delivered by the chat-service scheduler loop."""
+
+    __tablename__ = "scheduled_messages"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, index=True)
+    sender_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    body: Mapped[str] = mapped_column(Text, default="")
+    content_type: Mapped[str] = mapped_column(Text, default="text")
+    reply_to_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True))
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(Text, default="pending")  # pending | sent | cancelled
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

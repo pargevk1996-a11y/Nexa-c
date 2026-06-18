@@ -19,6 +19,7 @@ from app.db.models import (
     MessageUserStateRow,
     PinnedMessageRow,
     ReadReceiptRow,
+    ScheduledMessageRow,
 )
 from app.domain.permissions import ROLE_MEMBER, ROLE_OWNER
 from app.domain.space_types import BROADCAST_TYPES, normalize_type
@@ -758,6 +759,81 @@ class PostgresChatStore:
     async def mark_delivered(self, msg_id: str, user_id: str) -> None:
         pass  # Delivery receipts tracked via separate delivery_receipts table; no-op here.
 
+    # ── Scheduled ("send later") messages ───────────────────────────────────
+    async def create_scheduled(
+        self,
+        conversation_id: str,
+        sender_id: str,
+        body: str,
+        content_type: str = "text",
+        reply_to_id: str | None = None,
+        scheduled_at: datetime | None = None,
+    ) -> dict:
+        async with self._sm() as session:
+            row = ScheduledMessageRow(
+                id=uuid4(),
+                conversation_id=_uuid(conversation_id),
+                sender_id=_uuid(sender_id),
+                body=body or "",
+                content_type=content_type or "text",
+                reply_to_id=_uuid(reply_to_id) if reply_to_id else None,
+                scheduled_at=scheduled_at,
+                status="pending",
+            )
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+            return _scheduled_dict(row)
+
+    async def list_scheduled(self, conversation_id: str, sender_id: str) -> list[dict]:
+        async with self._sm() as session:
+            rows = await session.scalars(
+                select(ScheduledMessageRow)
+                .where(
+                    ScheduledMessageRow.conversation_id == _uuid(conversation_id),
+                    ScheduledMessageRow.sender_id == _uuid(sender_id),
+                    ScheduledMessageRow.status == "pending",
+                )
+                .order_by(ScheduledMessageRow.scheduled_at)
+            )
+            return [_scheduled_dict(r) for r in rows]
+
+    async def cancel_scheduled(self, scheduled_id: str, sender_id: str) -> bool:
+        async with self._sm() as session:
+            res = await session.execute(
+                update(ScheduledMessageRow)
+                .where(
+                    ScheduledMessageRow.id == _uuid(scheduled_id),
+                    ScheduledMessageRow.sender_id == _uuid(sender_id),
+                    ScheduledMessageRow.status == "pending",
+                )
+                .values(status="cancelled")
+                .returning(ScheduledMessageRow.id)
+            )
+            await session.commit()
+            return res.scalar_one_or_none() is not None
+
+    async def fetch_due_scheduled(self, now: datetime) -> list[dict]:
+        async with self._sm() as session:
+            rows = await session.scalars(
+                select(ScheduledMessageRow)
+                .where(
+                    ScheduledMessageRow.status == "pending",
+                    ScheduledMessageRow.scheduled_at <= now,
+                )
+                .limit(50)
+            )
+            return [_scheduled_dict(r) for r in rows]
+
+    async def mark_scheduled_sent(self, scheduled_id: str) -> None:
+        async with self._sm() as session:
+            await session.execute(
+                update(ScheduledMessageRow)
+                .where(ScheduledMessageRow.id == _uuid(scheduled_id))
+                .values(status="sent")
+            )
+            await session.commit()
+
     async def mark_read(self, conv_id: str, user_id: str, up_to_seq: int) -> None:
         async with self._sm() as session:
             await session.execute(
@@ -871,3 +947,16 @@ class PostgresChatStore:
             if exclude:
                 ids = [uid for uid in ids if uid != exclude]
             return ids
+
+
+def _scheduled_dict(row: ScheduledMessageRow) -> dict:
+    return {
+        "id": str(row.id),
+        "conversation_id": str(row.conversation_id),
+        "sender_id": str(row.sender_id),
+        "body": row.body,
+        "content_type": row.content_type,
+        "reply_to_id": str(row.reply_to_id) if row.reply_to_id else None,
+        "scheduled_at": row.scheduled_at.isoformat() if row.scheduled_at else None,
+        "status": row.status,
+    }

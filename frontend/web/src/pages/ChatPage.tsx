@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   focusChatComposer,
@@ -14,6 +14,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatLeftPanel } from "@/components/chat/ChatLeftPanel";
 import { ResizableChatShell } from "@/components/chat/ResizableChatShell";
 import { ProfilePanel } from "@/components/chat/ProfilePanel";
+import { ScheduleModal } from "@/components/chat/ScheduleModal";
 import { MessageComposer } from "@/components/chat/MessageComposer";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageSelectionBar } from "@/components/chat/MessageSelectionBar";
@@ -36,6 +37,7 @@ export function ChatPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [contactRequestId, setContactRequestId] = useState<string | null>(null);
   const [contactRequestBusy, setContactRequestBusy] = useState(false);
   const {
@@ -105,6 +107,37 @@ export function ChatPage() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  // Two-finger horizontal swipe inside the chat opens the "send later" scheduler.
+  const chatMainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = chatMainRef.current;
+    if (!el) return;
+    let startX = 0;
+    let lastX = 0;
+    let two = false;
+    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const onStart = (e: TouchEvent) => {
+      two = e.touches.length === 2;
+      if (two) startX = lastX = mid(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (two && e.touches.length === 2) lastX = mid(e);
+    };
+    const onEnd = () => {
+      if (!two) return;
+      two = false;
+      if (Math.abs(lastX - startX) > 50) setScheduleOpen(true);
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [activeId]);
 
   const handleEscape = useCallback(() => {
     if (searchOpen) {
@@ -318,7 +351,7 @@ export function ChatPage() {
           />
         }
         main={
-          <section className={`chat-main ${isSecret ? "secret-chat-root" : ""}`}>
+          <section ref={chatMainRef} className={`chat-main ${isSecret ? "secret-chat-root" : ""}`}>
             {active ? (
               <>
                 <ChatHeader
@@ -445,6 +478,13 @@ export function ChatPage() {
                   replyPeerName={active.name}
                   onCancelReply={cancelReply}
                 />
+                {scheduleOpen && activeId ? (
+                  <ScheduleModal
+                    conversationId={activeId}
+                    initialText={drafts[activeId] ?? ""}
+                    onClose={() => setScheduleOpen(false)}
+                  />
+                ) : null}
               </>
             ) : (
               <div className="chat-empty">
