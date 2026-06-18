@@ -1132,3 +1132,43 @@ body {
     pointer-events: none;
   }
 }
+
+/* ===== Mobile: headers OVERLAY the content — messages / chat list scroll
+   behind the transparent controls and are visible from under them. ===== */
+@media (max-width: 768px) {
+  /* Chat view: header floats over the messages. */
+  .chat-main {
+    position: relative;
+  }
+  .chat-main .chat-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    pointer-events: none; /* let messages scroll under the empty header area */
+  }
+  .chat-main .chat-header > * {
+    pointer-events: auto; /* …but keep the controls clickable */
+  }
+
+  /* Chat list: the search row floats over the conversation list. */
+  .chat-left-panel {
+    position: relative;
+  }
+  .chat-left-panel__head {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .chat-left-panel__head > * {
+    pointer-events: auto;
+  }
+  /* The list peeks out from under the search row. */
+  .chat-left-panel .chat-sidebar {
+    padding-top: 64px;
+  }
+}
