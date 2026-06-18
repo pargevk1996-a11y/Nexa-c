@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { VerificationBadge } from "@/components/profile/VerificationBadge";
 import { IconButton } from "@/components/ui/IconButton";
 import {
   IconChevronLeft,
   IconPhone,
+  IconProfile,
   IconSearch,
   IconShield,
   IconVideo,
@@ -83,6 +84,32 @@ export function ChatHeader({
   const showCalls = !isSecret && !isChannel && !isSaved;
   const showSuperSecretToggle = !isChannel && !isSaved && onToggleSuperSecret;
 
+  // Tap the avatar → a popup with the chat functions (search / secure chat /
+  // call / video / profile). Closes on outside click or Escape.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+  const runAndClose = (fn?: () => void) => {
+    setMenuOpen(false);
+    fn?.();
+  };
+
   return (
     <header className={`chat-header ${isChannel ? "chat-header--channel" : ""}`}>
       {onBack ? (
@@ -95,21 +122,82 @@ export function ChatHeader({
           <IconChevronLeft size={22} />
         </IconButton>
       ) : null}
-      <button
-        type="button"
-        className="chat-header__profile-trigger"
-        onClick={() => onOpenProfile?.()}
-        aria-label={`View ${title} profile`}
-      >
-        <Avatar
-          name={title}
-          online={online && !isChannel}
-          size="md"
-          avatarUrl={peer?.avatar_url}
-          animatedUrl={peer?.animated_avatar_url}
-          avatarKind={peer?.avatar_kind}
-        />
-      </button>
+      <div className="chat-header__avatar-wrap" ref={menuRef}>
+        <button
+          type="button"
+          className="chat-header__profile-trigger"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label={`${title} — chat actions`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+        >
+          <Avatar
+            name={title}
+            online={online && !isChannel}
+            size="md"
+            avatarUrl={peer?.avatar_url}
+            animatedUrl={peer?.animated_avatar_url}
+            avatarKind={peer?.avatar_kind}
+          />
+        </button>
+        {menuOpen ? (
+          <div className="chat-header__popup" role="menu">
+            {onOpenSearch ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="chat-header__popup-item"
+                onClick={() => runAndClose(onOpenSearch)}
+              >
+                <IconSearch size={18} />
+                <span>Search</span>
+              </button>
+            ) : null}
+            {showSuperSecretToggle ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="chat-header__popup-item"
+                onClick={() => runAndClose(onToggleSuperSecret)}
+              >
+                <IconShield size={18} />
+                <span>{isSuperSecret ? "SecureChat: on" : "Secure chat"}</span>
+              </button>
+            ) : null}
+            {showCalls ? (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="chat-header__popup-item"
+                  onClick={() => runAndClose(() => onStartCall("audio"))}
+                >
+                  <IconPhone size={18} />
+                  <span>Call</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="chat-header__popup-item"
+                  onClick={() => runAndClose(() => onStartCall("video"))}
+                >
+                  <IconVideo size={18} />
+                  <span>Video call</span>
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              className="chat-header__popup-item"
+              onClick={() => runAndClose(onOpenProfile)}
+            >
+              <IconProfile size={18} />
+              <span>Profile</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
       <button
         type="button"
         className="chat-header__profile-trigger chat-header__info"

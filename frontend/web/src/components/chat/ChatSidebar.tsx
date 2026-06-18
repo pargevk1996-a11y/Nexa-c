@@ -178,7 +178,6 @@ export function ChatSidebar({
 
   const empty =
     !loading &&
-    !showSaved &&
     pinned.length === 0 &&
     regular.length === 0 &&
     archived.length === 0 &&
@@ -195,17 +194,8 @@ export function ChatSidebar({
           </p>
         ) : (
           <>
-            {showSaved ? (
-              <section className="chat-sidebar__section chat-sidebar__section--saved">
-                <h3 className="chat-sidebar__section-title">Saved Messages</h3>
-                <ConvList
-                  items={[savedConversation]}
-                  activeId={activeId}
-                  onSelect={onSelect}
-                  onContextMenu={openMenu}
-                />
-              </section>
-            ) : null}
+            {/* Saved Messages no longer listed here — opened via the header
+                bookmark button next to search. */}
             {pinned.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Pinned</h3>

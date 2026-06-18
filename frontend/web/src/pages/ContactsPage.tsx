@@ -2,14 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { searchProfiles } from "@/api/profile";
 import {
+  type BlockedUser,
   type ContactRequest,
   type ContactStatus,
   acceptContactRequest,
   cancelContactRequest,
   declineContactRequest,
   getContactStatus,
+  listBlockedUsers,
   listIncomingRequests,
   sendContactRequest,
+  unblockUser,
 } from "@/api/contacts";
 import { VerificationBadge } from "@/components/profile/VerificationBadge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -33,6 +36,60 @@ export function ContactsPage() {
   const [incomingRequests, setIncomingRequests] = useState<ContactRequest[]>([]);
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [showBlocked, setShowBlocked] = useState(false);
+  const [blocked, setBlocked] = useState<BlockedUser[]>([]);
+
+  // Mobile: two-finger horizontal swipe reveals / hides the blocked-users list.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let startX = 0;
+    let lastX = 0;
+    let two = false;
+    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const onStart = (e: TouchEvent) => {
+      if (window.innerWidth > 768) {
+        two = false;
+        return;
+      }
+      two = e.touches.length === 2;
+      if (two) startX = lastX = mid(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (two && e.touches.length === 2) lastX = mid(e);
+    };
+    const onEnd = () => {
+      if (!two) return;
+      two = false;
+      const dx = lastX - startX;
+      if (Math.abs(dx) < 50) return;
+      setShowBlocked(dx < 0); // swipe left → blocked, swipe right → back
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
+  // Load the blocked list whenever the blocked view is opened.
+  useEffect(() => {
+    if (!showBlocked) return;
+    listBlockedUsers()
+      .then(setBlocked)
+      .catch(() => setError("Failed to load blocked users"));
+  }, [showBlocked]);
+
+  const handleUnblock = useCallback(async (userId: string) => {
+    try {
+      await unblockUser(userId);
+      setBlocked((list) => list.filter((b) => b.user_id !== userId));
+    } catch {
+      setError("Failed to unblock");
+    }
+  }, []);
 
   const localContacts = useMemo(() => {
     return visibleConversations
@@ -228,7 +285,42 @@ export function ContactsPage() {
           </div>
         ) : null}
 
-        {searching ? <p className="auth-hint">Searching…</p> : null}
+        {showBlocked ? (
+          <section className="contacts-page__blocked">
+            <div className="contacts-page__blocked-head">
+              <h2 className="contacts-page__subtitle">Blocked users</h2>
+              <button type="button" className="btn" onClick={() => setShowBlocked(false)}>
+                Back
+              </button>
+            </div>
+            {blocked.length === 0 ? (
+              <p className="auth-hint">No blocked users.</p>
+            ) : (
+              <ul className="contacts-page__list">
+                {blocked.map((b) => (
+                  <li key={b.user_id} className="contacts-page__row">
+                    <Avatar name={b.display_name || "User"} />
+                    <div className="contacts-page__row-text">
+                      <span className="privacy-no-copy">{b.display_name || b.user_id}</span>
+                      {b.reason ? (
+                        <span className="contacts-page__presence">{b.reason}</span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => void handleUnblock(b.user_id)}
+                    >
+                      Unblock
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : (
+          <>
+            {searching ? <p className="auth-hint">Searching…</p> : null}
 
         {/* Incoming contact requests */}
         {incomingRequests.length > 0 ? (
@@ -416,6 +508,8 @@ export function ContactsPage() {
             </li>
           ))}
         </ul>
+          </>
+        )}
       </div>
     </div>
   );
