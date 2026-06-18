@@ -1003,7 +1003,8 @@ body {
 }
 /* Big, perfectly round avatar (1.5×). Spins when the hub opens. */
 .chat-header__hub-avatar {
-  order: 2;
+  order: 1;
+  aspect-ratio: 1 / 1;
   width: 72px;
   height: 72px;
   flex-shrink: 0;
@@ -1030,7 +1031,7 @@ body {
 }
 /* Action row — collapsed behind the avatar, fans out left on open. */
 .chat-header__hub-actions {
-  order: 1;
+  order: 2;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1078,4 +1079,15 @@ body {
 .chat-header__hub-btn--on {
   background: var(--accent-muted);
   color: var(--accent);
+}
+
+/* No header "bars" — the controls (back, avatar hub, search row) float over the
+   shared content block; no own background/border/blur block. */
+.chat-header,
+.chat-left-panel__head {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
