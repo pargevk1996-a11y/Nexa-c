@@ -338,6 +338,11 @@ export function useRealtimeChat({
         const { loadOfflineMessages } = await import("@/offline/chatOfflineCache");
         const cached = (await loadOfflineMessages(uid, activeId)) ?? [];
 
+        // Stale-while-revalidate: paint the cached conversation INSTANTLY so the
+        // chat opens with no DB round-trip (messages are static content), then
+        // reconcile against the network below and repaint with the merged result.
+        if (!cancelled && cached.length) onMessages(activeId, cached);
+
         const synced = await catchUpConversation(activeId);
         const newest = await listMessages(activeId, { limit: PAGE });
         const merged = new Map<string, ApiMessage>();

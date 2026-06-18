@@ -472,6 +472,57 @@ export function MessageList({
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
+  // Swipe a message to the RIGHT to reply to it (mobile gesture). We translate
+  // the row live and, past a threshold, fire the reply action on release.
+  const swipeRef = useRef<{ x: number; y: number; el: HTMLElement | null; horiz: boolean }>({
+    x: 0,
+    y: 0,
+    el: null,
+    horiz: false,
+  });
+  const onRowTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if (selectionMode) return;
+      const t = e.touches[0];
+      swipeRef.current = { x: t.clientX, y: t.clientY, el: e.currentTarget, horiz: false };
+    },
+    [selectionMode],
+  );
+  const onRowTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const s = swipeRef.current;
+    if (!s.el) return;
+    const t = e.touches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (!s.horiz) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dx) <= Math.abs(dy)) {
+        s.el = null; // vertical scroll — let the list handle it
+        return;
+      }
+      s.horiz = true;
+    }
+    const d = Math.max(0, Math.min(dx, 72));
+    s.el.style.transition = "none";
+    s.el.style.transform = `translateX(${d}px)`;
+    s.el.classList.toggle("chat-bubble-row--reply-ready", d >= 52);
+  }, []);
+  const onRowTouchEnd = useCallback(
+    (_e: React.TouchEvent<HTMLDivElement>, m: Message) => {
+      const el = swipeRef.current.el;
+      swipeRef.current = { x: 0, y: 0, el: null, horiz: false };
+      if (!el) return;
+      const ready = el.classList.contains("chat-bubble-row--reply-ready");
+      el.style.transition = "transform 0.18s ease";
+      el.style.transform = "";
+      el.classList.remove("chat-bubble-row--reply-ready");
+      if (ready && !isSecret && !m.ephemeral && !m.recalled && !m.deleted) {
+        onMenuAction(m, { type: "reply" });
+      }
+    },
+    [onMenuAction, isSecret],
+  );
+
   const handleStartReached = useCallback(() => {
     if (isLoadingOlder || !hasOlderMessages || !onLoadOlder) return;
     setIsLoadingOlder(true);
@@ -597,6 +648,9 @@ export function MessageList({
               className={`chat-bubble-row ${m.outgoing ? "chat-bubble-row--out" : "chat-bubble-row--in"} ${row.grouped ? "chat-bubble-row--grouped" : ""} ${row.showTail ? "chat-bubble-row--tail" : ""} ${selected ? "chat-bubble-row--selected" : ""} ${m.ephemeral ? "chat-bubble-row--ephemeral" : ""} ${sending ? "chat-bubble-row--sending" : ""} ${m.status === "failed" ? "chat-bubble-row--failed" : ""} ${m.kind === "sticker" ? "chat-bubble-row--sticker" : ""} ${m.kind === "gif" ? "chat-bubble-row--gif" : ""}`}
               onContextMenu={(e) => openMenu(m, e)}
               onClick={selectionMode ? () => onToggleSelection(m.id) : undefined}
+              onTouchStart={onRowTouchStart}
+              onTouchMove={onRowTouchMove}
+              onTouchEnd={(e) => onRowTouchEnd(e, m)}
             >
               {selectionMode ? (
                 <label className="chat-bubble-row__check">

@@ -1537,3 +1537,25 @@ body {
 .call-overlay--video .call-overlay__actions {
   margin: 0.75rem auto;
 }
+
+/* Swipe-to-reply: a ↩ cue slides in as the bubble row is dragged to the right. */
+.chat-bubble-row {
+  position: relative;
+  will-change: transform;
+}
+.chat-bubble-row::before {
+  content: "↩";
+  position: absolute;
+  left: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.chat-bubble-row--reply-ready::before {
+  opacity: 1;
+}
