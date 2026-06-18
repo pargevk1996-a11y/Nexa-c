@@ -1418,3 +1418,122 @@ body {
 [data-perf="lite"] .chat-left-panel__watermark {
   animation: none !important;
 }
+
+/* ============================================================
+   MODERN CALL UI — immersive voice screen, glass control bar.
+   (Overrides the legacy card look in chat.css; apple-theme loads last.)
+   ============================================================ */
+.call-overlay__backdrop {
+  background: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Voice / camera-off: full-bleed immersive screen with a soft top glow. */
+.call-overlay--voice .call-overlay__panel {
+  width: min(460px, 100vw) !important;
+  min-height: min(580px, 100dvh);
+  padding: 3rem 1.5rem 1.75rem !important;
+  border: none !important;
+  border-radius: 30px !important;
+  background:
+    radial-gradient(130% 70% at 50% -10%, rgba(41, 151, 255, 0.22), transparent 60%),
+    linear-gradient(180deg, #0c0d12 0%, #000 100%) !important;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.65) !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+@media (max-width: 600px) {
+  .call-overlay--voice .call-overlay__panel {
+    width: 100vw !important;
+    min-height: 100dvh;
+    border-radius: 0 !important;
+  }
+}
+
+/* Big avatar with a soft glow, centered. */
+.call-overlay__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.call-overlay--voice .call-overlay__center .avatar,
+.call-overlay--voice .call-overlay__voice-visual .avatar {
+  width: 132px !important;
+  height: 132px !important;
+  min-width: 132px !important;
+  max-width: 132px !important;
+  border-radius: 50% !important;
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.04),
+    0 0 70px rgba(41, 151, 255, 0.4);
+}
+.call-overlay__center h2 {
+  margin: 0.6rem 0 0;
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: #fff;
+}
+.call-overlay__status {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Floating glass control bar — circular buttons. */
+.call-overlay__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-self: center;
+  margin-top: 1.25rem;
+  padding: 0.85rem 1.1rem;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+.call-overlay__actions .icon-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.call-overlay__actions .icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+.call-overlay__actions .icon-btn--active {
+  background: rgba(41, 151, 255, 0.28);
+  color: #fff;
+}
+/* End-call = solid red circle, slightly larger. */
+.call-overlay__end.icon-btn,
+.call-overlay__actions .call-overlay__end {
+  width: 62px !important;
+  height: 62px !important;
+  background: var(--danger) !important;
+  color: #fff !important;
+}
+.call-overlay__end.icon-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* Video: bigger stage, rounded local PiP, controls bar overlaid at the bottom. */
+.call-overlay--video .call-overlay__panel--video {
+  width: min(860px, 98vw) !important;
+  background: #000 !important;
+  border: none !important;
+  border-radius: 22px !important;
+}
+.call-overlay__video-local {
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+.call-overlay--video .call-overlay__actions {
+  margin: 0.75rem auto;
+}
