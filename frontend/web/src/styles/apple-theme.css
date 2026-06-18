@@ -965,3 +965,19 @@ body {
   flex: 1;
   min-width: 0;
 }
+
+/* ===== Chat header: minimal — only Back + a larger avatar (all versions).
+   Name/status and the old action row are removed; their functions live in the
+   avatar-tap popup. ===== */
+.chat-header__info,
+.chat-header__actions {
+  display: none !important;
+}
+.chat-header__avatar-wrap .avatar,
+.chat-header__avatar-wrap .avatar img {
+  width: 48px !important;
+  height: 48px !important;
+}
+.chat-header {
+  gap: 0.5rem;
+}

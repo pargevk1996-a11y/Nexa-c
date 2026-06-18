@@ -135,7 +135,7 @@ export function ChatHeader({
           <Avatar
             name={title}
             online={online && !isChannel}
-            size="md"
+            size="lg"
             avatarUrl={peer?.avatar_url}
             animatedUrl={peer?.animated_avatar_url}
             avatarKind={peer?.avatar_kind}
