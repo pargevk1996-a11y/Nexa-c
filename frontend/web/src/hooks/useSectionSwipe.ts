@@ -39,7 +39,7 @@ export function useSectionSwipe(): void {
       // Don't hijack swipes that begin on a control that may scroll/drag
       // horizontally itself (text fields, the folder pill row, sliders).
       const el = e.target as HTMLElement | null;
-      if (el?.closest("input, textarea, [data-no-section-swipe], .chat-folders, .image-gallery")) {
+      if (el?.closest("input, textarea, [data-no-section-swipe], .chat-folders, .image-gallery, .chat-main")) {
         tracking = false;
         return;
       }

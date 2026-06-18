@@ -1365,3 +1365,32 @@ body {
   color: var(--text-muted);
   cursor: pointer;
 }
+
+/* Send-later modal: message preview + time field (presets/textarea removed). */
+.schedule-modal__preview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  max-height: 80px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.schedule-modal__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.schedule-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.schedule-modal__field > span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}

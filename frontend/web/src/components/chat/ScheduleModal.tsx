@@ -8,8 +8,11 @@ import {
 
 interface ScheduleModalProps {
   conversationId: string;
-  initialText?: string;
+  /** The message currently typed in the composer — this is what gets scheduled. */
+  text: string;
   onClose: () => void;
+  /** Called after a successful schedule so the composer draft can be cleared. */
+  onScheduled?: () => void;
 }
 
 /** Local datetime string (YYYY-MM-DDTHH:mm) for an <input type="datetime-local">. */
@@ -29,8 +32,7 @@ function formatWhen(iso: string | null): string {
   });
 }
 
-export function ScheduleModal({ conversationId, initialText = "", onClose }: ScheduleModalProps) {
-  const [text, setText] = useState(initialText);
+export function ScheduleModal({ conversationId, text, onClose, onScheduled }: ScheduleModalProps) {
   const [when, setWhen] = useState(() => toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
   const [items, setItems] = useState<ScheduledMessage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -57,20 +59,11 @@ export function ScheduleModal({ conversationId, initialText = "", onClose }: Sch
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const preset = (ms: number) => setWhen(toLocalInput(new Date(Date.now() + ms)));
-  const presetAt = (hour: number, addDays = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() + addDays);
-    d.setHours(hour, 0, 0, 0);
-    if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
-    setWhen(toLocalInput(d));
-  };
-
   const schedule = async () => {
     setError(null);
     const body = text.trim();
     if (!body) {
-      setError("Message is empty");
+      setError("Type a message first");
       return;
     }
     const at = new Date(when);
@@ -85,7 +78,7 @@ export function ScheduleModal({ conversationId, initialText = "", onClose }: Sch
     setBusy(true);
     try {
       await createScheduledMessage(conversationId, { body, scheduled_at: at.toISOString() });
-      setText("");
+      onScheduled?.();
       refresh();
     } catch {
       setError("Could not schedule");
@@ -113,43 +106,28 @@ export function ScheduleModal({ conversationId, initialText = "", onClose }: Sch
         onClick={(e) => e.stopPropagation()}
       >
         <header className="schedule-modal__head">
-          <h3>Schedule message</h3>
+          <h3>Send later</h3>
           <button type="button" className="schedule-modal__close" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </header>
 
-        <textarea
-          className="schedule-modal__text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Message to send later…"
-          rows={3}
-          autoFocus
-        />
+        {text.trim() ? (
+          <p className="schedule-modal__preview">{text.trim()}</p>
+        ) : (
+          <p className="schedule-modal__hint">Type a message in the chat, then pick a time.</p>
+        )}
 
-        <div className="schedule-modal__presets">
-          <button type="button" onClick={() => preset(60 * 60 * 1000)}>
-            +1h
-          </button>
-          <button type="button" onClick={() => preset(3 * 60 * 60 * 1000)}>
-            +3h
-          </button>
-          <button type="button" onClick={() => presetAt(20)}>
-            Tonight
-          </button>
-          <button type="button" onClick={() => presetAt(9, 1)}>
-            Tomorrow
-          </button>
-        </div>
-
-        <input
-          className="schedule-modal__when"
-          type="datetime-local"
-          value={when}
-          onChange={(e) => setWhen(e.target.value)}
-          aria-label="Send at"
-        />
+        <label className="schedule-modal__field">
+          <span>Set date &amp; time</span>
+          <input
+            className="schedule-modal__when"
+            type="datetime-local"
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+            aria-label="Send at"
+          />
+        </label>
 
         {error ? <p className="schedule-modal__error">{error}</p> : null}
 

@@ -94,7 +94,10 @@ export function ChatLeftPanel({
     let two = false;
     const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
     const onStart = (e: TouchEvent) => {
-      if (window.innerWidth > 768) {
+      // Don't react to gestures that happen inside an open chat — the chat has
+      // its own two-finger gesture (the scheduler), and category cycling here
+      // must not be triggered by it.
+      if (window.innerWidth > 768 || (e.target as HTMLElement | null)?.closest(".chat-main")) {
         two = false;
         return;
       }

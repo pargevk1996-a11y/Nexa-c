@@ -481,8 +481,9 @@ export function ChatPage() {
                 {scheduleOpen && activeId ? (
                   <ScheduleModal
                     conversationId={activeId}
-                    initialText={drafts[activeId] ?? ""}
+                    text={drafts[activeId] ?? ""}
                     onClose={() => setScheduleOpen(false)}
+                    onScheduled={() => setDraft(activeId, "")}
                   />
                 ) : null}
               </>
