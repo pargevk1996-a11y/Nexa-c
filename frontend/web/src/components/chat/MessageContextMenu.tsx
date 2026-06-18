@@ -18,6 +18,10 @@ export type MessageMenuAction =
   | { type: "react"; emoji: string };
 
 const QUICK_REACT = ["👍", "❤️", "😂", "🔥", "🎉"];
+const MORE_REACT = [
+  "👍", "❤️", "😂", "🔥", "🎉", "😮", "😢", "🥰", "🙏", "👏", "💯", "✅",
+  "😍", "🤯", "😎", "🤝", "🙌", "👌", "💪", "😅", "🤔", "🥳", "😴", "🤩",
+];
 
 interface MessageContextMenuProps {
   message: Message;
@@ -127,6 +131,7 @@ export function MessageContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState(position);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reactExpanded, setReactExpanded] = useState(false);
   const items = buildMenuItems(message, isGroup, Boolean(isSecret), Boolean(isSuperSecret), Boolean(isPinned));
 
   useLayoutEffect(() => {
@@ -145,7 +150,7 @@ export function MessageContextMenu({
     if (x < pad) x = pad;
     if (y < pad) y = pad;
     setCoords({ x, y });
-  }, [position, deleteOpen, items.length]);
+  }, [position, deleteOpen, reactExpanded, items.length]);
 
   useContextMenuDismiss(menuRef, onClose);
 
@@ -163,18 +168,45 @@ export function MessageContextMenu({
       onContextMenu={(e) => e.preventDefault()}
     >
       {features.chat.reactions && !message.recalled && !message.ephemeral ? (
-        <div className="msg-context-menu__react" role="group" aria-label="Quick reactions">
-          {QUICK_REACT.map((emoji) => (
+        <div className="msg-context-menu__react-wrap">
+          <div className="msg-context-menu__react" role="group" aria-label="Quick reactions">
+            {QUICK_REACT.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="msg-context-menu__react-btn"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => run({ type: "react", emoji })}
+              >
+                {emoji}
+              </button>
+            ))}
             <button
-              key={emoji}
               type="button"
-              className="msg-context-menu__react-btn"
+              className={`msg-context-menu__react-more ${reactExpanded ? "msg-context-menu__react-more--open" : ""}`}
+              aria-label="More reactions"
+              aria-expanded={reactExpanded}
               onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => run({ type: "react", emoji })}
+              onClick={() => setReactExpanded((o) => !o)}
             >
-              {emoji}
+              ⌄
             </button>
-          ))}
+          </div>
+          {reactExpanded ? (
+            <div className="msg-context-menu__react-grid" role="group" aria-label="More reactions">
+              {MORE_REACT.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="msg-context-menu__react-btn"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => run({ type: "react", emoji })}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {items.map((item) => {

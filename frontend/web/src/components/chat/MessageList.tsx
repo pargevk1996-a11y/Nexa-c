@@ -472,28 +472,70 @@ export function MessageList({
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
-  // Swipe a message to the RIGHT to reply to it (mobile gesture). We translate
-  // the row live and, past a threshold, fire the reply action on release.
+  // Message touch gestures (mobile):
+  //  • swipe RIGHT  → reply to the message
+  //  • double-tap   → ❤️ reaction
+  //  • press & hold → open the reaction row + menu
   const swipeRef = useRef<{ x: number; y: number; el: HTMLElement | null; horiz: boolean }>({
     x: 0,
     y: 0,
     el: null,
     horiz: false,
   });
+  const movedRef = useRef(false);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressedRef = useRef(false);
+  const lastTapRef = useRef<{ id: string; t: number }>({ id: "", t: 0 });
+
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   const onRowTouchStart = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+    (e: React.TouchEvent<HTMLDivElement>, m: Message) => {
       if (selectionMode) return;
       const t = e.touches[0];
       swipeRef.current = { x: t.clientX, y: t.clientY, el: e.currentTarget, horiz: false };
+      movedRef.current = false;
+      longPressedRef.current = false;
+      clearLongPress();
+      const reactable = !isSecret && !m.ephemeral && !m.recalled && !m.deleted;
+      if (reactable) {
+        const x = t.clientX;
+        const y = t.clientY;
+        longPressTimer.current = window.setTimeout(() => {
+          longPressedRef.current = true;
+          const el = swipeRef.current.el;
+          if (el) {
+            el.style.transform = "";
+            el.classList.remove("chat-bubble-row--reply-ready");
+          }
+          swipeRef.current.el = null;
+          try {
+            navigator.vibrate?.(15);
+          } catch {
+            /* no haptics */
+          }
+          setMenu({ message: m, x, y });
+        }, 420);
+      }
     },
-    [selectionMode],
+    [selectionMode, isSecret],
   );
+
   const onRowTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     const s = swipeRef.current;
-    if (!s.el) return;
     const t = e.touches[0];
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      movedRef.current = true;
+      clearLongPress();
+    }
+    if (!s.el) return;
     if (!s.horiz) {
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
       if (Math.abs(dx) <= Math.abs(dy)) {
@@ -507,20 +549,52 @@ export function MessageList({
     s.el.style.transform = `translateX(${d}px)`;
     s.el.classList.toggle("chat-bubble-row--reply-ready", d >= 52);
   }, []);
+
   const onRowTouchEnd = useCallback(
-    (_e: React.TouchEvent<HTMLDivElement>, m: Message) => {
-      const el = swipeRef.current.el;
+    (e: React.TouchEvent<HTMLDivElement>, m: Message) => {
+      clearLongPress();
+      const s = swipeRef.current;
+      const el = s.el;
+      const horiz = s.horiz;
+      const moved = movedRef.current;
       swipeRef.current = { x: 0, y: 0, el: null, horiz: false };
-      if (!el) return;
-      const ready = el.classList.contains("chat-bubble-row--reply-ready");
-      el.style.transition = "transform 0.18s ease";
-      el.style.transform = "";
-      el.classList.remove("chat-bubble-row--reply-ready");
-      if (ready && !isSecret && !m.ephemeral && !m.recalled && !m.deleted) {
-        onMenuAction(m, { type: "reply" });
+      movedRef.current = false;
+
+      if (longPressedRef.current) {
+        longPressedRef.current = false;
+        return; // the hold already opened the menu
+      }
+
+      const reactable = !isSecret && !m.ephemeral && !m.recalled && !m.deleted;
+
+      if (el) {
+        const ready = el.classList.contains("chat-bubble-row--reply-ready");
+        el.style.transition = "transform 0.18s ease";
+        el.style.transform = "";
+        el.classList.remove("chat-bubble-row--reply-ready");
+        if (horiz) {
+          if (ready && reactable) onMenuAction(m, { type: "reply" });
+          return;
+        }
+      }
+
+      // A clean tap (no swipe / no scroll): a second one within 300ms = ❤️.
+      // Skip when the tap landed on an interactive element (image, link, poll…)
+      // so it doesn't fight with opening media / following a link.
+      const interactive = (e.target as HTMLElement | null)?.closest(
+        "a, button, img, video, input, select, textarea, label, .poll-message",
+      );
+      if (!moved && !interactive && !selectionMode && reactable && onToggleReaction) {
+        const now = Date.now();
+        if (lastTapRef.current.id === m.id && now - lastTapRef.current.t < 300) {
+          lastTapRef.current = { id: "", t: 0 };
+          onToggleReaction(m.id, "❤️");
+        } else {
+          lastTapRef.current = { id: m.id, t: now };
+        }
       }
     },
-    [onMenuAction, isSecret],
+    [onMenuAction, onToggleReaction, isSecret, selectionMode],
   );
 
   const handleStartReached = useCallback(() => {
@@ -648,7 +722,7 @@ export function MessageList({
               className={`chat-bubble-row ${m.outgoing ? "chat-bubble-row--out" : "chat-bubble-row--in"} ${row.grouped ? "chat-bubble-row--grouped" : ""} ${row.showTail ? "chat-bubble-row--tail" : ""} ${selected ? "chat-bubble-row--selected" : ""} ${m.ephemeral ? "chat-bubble-row--ephemeral" : ""} ${sending ? "chat-bubble-row--sending" : ""} ${m.status === "failed" ? "chat-bubble-row--failed" : ""} ${m.kind === "sticker" ? "chat-bubble-row--sticker" : ""} ${m.kind === "gif" ? "chat-bubble-row--gif" : ""}`}
               onContextMenu={(e) => openMenu(m, e)}
               onClick={selectionMode ? () => onToggleSelection(m.id) : undefined}
-              onTouchStart={onRowTouchStart}
+              onTouchStart={(e) => onRowTouchStart(e, m)}
               onTouchMove={onRowTouchMove}
               onTouchEnd={(e) => onRowTouchEnd(e, m)}
             >
