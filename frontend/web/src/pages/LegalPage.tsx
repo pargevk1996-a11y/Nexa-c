@@ -23,11 +23,11 @@ const COPY: Record<LegalKind, LegalDoc> = {
     title: "Privacy Policy",
     effective: "2026-06-14",
     version: "1.1",
-    intro: `${BRAND_NAME} is built privacy-first. This policy explains in full detail what personal data we collect, why we collect it, how we protect it, and what rights you have over it. We operate under EU GDPR and California CCPA/CPRA. Fields marked [[PENDING]] require legal review before first publication.`,
+    intro: `${BRAND_NAME} is built privacy-first. This policy explains in full detail what personal data we collect, why we collect it, how we protect it, and what rights you have over it. We operate under EU GDPR and California CCPA/CPRA.`,
     sections: [
       {
         h: "1. Who is the data controller",
-        p: `${BRAND_NAME} messenger (nexa-c.com) is operated by [[LEGAL_ENTITY_NAME]], [[REGISTERED_ADDRESS]], [[COUNTRY/JURISDICTION]]. For all data protection and privacy inquiries, contact our Data Protection Officer (DPO) at nexa@nexa-c.com. EU residents may also contact the supervisory authority for their member state; California residents may file a complaint with the California Attorney General (oag.ca.gov).`,
+        p: `${BRAND_NAME} messenger (nexa-c.com) is operated by Nexa, United States. For all data protection and privacy inquiries, contact our Data Protection Officer (DPO) at nexa@nexa-c.com. EU residents may also contact the supervisory authority for their member state; California residents may file a complaint with the California Attorney General (oag.ca.gov).`,
       },
       {
         h: "2. Data we collect",
@@ -84,15 +84,15 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "7. Data retention",
-        p: `We retain personal data only as long as necessary for the purpose collected. On account deletion: profile, contacts, messages, media, session tokens, and push tokens are purged within 30 days. Session tokens are invalidated immediately on deletion request. Hashed audit-log entries are retained for 90 days, then automatically deleted. Backups containing your data are overwritten within [[N]] days of deletion. We retain data longer only where required by applicable law (e.g., financial or legal record-keeping obligations — [[specify if applicable]]).`,
+        p: `We retain personal data only as long as necessary for the purpose collected. On account deletion: profile, contacts, messages, media, session tokens, and push tokens are purged within 30 days. Session tokens are invalidated immediately on deletion request. Hashed audit-log entries are retained for 90 days, then automatically deleted. Backups containing your data are overwritten within 30 days of deletion. We retain data longer only where required by applicable law (e.g., financial or legal record-keeping obligations).`,
       },
       {
         h: "8. Sharing with third parties",
         p: "We share your data only with the sub-processors required to operate the service, under contractual data processing agreements:",
         items: [
-          "Amazon Web Services, Inc. (USA, region [[AWS_REGION]]): cloud infrastructure, compute, and object storage. AWS provides infrastructure only and has no access to message content.",
+          "Amazon Web Services, Inc. (USA, region us-west-1): cloud infrastructure, compute, and object storage. AWS provides infrastructure only and has no access to message content.",
           "Cloudflare, Inc. (USA / global): edge TLS termination, CDN, and DDoS mitigation. Cloudflare may see encrypted traffic metadata but not content.",
-          "[[SMTP_PROVIDER]] ([[country]]): transactional email delivery for account verification, password reset, and security alerts.",
+          "Resend, Inc. (USA): transactional email delivery for account verification, password reset, and security alerts.",
         ],
       },
       {
@@ -140,7 +140,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "15. Contact",
-        p: "Data Protection Officer: nexa@nexa-c.com · [[POSTAL_ADDRESS]]. For EU supervisory authority contacts: edpb.europa.eu/about-edpb/board/members_en. For California residents: oag.ca.gov/privacy.",
+        p: "Data Protection Officer: nexa@nexa-c.com. For EU supervisory authority contacts: edpb.europa.eu/about-edpb/board/members_en. For California residents: oag.ca.gov/privacy.",
       },
     ],
   },
@@ -153,7 +153,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
     sections: [
       {
         h: "1. Acceptance of terms",
-        p: `These Terms of Service ("Terms") govern your access to and use of the ${BRAND_NAME} messenger service, including the website nexa-c.com, web application, mobile applications, and desktop applications (collectively, the "Service"), operated by [[LEGAL_ENTITY_NAME]] ("${BRAND_NAME}", "we", "us", "our"). By creating an account, clicking "Create account", or otherwise using the Service, you confirm that you have read, understood, and agree to be bound by these Terms and our Privacy Policy.`,
+        p: `These Terms of Service ("Terms") govern your access to and use of the ${BRAND_NAME} messenger service, including the website nexa-c.com, web application, mobile applications, and desktop applications (collectively, the "Service"), operated by Nexa ("${BRAND_NAME}", "we", "us", "our"). By creating an account, clicking "Create account", or otherwise using the Service, you confirm that you have read, understood, and agree to be bound by these Terms and our Privacy Policy.`,
       },
       {
         h: "2. Eligibility",
@@ -274,7 +274,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "16. Governing law and disputes",
-        p: `These Terms are governed by the laws of [[JURISDICTION]], without regard to its conflict-of-law rules. Any dispute arising from or relating to these Terms or the Service shall be subject to the exclusive jurisdiction of the courts of [[JURISDICTION]]. For consumers in the EU: nothing in these Terms overrides mandatory consumer protection rights in your country of residence; you may also use the EU Online Dispute Resolution platform at ec.europa.eu/odr. For consumers in the UK: the Consumer Rights Act 2015 and other applicable UK consumer law protections apply.`,
+        p: `These Terms are governed by the laws of California, United States, without regard to its conflict-of-law rules. Any dispute arising from or relating to these Terms or the Service shall be subject to the exclusive jurisdiction of the courts of California, United States. For consumers in the EU: nothing in these Terms overrides mandatory consumer protection rights in your country of residence; you may also use the EU Online Dispute Resolution platform at ec.europa.eu/odr. For consumers in the UK: the Consumer Rights Act 2015 and other applicable UK consumer law protections apply.`,
       },
       {
         h: "17. Changes to these terms",
@@ -286,7 +286,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "19. Contact",
-        p: "For questions about these Terms: nexa@nexa-c.com · [[POSTAL_ADDRESS]]. For security issues: nexa@nexa-c.com. For abuse reports: nexa@nexa-c.com.",
+        p: "For questions about these Terms: nexa@nexa-c.com. For security issues: nexa@nexa-c.com. For abuse reports: nexa@nexa-c.com.",
       },
     ],
   },
@@ -305,7 +305,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "Network use and source code (AGPL §13)",
-        p: "In accordance with Section 13 of the GNU Affero General Public License, users who interact with this software remotely through a computer network are offered the opportunity to receive a copy of the corresponding source code. The source code is available at [[GITHUB_REPO_URL]]. If you have difficulty accessing the repository, you may request a copy by emailing nexa@nexa-c.com.",
+        p: "In accordance with Section 13 of the GNU Affero General Public License, users who interact with this software remotely through a computer network are offered the opportunity to receive a copy of the corresponding source code. The source code is available at https://github.com/pargevk1996-a11y/Nexa-c. If you have difficulty accessing the repository, you may request a copy by emailing nexa@nexa-c.com.",
       },
       {
         h: "Full license text",
@@ -317,7 +317,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "Trademarks",
-        p: `The name "${BRAND_NAME}", the ${BRAND_NAME} logo, and associated branding are trademarks of [[LEGAL_ENTITY_NAME]]. The AGPL-3.0 license does not grant permission to use these trademarks. You may use the source code under the AGPL-3.0, but distribution of modified versions must not use the ${BRAND_NAME} name or logo in a way that implies endorsement or association with the original authors.`,
+        p: `The name "${BRAND_NAME}", the ${BRAND_NAME} logo, and associated branding are trademarks of Nexa. The AGPL-3.0 license does not grant permission to use these trademarks. You may use the source code under the AGPL-3.0, but distribution of modified versions must not use the ${BRAND_NAME} name or logo in a way that implies endorsement or association with the original authors.`,
       },
     ],
   },

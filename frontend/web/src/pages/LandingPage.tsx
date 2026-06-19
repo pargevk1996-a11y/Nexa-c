@@ -146,6 +146,17 @@ export function LandingPage() {
                 <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
             </button>
+            <aside className="home-modal__aside" aria-hidden="true">
+              <p className="home-modal__aside-brand">Nexa</p>
+              <ul className="home-modal__aside-features">
+                <li><span>🔐</span><span>End-to-end encryption — coming soon</span></li>
+                <li><span>⚡</span><span>Real-time messaging &amp; presence</span></li>
+                <li><span>📹</span><span>Encrypted video &amp; voice calls</span></li>
+                <li><span>🔥</span><span>Ephemeral messages &amp; media</span></li>
+                <li><span>🛡️</span><span>Screenshot protection &amp; privacy seal</span></li>
+              </ul>
+              <p className="home-modal__aside-tagline">Your privacy, by design.</p>
+            </aside>
             {mode === "login" ? <LoginPage /> : <RegisterPage />}
           </div>
         </div>

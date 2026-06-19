@@ -92,8 +92,13 @@
     <link rel="preload" as="font" type="font/woff2" href="/fonts/montserrat-700-latin.woff2" crossorigin />
     <!-- Fonts are self-hosted (src/styles/fonts.css → /fonts/*.woff2). No request
          to Google Fonts: zero third-party origins on any page incl. auth + chat. -->
+    <style>
+      .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
+      .skip-link:focus{left:0;top:0;width:auto;height:auto;padding:0.5rem 1rem;background:#4f7cff;color:#fff;font-weight:600;border-radius:0 0 8px 0;z-index:9999;overflow:visible}
+    </style>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="root"></div>
     <!--
       Static, non-React blackout backstop. Lives OUTSIDE #root so it survives even

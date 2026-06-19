@@ -141,6 +141,16 @@
   margin-top: 1rem;
 }
 
+.posts-page__empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 .post-card {
   padding: 1.25rem;
   background: var(--bg-elevated);

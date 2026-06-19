@@ -364,6 +364,60 @@
   max-width: 100%;
 }
 
+.home-modal__aside {
+  display: none;
+}
+
+/* Wide-screen split layout: feature highlights on left, auth form on right */
+@media (min-width: 1200px) {
+  .home-modal__panel {
+    max-width: 860px;
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 0;
+  }
+  .home-modal__aside {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2.5rem 2rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .home-modal__aside-brand {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #4f7cff, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1.5rem;
+  }
+  .home-modal__aside-features {
+    list-style: none;
+    margin: 0 0 2rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .home-modal__aside-features li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+  }
+  .home-modal__aside-features li span:first-child {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .home-modal__aside-tagline {
+    font-size: 0.82rem;
+    color: var(--text-faint);
+  }
+}
+
 .home-modal__close {
   position: absolute;
   top: 0.85rem;
@@ -371,8 +425,8 @@
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);

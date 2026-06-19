@@ -153,8 +153,10 @@
 }
 
 .profile-panel__action-btn--active {
+  background: rgba(79, 124, 255, 0.18);
   background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
   color: var(--text);
+  box-shadow: 0 0 0 1px rgba(79, 124, 255, 0.35);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 

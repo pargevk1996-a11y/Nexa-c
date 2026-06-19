@@ -88,7 +88,7 @@ export function RegisterPage() {
       <OAuthButtons alwaysShow onError={(msg) => setError(msg || null)} />
 
       <p className="auth-divider" role="separator">
-        <span>or sign up with email</span>
+        <span>or sign up with email or username</span>
       </p>
 
       <form className="auth-form" onSubmit={handleSubmit} noValidate>

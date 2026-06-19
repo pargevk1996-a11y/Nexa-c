@@ -46,7 +46,7 @@
 
   --text: #f6f6fa;
   --text-muted: #a8a3bc;
-  --text-faint: #6e6a82;
+  --text-faint: #8a8597;
 
   --accent: #4f7cff;
   --accent-hover: #93b4ff;
@@ -132,7 +132,7 @@
   --border: rgba(255, 255, 255, 0.08);
   --text: #f6f6fa;
   --text-muted: #a8a3bc;
-  --text-faint: #6e6a82;
+  --text-faint: #8a8597;
   --bubble-in-bg: rgba(255, 255, 255, 0.06);
   --bubble-in-border: rgba(255, 255, 255, 0.1);
 }

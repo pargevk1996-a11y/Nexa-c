@@ -16,7 +16,7 @@ export function LoginPage() {
       <AuthAlert variant="error">{error}</AuthAlert>
       <OAuthButtons alwaysShow onError={(msg) => setError(msg || null)} />
       <p className="auth-divider" role="separator">
-        <span>or sign in with email</span>
+        <span>or sign in with username or email</span>
       </p>
       <PasswordLoginForm
         onSuccess={() => navigate("/app/chats", { replace: true })}
@@ -32,7 +32,11 @@ export function LoginPage() {
             onError={(msg) => setError(msg)}
           />
         </>
-      ) : null}
+      ) : (
+        <p className="auth-divider" role="separator" style={{ opacity: 0.45, pointerEvents: "none" }}>
+          <span>Use passkey — coming soon</span>
+        </p>
+      )}
       <p className="auth-footer auth-footer--row">
         <Link to="/forgot-password">Forgot password</Link>
         <span aria-hidden> · </span>

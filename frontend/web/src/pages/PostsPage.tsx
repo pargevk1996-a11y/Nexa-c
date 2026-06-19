@@ -95,6 +95,12 @@ export function PostsPage() {
       </form>
 
       <div className="posts-feed">
+        {posts.length === 0 && (
+          <div className="posts-page__empty">
+            <p>Share a moment with your contacts.</p>
+            <p>Posts are visible only to contacts who follow you.</p>
+          </div>
+        )}
         {posts.map((post) => (
           <article key={post.id} className="post-card">
             <header className="post-card__head">

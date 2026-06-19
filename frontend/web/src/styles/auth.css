@@ -897,18 +897,27 @@ html:has(.auth-layout) body {
   }
 }
 
-/* BUG-001: compact the card on short viewports (landscape phones) so Sign in stays visible */
+/* BUG-002/BUG-008: hide OAuth block in landscape so form fits without scrolling */
 @media (max-height: 500px) {
   .auth-card {
-    padding: 1rem;
+    padding: 1rem 1.2rem;
   }
   .auth-card__header {
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
   }
   .auth-card__header h2 {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
+  }
+  .auth-card .field__input {
+    height: 2.8rem;
   }
   .auth-card .btn {
     min-height: 2.8rem;
+  }
+  .oauth-buttons {
+    display: none;
+  }
+  .auth-divider {
+    display: none;
   }
 }

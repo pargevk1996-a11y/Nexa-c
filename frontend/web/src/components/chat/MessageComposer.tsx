@@ -1,8 +1,16 @@
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, Suspense, lazy, useEffect, useRef, useState } from "react";
 import type { ContextMessage } from "@/api/ai";
-import { EmojiPicker } from "@/components/chat/EmojiPicker";
-import { VoiceRecorder, type VoiceRecorderHandle } from "@/components/chat/VoiceRecorder";
-import { VideoNoteRecorder, type VideoNoteRecorderHandle } from "@/components/chat/VideoNoteRecorder";
+import type { VoiceRecorderHandle } from "@/components/chat/VoiceRecorder";
+import type { VideoNoteRecorderHandle } from "@/components/chat/VideoNoteRecorder";
+const EmojiPicker = lazy(() =>
+  import("@/components/chat/EmojiPicker").then((m) => ({ default: m.EmojiPicker })),
+);
+const VoiceRecorder = lazy(() =>
+  import("@/components/chat/VoiceRecorder").then((m) => ({ default: m.VoiceRecorder })),
+);
+const VideoNoteRecorder = lazy(() =>
+  import("@/components/chat/VideoNoteRecorder").then((m) => ({ default: m.VideoNoteRecorder })),
+);
 import { SmartReplyBar } from "@/components/ai/SmartReplyBar";
 import { useSmartReply } from "@/ai/useSmartReply";
 import {
@@ -457,23 +465,25 @@ export function MessageComposer({
         />
       ) : null}
       <div className="chat-composer__wrap">
-        <EmojiPicker
-          open={emojiOpen}
-          initialSection={pickerSection}
-          onClose={() => setEmojiOpen(false)}
-          onSelect={insertEmoji}
-          onGifSelect={(gif: DemoGif) => {
-            onSendGif?.(gif);
-            setEmojiOpen(false);
-          }}
-          onStickerSelect={(st: DemoSticker) => {
-            onSendSticker?.(st);
-            setEmojiOpen(false);
-          }}
-          allowGif={!isSecret && Boolean(onSendGif) && features.chat.stickers}
-          allowStickers={!isSecret && Boolean(onSendSticker) && features.chat.stickers}
-          anchorRef={emojiBtnRef}
-        />
+        <Suspense fallback={null}>
+          <EmojiPicker
+            open={emojiOpen}
+            initialSection={pickerSection}
+            onClose={() => setEmojiOpen(false)}
+            onSelect={insertEmoji}
+            onGifSelect={(gif: DemoGif) => {
+              onSendGif?.(gif);
+              setEmojiOpen(false);
+            }}
+            onStickerSelect={(st: DemoSticker) => {
+              onSendSticker?.(st);
+              setEmojiOpen(false);
+            }}
+            allowGif={!isSecret && Boolean(onSendGif) && features.chat.stickers}
+            allowStickers={!isSecret && Boolean(onSendSticker) && features.chat.stickers}
+            anchorRef={emojiBtnRef}
+          />
+        </Suspense>
         <div className="chat-composer__inner">
           {selectionMode ? (
             <p className="chat-composer__hint">Tap messages to select them</p>
@@ -559,37 +569,41 @@ export function MessageComposer({
             </div>
           ) : recordingMode ? (
             videoMode ? (
-              <VideoNoteRecorder
-                ref={videoRecorderRef}
-                autoStart
-                disabled={disabled}
-                locked={recordLocked}
-                dragHint={dragHint}
-                onRecorded={(dur, url, blob) => handleVideoRecorded(dur, url, blob)}
-                onCancel={() => {
-                  setRecordingMode(false);
-                  setRecordLocked(false);
-                  recordingRef.current = false;
-                  lockedRef.current = false;
-                }}
-              />
+              <Suspense fallback={null}>
+                <VideoNoteRecorder
+                  ref={videoRecorderRef}
+                  autoStart
+                  disabled={disabled}
+                  locked={recordLocked}
+                  dragHint={dragHint}
+                  onRecorded={(dur, url, blob) => handleVideoRecorded(dur, url, blob)}
+                  onCancel={() => {
+                    setRecordingMode(false);
+                    setRecordLocked(false);
+                    recordingRef.current = false;
+                    lockedRef.current = false;
+                  }}
+                />
+              </Suspense>
             ) : (
-              <VoiceRecorder
-                ref={voiceRecorderRef}
-                autoStart
-                disabled={disabled}
-                locked={recordLocked}
-                dragHint={dragHint}
-                ephemeral={ephemeralMode}
-                onToggleEphemeral={isSecret ? undefined : () => setEphemeralMode((v) => !v)}
-                onRecorded={(dur, url, blob) => handleVoiceRecorded(dur, url, blob)}
-                onCancel={() => {
-                  setRecordingMode(false);
-                  setRecordLocked(false);
-                  recordingRef.current = false;
-                  lockedRef.current = false;
-                }}
-              />
+              <Suspense fallback={null}>
+                <VoiceRecorder
+                  ref={voiceRecorderRef}
+                  autoStart
+                  disabled={disabled}
+                  locked={recordLocked}
+                  dragHint={dragHint}
+                  ephemeral={ephemeralMode}
+                  onToggleEphemeral={isSecret ? undefined : () => setEphemeralMode((v) => !v)}
+                  onRecorded={(dur, url, blob) => handleVoiceRecorded(dur, url, blob)}
+                  onCancel={() => {
+                    setRecordingMode(false);
+                    setRecordLocked(false);
+                    recordingRef.current = false;
+                    lockedRef.current = false;
+                  }}
+                />
+              </Suspense>
             )
           ) : (
             <>

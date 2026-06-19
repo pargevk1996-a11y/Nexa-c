@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef, useState } from "react";
 import type { AvatarKind } from "@/types/profile";
 
 interface AvatarProps {
@@ -34,16 +34,34 @@ export const Avatar = memo(function Avatar({
   const anim = animatedUrl ?? (isAnimatedKind(avatarKind, avatarUrl) ? avatarUrl : null);
   const still = anim ? null : avatarUrl;
 
+  const [imgFailed, setImgFailed] = useState(false);
+  // Reset error when the URL changes (e.g. user re-uploads avatar)
+  const prevStillRef = useRef(still);
+  if (prevStillRef.current !== still) {
+    prevStillRef.current = still;
+    if (imgFailed) setImgFailed(false);
+  }
+
+  const showFallback = !still || imgFailed;
+
   return (
     <span
       className={`avatar avatar--${size} ${anim ? "avatar--animated" : ""}`}
-      style={still || anim ? undefined : { width: px, height: px, background: `hsl(${hue} 45% 35%)` }}
-      aria-hidden={still || anim ? undefined : true}
+      style={showFallback && !anim ? { width: px, height: px, background: `hsl(${hue} 45% 35%)` } : undefined}
+      aria-hidden={showFallback && !anim ? true : undefined}
     >
       {anim ? (
         <img src={anim} alt="" className="avatar__img" width={px} height={px} loading="lazy" />
-      ) : still ? (
-        <img src={still} alt="" className="avatar__img" width={px} height={px} loading="lazy" />
+      ) : !showFallback ? (
+        <img
+          src={still!}
+          alt=""
+          className="avatar__img"
+          width={px}
+          height={px}
+          loading="lazy"
+          onError={() => setImgFailed(true)}
+        />
       ) : (
         initial
       )}
