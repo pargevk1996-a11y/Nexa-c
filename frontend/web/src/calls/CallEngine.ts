@@ -46,6 +46,14 @@ export class CallEngine {
   private iceRestartTimers = new Map<string, number>();
   /** Peers with an ICE restart already in flight (avoids stacking restarts). */
   private restarting = new Set<string>();
+  /** True once we're an active participant (caller from the start, callee after
+   *  pressing Accept). While false we must NOT capture the mic or answer an
+   *  offer — otherwise the caller would hear our room before we pick up. */
+  private accepted = false;
+  /** Offers received while still ringing, replayed once the user accepts. */
+  private pendingOffers = new Map<string, RTCSessionDescriptionInit>();
+  /** ICE candidates that arrived before their peer/remote-description existed. */
+  private pendingIce = new Map<string, RTCIceCandidateInit[]>();
 
   setHandlers(handlers: {
     onRemoteStream?: (userId: string, stream: MediaStream) => void;
@@ -84,6 +92,8 @@ export class CallEngine {
   ): Promise<CallSession> {
     await this.initIce();
     this.qualityTier = 0;
+    // The caller is an active participant immediately — it drives the offer.
+    this.accepted = true;
     this.call = await createCall({
       call_type: callType,
       participant_ids: participantIds,
@@ -104,11 +114,22 @@ export class CallEngine {
     this.qualityTier = 0;
     this.call = await apiAccept(call.id);
     await this.ensureLocalMedia(callType);
+    // Now that we've picked up, answer any offer(s) buffered while ringing.
+    this.accepted = true;
+    const offers = Array.from(this.pendingOffers.entries());
+    this.pendingOffers.clear();
+    for (const [from, sdp] of offers) {
+      await this.answerOffer(from, sdp);
+    }
     this.onStateChange?.();
   }
 
   async attachIncomingCall(call: CallSession): Promise<void> {
     this.call = call;
+    // Ringing as the callee — stay passive until the user accepts.
+    this.accepted = false;
+    this.pendingOffers.clear();
+    this.pendingIce.clear();
   }
 
   async handleSignal(payload: Record<string, unknown>): Promise<void> {
@@ -117,24 +138,62 @@ export class CallEngine {
     if (!from || !this.call) return;
 
     if (signalType === "offer" && payload.sdp) {
-      // Capture + attach our mic/camera BEFORE answering. If the offer is handled
-      // before acceptIncoming() finished acquiring media, the answer would carry
-      // no tracks and the caller couldn't hear/see us (one-way call).
-      await this.ensureLocalMedia((this.call.call_type ?? "audio") as CallType);
-      const pc = await this.ensurePeer(from, false);
-      this.ensureLocalTracks(pc);
-      await pc.setRemoteDescription(payload.sdp as RTCSessionDescriptionInit);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await this.sendSignal(from, "answer", { sdp: answer });
+      // While still ringing (callee hasn't accepted), do NOT acquire the mic or
+      // answer — that would open the media path and leak our room audio to the
+      // caller before pickup. Buffer the offer and replay it on accept.
+      if (!this.accepted) {
+        this.pendingOffers.set(from, payload.sdp as RTCSessionDescriptionInit);
+        return;
+      }
+      await this.answerOffer(from, payload.sdp as RTCSessionDescriptionInit);
     } else if (signalType === "answer" && payload.sdp) {
       const pc = this.peers.get(from);
-      if (pc) await pc.setRemoteDescription(payload.sdp as RTCSessionDescriptionInit);
+      if (pc) {
+        await pc.setRemoteDescription(payload.sdp as RTCSessionDescriptionInit);
+        await this.flushPendingIce(from, pc);
+      }
       // Round-trip done: allow a fresh restart if the link drops again.
       this.restarting.delete(from);
     } else if (signalType === "ice" && payload.candidate) {
+      const candidate = payload.candidate as RTCIceCandidateInit;
       const pc = this.peers.get(from);
-      if (pc) await pc.addIceCandidate(payload.candidate as RTCIceCandidateInit);
+      // Only add once the peer exists and its remote description is set;
+      // otherwise buffer (covers candidates that race ahead of the offer/answer).
+      if (pc && pc.remoteDescription) {
+        await pc.addIceCandidate(candidate);
+      } else {
+        const list = this.pendingIce.get(from) ?? [];
+        list.push(candidate);
+        this.pendingIce.set(from, list);
+      }
+    }
+  }
+
+  /** Acquire local media, attach tracks, and answer a (possibly buffered) offer. */
+  private async answerOffer(from: string, sdp: RTCSessionDescriptionInit): Promise<void> {
+    // Capture + attach our mic/camera BEFORE answering, or the answer would carry
+    // no tracks and the caller couldn't hear/see us (one-way call).
+    await this.ensureLocalMedia((this.call?.call_type ?? "audio") as CallType);
+    const pc = await this.ensurePeer(from, false);
+    this.ensureLocalTracks(pc);
+    await pc.setRemoteDescription(sdp);
+    await this.flushPendingIce(from, pc);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await this.sendSignal(from, "answer", { sdp: answer });
+  }
+
+  /** Drain ICE candidates buffered before the remote description was ready. */
+  private async flushPendingIce(from: string, pc: RTCPeerConnection): Promise<void> {
+    const list = this.pendingIce.get(from);
+    if (!list) return;
+    this.pendingIce.delete(from);
+    for (const candidate of list) {
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch {
+        /* stale candidate — ignore */
+      }
     }
   }
 
@@ -389,6 +448,9 @@ export class CallEngine {
     this.iceRestartTimers.clear();
     this.offererFor.clear();
     this.restarting.clear();
+    this.accepted = false;
+    this.pendingOffers.clear();
+    this.pendingIce.clear();
     for (const pc of this.peers.values()) pc.close();
     this.peers.clear();
     this.localStream?.getTracks().forEach((t) => t.stop());

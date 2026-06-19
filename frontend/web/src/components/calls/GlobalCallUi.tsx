@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { CallOverlay, IncomingCallBanner } from "@/components/chat/CallOverlay";
 import { useCall } from "@/calls/CallProvider";
-import { startRingtone, stopRingtone } from "@/calls/ringtone";
+import { startRingback, startRingtone, stopRingback, stopRingtone } from "@/calls/ringtone";
 
 /** App-wide incoming banner and active call overlay (any route). */
 export function GlobalCallUi() {
@@ -14,6 +14,14 @@ export function GlobalCallUi() {
     else stopRingtone();
     return stopRingtone;
   }, [call.incoming]);
+
+  // Ringback ("гудок") for the caller while the outgoing call is connecting;
+  // stops the moment the peer answers (or the call ends).
+  useEffect(() => {
+    if (call.active && call.connecting) startRingback();
+    else stopRingback();
+    return stopRingback;
+  }, [call.active, call.connecting]);
 
   return (
     <>
@@ -30,6 +38,7 @@ export function GlobalCallUi() {
           type={call.active.callType}
           peerName={call.active.displayName}
           isGroup={call.active.isGroup}
+          connecting={call.connecting}
           localStream={call.localStream}
           remoteStreams={call.remoteStreams}
           participantLabels={call.participantLabels}

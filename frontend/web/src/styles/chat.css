@@ -1413,6 +1413,16 @@
   font-size: 0.9rem;
 }
 
+.call-overlay__connecting {
+  color: var(--accent, #4f8cff);
+  animation: call-connecting-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes call-connecting-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
 .call-overlay__actions {
   display: flex;
   justify-content: center;

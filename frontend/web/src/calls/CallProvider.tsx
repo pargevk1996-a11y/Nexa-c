@@ -33,6 +33,8 @@ interface CallContextValue {
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
   participantLabels: Record<string, string>;
+  /** Outgoing call placed, peer hasn't answered yet ("Connecting…" / ringback). */
+  connecting: boolean;
   muted: boolean;
   videoOff: boolean;
   screenSharing: boolean;
@@ -192,6 +194,7 @@ function CallProviderDemo({ children }: { children: ReactNode }) {
       localStream,
       remoteStreams,
       participantLabels,
+      connecting: false,
       muted,
       videoOff,
       screenSharing,
@@ -246,6 +249,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
   const [screenSharing, setScreenSharing] = useState(false);
   const [qualityTier, setQualityTier] = useState(0);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const [pushToTalk, setPushToTalkState] = useState(false);
   const [pttTransmitting, setPttTransmitting] = useState(false);
   const wsRef = useRef<RealtimeWsClient | null>(null);
@@ -257,6 +261,8 @@ function CallProviderLive({ children }: { children: ReactNode }) {
   useEffect(() => {
     callEngine.setHandlers({
       onRemoteStream: (userId, stream) => {
+        // Remote media flowing = the peer answered → leave the connecting phase.
+        setConnecting(false);
         setRemoteStreams((prev) => new Map(prev).set(userId, stream));
       },
       onStateChange: () => {
@@ -295,6 +301,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
       }
       if (frame.name === "call.accepted") {
         const uid = String(p.user_id);
+        setConnecting(false);
         await callEngine.onPeerJoined(uid);
       }
       if (frame.name === "call.signal") {
@@ -304,6 +311,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
         await callEngine.cleanup();
         setActive(null);
         setIncoming(null);
+        setConnecting(false);
         setRemoteStreams(new Map());
       }
     },
@@ -333,6 +341,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
       if (!opts.participantIds.length) return;
       setParticipantLabels(opts.participantLabels ?? {});
       setQualityTier(0);
+      setConnecting(true);
       await callEngine.startOutgoing(opts.participantIds, opts.callType, opts.conversationId);
       setActive({
         callType: opts.callType,
@@ -350,6 +359,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
     const call = callEngine.getCall();
     if (!call) return;
     await callEngine.acceptIncoming(call, incoming.callType);
+    setConnecting(false);
     setActive({
       callType: incoming.callType,
       displayName: incoming.displayName,
@@ -373,6 +383,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
   const endCall = useCallback(async () => {
     await callEngine.hangup();
     setActive(null);
+    setConnecting(false);
     setRemoteStreams(new Map());
     setScreenSharing(false);
   }, []);
@@ -429,6 +440,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
       localStream,
       remoteStreams,
       participantLabels,
+      connecting,
       muted,
       videoOff,
       screenSharing,
@@ -453,6 +465,7 @@ function CallProviderLive({ children }: { children: ReactNode }) {
       localStream,
       remoteStreams,
       participantLabels,
+      connecting,
       muted,
       videoOff,
       screenSharing,

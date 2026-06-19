@@ -21,6 +21,8 @@ interface CallOverlayProps {
   type: CallType;
   peerName: string;
   isGroup?: boolean;
+  /** Outgoing call placed, peer hasn't answered yet → show "Connecting…". */
+  connecting?: boolean;
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
   participantLabels?: Record<string, string>;
@@ -51,6 +53,7 @@ export function CallOverlay({
   type,
   peerName,
   isGroup,
+  connecting = false,
   localStream,
   remoteStreams,
   participantLabels = {},
@@ -77,10 +80,15 @@ export function CallOverlay({
   const stageRef = useRef<HTMLDivElement>(null);
   const isVoiceOnly = type === "audio";
 
+  // The call timer only runs once connected — while ringing we show "Connecting…".
   useEffect(() => {
+    if (connecting) {
+      setSeconds(0);
+      return;
+    }
     const t = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => window.clearInterval(t);
-  }, []);
+  }, [connecting]);
 
   useEffect(() => {
     const el = localVideoRef.current;
@@ -179,11 +187,17 @@ export function CallOverlay({
           ) : null}
           <h2>{peerName}</h2>
           <p className="call-overlay__status">
-            {isGroup ? (isVoiceOnly ? "Group voice · " : "Group video · ") : ""}
-            {type === "video" ? "Video" : "Voice"} · {mm}:{ss}
-            {pushToTalk ? (pttTransmitting ? " · Speaking" : " · PTT") : ""}
-            {screenSharing ? " · Sharing screen" : ""}
-            {isGroup && type === "video" && remoteCount > 0 ? ` · ${remoteCount + 1} in call` : ""}
+            {connecting ? (
+              <span className="call-overlay__connecting">Connecting…</span>
+            ) : (
+              <>
+                {isGroup ? (isVoiceOnly ? "Group voice · " : "Group video · ") : ""}
+                {type === "video" ? "Video" : "Voice"} · {mm}:{ss}
+                {pushToTalk ? (pttTransmitting ? " · Speaking" : " · PTT") : ""}
+                {screenSharing ? " · Sharing screen" : ""}
+                {isGroup && type === "video" && remoteCount > 0 ? ` · ${remoteCount + 1} in call` : ""}
+              </>
+            )}
           </p>
         </div>
         <div className="call-overlay__actions">
