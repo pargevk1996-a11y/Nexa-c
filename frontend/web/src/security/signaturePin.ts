@@ -34,6 +34,22 @@ export async function hasSignatureForUser(userId: string): Promise<boolean> {
   return Boolean(hash);
 }
 
+/**
+ * Synchronous "is a PIN already set on this device?" check based purely on the
+ * presence of the stored (encrypted) blob — it does NOT attempt decryption.
+ *
+ * This is the security-critical gate for the lock screen's setup-vs-verify mode.
+ * `hasSignatureForUser` returns false BOTH when no PIN exists AND when the blob
+ * exists but can't be decrypted right now (device key not warm). Driving "setup
+ * mode" off that lets a transient failure flip the lock into setup mode, where
+ * the FIRST PIN typed is accepted and OVERWRITES the real signature — i.e. "any
+ * PIN works on the first try". Gate setup on blob ABSENCE instead, so an
+ * existing PIN is never silently replaced.
+ */
+export function hasStoredSignature(userId: string): boolean {
+  return localStorage.getItem(SIGNATURE_HASH_KEY(userId)) !== null;
+}
+
 export async function verifySignatureForUser(userId: string, pin: string): Promise<boolean> {
   const stored = await getSecureItem<string>(SIGNATURE_HASH_KEY(userId), userId);
   if (!stored) return false;

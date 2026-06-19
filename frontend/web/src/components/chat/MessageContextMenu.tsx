@@ -160,13 +160,20 @@ export function MessageContextMenu({
   }
 
   return createPortal(
-    <div
-      ref={menuRef}
-      className="msg-context-menu"
-      style={{ left: coords.x, top: coords.y }}
-      role="menu"
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <>
+      <div
+        className="msg-context-menu__scrim"
+        aria-hidden
+        onClick={onClose}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      <div
+        ref={menuRef}
+        className="msg-context-menu"
+        style={{ left: coords.x, top: coords.y }}
+        role="menu"
+        onContextMenu={(e) => e.preventDefault()}
+      >
       {features.chat.reactions && !message.recalled && !message.ephemeral ? (
         <div className="msg-context-menu__react-wrap">
           <div className="msg-context-menu__react" role="group" aria-label="Quick reactions">
@@ -258,7 +265,8 @@ export function MessageContextMenu({
           </button>
         );
       })}
-    </div>,
+      </div>
+    </>,
     document.body,
   );
 }

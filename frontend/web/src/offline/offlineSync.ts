@@ -27,6 +27,14 @@ function mapConversation(c: ApiConversation): Conversation {
     isGroup: c.type !== "dm" && c.type !== "channel" && c.type !== "broadcast",
     peerUserId: c.peer_user_id ?? undefined,
     memberIds: c.member_ids?.length ? c.member_ids : undefined,
+    // Carry the server-authoritative hidden/locked flags. Omitting `hidden` here
+    // was why "make invisible" chats flashed visible for a few seconds on login:
+    // runReconnectSync() publishes this mapping to the list FIRST (then a slow
+    // per-conversation catch-up runs), and only the later listConversations()
+    // call used a mapper that set hidden — so hidden chats showed until that
+    // second pass landed. Mapping it here keeps them hidden from the first paint.
+    isLocked: c.is_locked ?? false,
+    hidden: c.hidden ?? false,
   };
 }
 

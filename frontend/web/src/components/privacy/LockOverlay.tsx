@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { LogoAnimation } from "@/components/auth/LogoAnimation";
 import { getCachedSession } from "@/api/auth";
 import {
-  hasSignatureForUser,
+  hasStoredSignature,
   storeSignatureForUser,
   validateSignatureFormat,
   verifySignatureForUser,
@@ -57,7 +57,11 @@ function PinForm({ onSuccess }: { onSuccess: () => void }) {
 
   useEffect(() => {
     if (!session) return;
-    void hasSignatureForUser(session.user.id).then((has) => setSetupMode(!has));
+    // Setup mode ONLY when no PIN blob exists on this device. Using a decryption
+    // check here would let a transient decrypt failure (device key not warm yet)
+    // present setup mode and accept+overwrite the PIN on the first try. Blob
+    // presence is decryption-independent, so an existing PIN always means verify.
+    setSetupMode(!hasStoredSignature(session.user.id));
     // Don't auto-focus on touch devices — that pops the on-screen keyboard before
     // the user taps the field. Focus only with a fine pointer (desktop).
     if (typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches) {

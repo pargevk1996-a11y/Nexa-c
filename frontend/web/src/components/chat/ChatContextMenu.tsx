@@ -102,26 +102,34 @@ export function ChatContextMenu({
   }
 
   return createPortal(
-    <div
-      ref={menuRef}
-      className="msg-context-menu"
-      style={{ left: coords.x, top: coords.y }}
-      role="menu"
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      {items.map((item) => (
-        <button
-          key={item.label}
-          type="button"
-          className={`msg-context-menu__item ${item.danger ? "msg-context-menu__item--danger" : ""}`}
-          role="menuitem"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={() => run(item.action)}
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>,
+    <>
+      <div
+        className="msg-context-menu__scrim"
+        aria-hidden
+        onClick={onClose}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      <div
+        ref={menuRef}
+        className="msg-context-menu"
+        style={{ left: coords.x, top: coords.y }}
+        role="menu"
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {items.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className={`msg-context-menu__item ${item.danger ? "msg-context-menu__item--danger" : ""}`}
+            role="menuitem"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => run(item.action)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </>,
     document.body,
   );
 }

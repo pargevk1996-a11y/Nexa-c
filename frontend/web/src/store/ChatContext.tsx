@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { getCachedSession } from "@/api/auth";
+import { useSessionStore } from "@/store/zustand/sessionStore";
 import { fetchPublicProfile, updatePresence } from "@/api/profile";
 import { primePublicProfile } from "@/api/publicProfileCache";
 import { resolvePeer } from "@/utils/peerResolve";
@@ -337,9 +338,21 @@ function nowTime() {
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { settings } = useSettings();
-  const session = getCachedSession();
-  const userId = session?.user.id;
-  const liveChatEnabled = Boolean(session?.user?.id && !session?.demoMode);
+  // Reactive userId from the zustand session store — NOT a one-shot
+  // getCachedSession() snapshot (which could be stale/null on the first render
+  // and never update, leaving `userId` undefined so the "#PIN" reveal effect
+  // short-circuited until a lock/unlock forced a re-render). The store updates
+  // only on real session changes (login/logout/rehydrate), so unlike
+  // useSession() it does NOT refetch and re-render the whole provider on every
+  // window focus — which was re-mounting/refreshing the chat. getCachedSession()
+  // covers the very first render before the store is populated.
+  const cachedSession = getCachedSession();
+  const storeUserId = useSessionStore((s) => s.userId);
+  const storeDemoMode = useSessionStore((s) => s.demoMode);
+  const userId = storeUserId ?? cachedSession?.user.id;
+  const liveChatEnabled = Boolean(
+    userId && !(storeUserId ? storeDemoMode : cachedSession?.demoMode),
+  );
   const [vaultReady, setVaultReady] = useState(false);
   const [liveMode, setLiveMode] = useState(false);
   const [apiMessages, setApiMessages] = useState<Record<string, Message[]>>({});
@@ -1488,7 +1501,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           setHiddenChatIds((prev) => new Set(prev).add(conversation.id));
           if (activeId === conversation.id) setActiveId(null);
           // Persist server-side so the chat stays hidden after re-login.
-          if (!session?.demoMode) void setConversationHidden(conversation.id, true).catch(() => {});
+          if (liveChatEnabled) void setConversationHidden(conversation.id, true).catch(() => {});
           break;
         case "unhide":
           setConversations((prev) =>
@@ -1499,7 +1512,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             next.delete(conversation.id);
             return next;
           });
-          if (!session?.demoMode) void setConversationHidden(conversation.id, false).catch(() => {});
+          if (liveChatEnabled) void setConversationHidden(conversation.id, false).catch(() => {});
           break;
         case "delete":
           setConversations((prev) =>
