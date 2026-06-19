@@ -203,8 +203,17 @@ export function MessageComposer({
       if (wasLocked) {
         setReviewVideo({ url, blob, duration });
       } else {
-        onSendVoice(duration, url, blob, { ...sendOpts(), videoNote: true });
+        dispatchVideoNote(blob);
       }
+    }
+  }
+
+  function dispatchVideoNote(blob: Blob) {
+    const file = new File([blob], `vidnote-${Date.now()}.webm`, {
+      type: blob.type || "video/webm",
+    });
+    if (onSendFile) {
+      onSendFile(file, { ...sendOpts(), videoNote: true });
     }
   }
 
@@ -230,7 +239,8 @@ export function MessageComposer({
 
   function sendVideoReview() {
     if (!reviewVideo) return;
-    onSendVoice(reviewVideo.duration, reviewVideo.url, reviewVideo.blob, { ...sendOpts(), videoNote: true });
+    dispatchVideoNote(reviewVideo.blob);
+    if (reviewVideo.url) URL.revokeObjectURL(reviewVideo.url);
     setReviewVideo(null);
     setReviewPlaying(false);
     setEphemeralMode(false);
