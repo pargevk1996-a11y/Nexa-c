@@ -279,6 +279,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.88);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -440,6 +441,7 @@
   place-items: center;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -538,6 +540,7 @@
 }
 
 .settings-nav__item--active {
+  background: rgba(79, 124, 255, 0.18);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--text);
   font-weight: 600;

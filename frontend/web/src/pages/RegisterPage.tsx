@@ -97,6 +97,7 @@ export function RegisterPage() {
           name="email"
           type="email"
           autoComplete="email"
+          enterKeyHint="next"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={fieldErrors.email}
@@ -106,6 +107,7 @@ export function RegisterPage() {
           label="Username"
           name="username"
           autoComplete="username"
+          enterKeyHint="next"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           error={fieldErrors.username}
@@ -115,6 +117,7 @@ export function RegisterPage() {
           label="Password"
           name="password"
           autoComplete="new-password"
+          enterKeyHint="next"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={fieldErrors.password}
@@ -125,6 +128,7 @@ export function RegisterPage() {
           label="Confirm password"
           name="confirm_password"
           autoComplete="new-password"
+          enterKeyHint="next"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           error={fieldErrors.confirmPassword}
@@ -135,6 +139,7 @@ export function RegisterPage() {
           name="signature"
           inputMode="numeric"
           autoComplete="off"
+          enterKeyHint="next"
           value={signature}
           onChange={(e) => setSignature(e.target.value.replace(/\D/g, "").slice(0, 6))}
           error={fieldErrors.signature}
@@ -167,6 +172,7 @@ export function RegisterPage() {
               name="phone"
               autoComplete="tel-national"
               placeholder="(555) 000-0000"
+              enterKeyHint="done"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/[^\d\s\-().+]/g, ""))}
               disabled={loading}

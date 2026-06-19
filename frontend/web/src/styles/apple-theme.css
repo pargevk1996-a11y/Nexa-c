@@ -121,6 +121,7 @@ body:has(.app-shell)::before,
 .chat-context-menu,
 .message-context-menu,
 .auth-card {
+  -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
@@ -578,6 +579,7 @@ h3,
     border-top: 1px solid var(--border) !important;
     border-radius: 0 !important;
     padding: 0.5rem 0.5rem calc(0.5rem + var(--safe-bottom, 0px)) !important;
+    -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
   }
@@ -710,6 +712,7 @@ body {
 .auth-card,
 .page-shell__inner {
   background: var(--glass-bg) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   backdrop-filter: blur(var(--glass-blur)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
 }
@@ -885,6 +888,7 @@ body {
   .auth-card,
   .page-shell__inner {
     background: var(--glass-bg) !important;
+    -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -923,6 +927,7 @@ body {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -1062,6 +1067,7 @@ body {
   background: var(--bg-elevated);
   color: var(--text-muted);
   cursor: pointer;
+  -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   transition:
@@ -1088,6 +1094,7 @@ body {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -1193,6 +1200,7 @@ body {
   line-height: 1;
   z-index: 4;
   pointer-events: none;
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -1216,6 +1224,7 @@ body {
   .chat-sidebar__section,
   .chat-create-row {
     background: transparent !important;
+    -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -1243,6 +1252,7 @@ body {
   place-items: center;
   padding: 16px;
   background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -1410,6 +1420,7 @@ body {
 [data-perf="lite"] .schedule-modal,
 [data-perf="lite"] .schedule-modal__backdrop,
 [data-perf="lite"] .profile-panel {
+  -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -1494,6 +1505,7 @@ body {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
+  -webkit-backdrop-filter: blur(22px);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
 }

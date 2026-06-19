@@ -194,9 +194,9 @@
 }
 
 .home--light .home__btn--ghost {
-  color: #0c2c4d;
+  color: rgba(0, 0, 0, 0.8);
   background: rgba(255, 255, 255, 0.55);
-  border-color: rgba(12, 44, 77, 0.22);
+  border-color: rgba(0, 0, 0, 0.5);
 }
 
 .home--light .home__btn--ghost:hover {
@@ -300,11 +300,26 @@
   inset: 0;
   z-index: 100;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: clamp(1rem, 6vh, 4rem) 1rem;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* BUG-009: scroll hint — fade at the bottom on short viewports to signal scrollable content */
+@media (max-height: 700px) {
+  .home-modal::after {
+    content: "";
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+    pointer-events: none;
+    z-index: 102;
+  }
 }
 
 .home-modal__backdrop {
@@ -314,6 +329,7 @@
   padding: 0;
   cursor: pointer;
   background: rgba(2, 3, 10, 0.62);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
   backdrop-filter: blur(8px) saturate(120%);
   animation: home-fade 0.2s var(--ease);
 }

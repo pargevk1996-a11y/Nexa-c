@@ -1,0 +1,14 @@
+{
+  "name": "Nexa — Secure Messenger",
+  "short_name": "Nexa",
+  "description": "Private messaging with speed and clarity. Encrypted in transit and at rest.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#050508",
+  "background_color": "#050508",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

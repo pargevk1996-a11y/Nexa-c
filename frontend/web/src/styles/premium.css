@@ -4,6 +4,7 @@
   border-radius: var(--radius-2xl);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-md), var(--shadow-neu);
 }
@@ -155,6 +156,7 @@ body.is-resizing-panels * {
   inset: 0;
   border: none;
   background: rgba(8, 6, 14, 0.55);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   cursor: pointer;
 }
@@ -247,6 +249,7 @@ body.is-resizing-panels * {
   border-radius: var(--radius-2xl);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-md);
   min-width: 0;
@@ -377,6 +380,7 @@ body.is-resizing-panels * {
   border-radius: var(--radius-2xl);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-md);
   overflow: hidden;
@@ -425,6 +429,7 @@ body.is-resizing-panels * {
   border-radius: var(--radius-2xl);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   box-shadow: var(--shadow-neu);
   transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
@@ -628,6 +633,7 @@ body.is-resizing-panels * {
   border-radius: var(--radius-2xl);
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-md);
 }
@@ -678,6 +684,7 @@ a:hover {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
+  -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
 }
 
@@ -872,17 +879,20 @@ a:hover {
   /* Borderless middle block in every section (Contacts / Calls / Settings) —
      the glassy panel blends into the ambient background with no outline. */
   border: none;
+  -webkit-backdrop-filter: blur(11px) saturate(1.2);
   backdrop-filter: blur(11px) saturate(1.2);
   box-shadow: none;
 }
 .settings-nav {
   background: rgba(8, 10, 24, 0.24);
   border: 1px solid rgba(79, 124, 255, 0.12);
+  -webkit-backdrop-filter: blur(11px) saturate(1.2);
   backdrop-filter: blur(11px) saturate(1.2);
 }
 .app-shell:not(.app-shell--nexa-chats) .side-nav {
   background: rgba(9, 7, 20, 0.32);
   border-color: rgba(79, 124, 255, 0.12);
   box-shadow: none;
+  -webkit-backdrop-filter: blur(11px) saturate(1.2);
   backdrop-filter: blur(11px) saturate(1.2);
 }

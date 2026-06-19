@@ -49,11 +49,13 @@ const ConvList = memo(function ConvList({
   activeId,
   onSelect,
   onContextMenu,
+  drafts,
 }: {
   items: Conversation[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onContextMenu: (c: Conversation, e: React.MouseEvent) => void;
+  drafts: Record<string, string>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -93,6 +95,11 @@ const ConvList = memo(function ConvList({
                       <span />
                       <span />
                     </span>
+                  </>
+                ) : drafts[c.id] ? (
+                  <>
+                    <span className="chat-conv-item__draft">Draft:</span>
+                    {" "}{drafts[c.id]}
                   </>
                 ) : (
                   c.lastMessage
@@ -210,7 +217,7 @@ export function ChatSidebar({
             {pinned.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Pinned</h3>
-                <ConvList items={pinned} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} />
+                <ConvList items={pinned} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
             {regular.length > 0 ? (
@@ -218,19 +225,19 @@ export function ChatSidebar({
                 {pinned.length > 0 || showSaved ? (
                   <h3 className="chat-sidebar__section-title">Chats</h3>
                 ) : null}
-                <ConvList items={regular} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} />
+                <ConvList items={regular} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
             {archived.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Archived</h3>
-                <ConvList items={archived} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} />
+                <ConvList items={archived} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
             {hidden.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Hidden</h3>
-                <ConvList items={hidden} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} />
+                <ConvList items={hidden} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
           </>

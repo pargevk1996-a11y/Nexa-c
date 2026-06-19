@@ -29,6 +29,7 @@
   background: rgba(8, 10, 24, 0.16);
   border: none;
   border-radius: var(--ux-panel-radius);
+  -webkit-backdrop-filter: blur(8px) saturate(1.15);
   backdrop-filter: blur(8px) saturate(1.15);
   overflow: hidden;
 }
@@ -37,6 +38,7 @@
   flex-shrink: 0;
   border-bottom: none;
   background: rgba(10, 12, 26, 0.2);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -63,7 +65,9 @@
   padding: 0.45rem 0.55rem;
   border-radius: var(--radius-2xl);
   border: 1px solid var(--glass-border);
+  background: rgba(16, 18, 36, 0.68);
   background: color-mix(in srgb, var(--glass-bg-strong) 94%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   box-shadow:
     var(--shadow-md),
@@ -96,6 +100,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
 }
 
@@ -108,6 +113,7 @@
   z-index: 23;
   background: none;
   border: none;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
@@ -141,7 +147,9 @@
 .message-context-menu {
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border);
+  background: rgba(16, 18, 36, 0.69);
   background: color-mix(in srgb, var(--glass-bg-strong) 96%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px));
   backdrop-filter: blur(calc(var(--glass-blur) + 4px));
   box-shadow: var(--shadow-lg);
   animation: motion-scale-in var(--dur) var(--ease) both;

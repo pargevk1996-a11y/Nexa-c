@@ -401,6 +401,7 @@ html:has(.auth-layout) body {
   border-radius: 26px;
   padding: 2.5rem 2.25rem 2rem;
   overflow: hidden;
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
   backdrop-filter: blur(28px) saturate(140%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -503,7 +504,7 @@ html:has(.auth-layout) body {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.98rem;
+  font-size: 16px;
   transition:
     border-color 0.18s var(--ease),
     background 0.18s var(--ease),
@@ -887,4 +888,27 @@ html:has(.auth-layout) body {
 .phone-input__number {
   flex: 1;
   min-width: 0;
+}
+
+/* BUG-002: restore design size on desktop — mobile keeps 16px to prevent iOS auto-zoom */
+@media (min-width: 769px) {
+  .auth-card .field__input {
+    font-size: 0.98rem;
+  }
+}
+
+/* BUG-001: compact the card on short viewports (landscape phones) so Sign in stays visible */
+@media (max-height: 500px) {
+  .auth-card {
+    padding: 1rem;
+  }
+  .auth-card__header {
+    margin-bottom: 1rem;
+  }
+  .auth-card__header h2 {
+    font-size: 1.4rem;
+  }
+  .auth-card .btn {
+    min-height: 2.8rem;
+  }
 }

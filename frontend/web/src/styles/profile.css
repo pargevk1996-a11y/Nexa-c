@@ -269,7 +269,9 @@
   margin-top: 0.5rem;
   padding: 0.55rem 0.85rem;
   border-radius: var(--radius-md);
+  background: rgba(244, 63, 94, 0.12);
   background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid rgba(244, 63, 94, 0.30);
   border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
   font-size: 0.85rem;
   color: var(--danger);

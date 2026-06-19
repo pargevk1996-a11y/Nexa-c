@@ -122,11 +122,13 @@
   margin-right: 0.35rem;
   padding: 0.1rem 0.5rem;
   border-radius: var(--radius-sm);
+  background: rgba(79, 124, 255, 0.20);
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--accent);
   font-size: 0.7rem;
   font-weight: 700;
   vertical-align: middle;
+  border: 1px solid rgba(79, 124, 255, 0.40);
   border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
@@ -246,6 +248,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.chat-conv-item__draft {
+  color: #f59e0b;
+  font-weight: 600;
+  font-size: 0.78rem;
 }
 
 .chat-conv-item__meta {

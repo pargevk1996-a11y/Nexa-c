@@ -9,6 +9,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/GuestRoute";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LandingPage } from "@/pages/LandingPage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 
 // LandingPage stays eager: it is the first paint for guests (home / login /
 // register) and must not flash. Everything else is split into its own chunk
@@ -115,7 +116,7 @@ export default function App() {
           <Route path="/chat" element={<Navigate to="/app/chats" replace />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </Suspense>
       </BrowserRouter>
