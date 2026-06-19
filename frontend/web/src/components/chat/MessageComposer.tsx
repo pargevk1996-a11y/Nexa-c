@@ -2,9 +2,11 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { ContextMessage } from "@/api/ai";
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 import { VoiceRecorder, type VoiceRecorderHandle } from "@/components/chat/VoiceRecorder";
+import { VideoNoteRecorder, type VideoNoteRecorderHandle } from "@/components/chat/VideoNoteRecorder";
 import { SmartReplyBar } from "@/components/ai/SmartReplyBar";
 import { useSmartReply } from "@/ai/useSmartReply";
 import {
+  IconMic,
   IconPaperclip,
   IconPause,
   IconPlay,
@@ -13,6 +15,7 @@ import {
   IconSpeaker,
   IconSpeakerOff,
   IconTimer,
+  IconVideo,
   IconX,
 } from "@/components/icons/Icons";
 
@@ -105,15 +108,19 @@ export function MessageComposer({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [pickerSection, setPickerSection] = useState<"emoji" | "gif" | "sticker">("emoji");
   const [recordingMode, setRecordingMode] = useState(false);
+  // false = voice note, true = video note — toggled by tapping send when empty
+  const [videoMode, setVideoMode] = useState(false);
   const [ephemeralMode, setEphemeralMode] = useState(false);
   const [silentMode, setSilentMode] = useState(false);
-  // Voice gesture: hold the send button (when the field is empty) to record.
-  // Slide up locks; slide left cancels; on release the clip waits for review.
+  // Voice/video gesture: hold the send button (when the field is empty) to record.
+  // Slide up locks; slide left cancels; on release → auto-send (or review if locked).
   const [recordLocked, setRecordLocked] = useState(false);
   const [dragHint, setDragHint] = useState<"none" | "lock" | "cancel">("none");
   const [reviewVoice, setReviewVoice] = useState<{ url: string; blob: Blob; duration: number } | null>(null);
+  const [reviewVideo, setReviewVideo] = useState<{ url: string; blob: Blob; duration: number } | null>(null);
   const [reviewPlaying, setReviewPlaying] = useState(false);
   const voiceRecorderRef = useRef<VoiceRecorderHandle>(null);
+  const videoRecorderRef = useRef<VideoNoteRecorderHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiBtnRef = useRef<HTMLButtonElement>(null);
   const reviewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -168,14 +175,36 @@ export function MessageComposer({
     stopTyping();
   }
 
-  // Recording finished — keep the clip for review instead of sending it.
+  // Recording finished.
+  // Non-locked (hold-release) → auto-send immediately.
+  // Locked (user slid up) → hold in review so user presses send manually.
   function handleVoiceRecorded(duration: number, url: string, blob: Blob) {
+    const wasLocked = lockedRef.current;
     setRecordingMode(false);
     setRecordLocked(false);
     recordingRef.current = false;
     lockedRef.current = false;
     if (blob.size > 0 && url) {
-      setReviewVoice({ url, blob, duration });
+      if (wasLocked) {
+        setReviewVoice({ url, blob, duration });
+      } else {
+        onSendVoice(duration, url, blob, sendOpts());
+      }
+    }
+  }
+
+  function handleVideoRecorded(duration: number, url: string, blob: Blob) {
+    const wasLocked = lockedRef.current;
+    setRecordingMode(false);
+    setRecordLocked(false);
+    recordingRef.current = false;
+    lockedRef.current = false;
+    if (blob.size > 0 && url) {
+      if (wasLocked) {
+        setReviewVideo({ url, blob, duration });
+      } else {
+        onSendVoice(duration, url, blob, { ...sendOpts(), videoNote: true });
+      }
     }
   }
 
@@ -189,6 +218,20 @@ export function MessageComposer({
     if (!reviewVoice) return;
     onSendVoice(reviewVoice.duration, reviewVoice.url, reviewVoice.blob, sendOpts());
     setReviewVoice(null);
+    setReviewPlaying(false);
+    setEphemeralMode(false);
+  }
+
+  function discardVideoReview() {
+    if (reviewVideo?.url) URL.revokeObjectURL(reviewVideo.url);
+    setReviewVideo(null);
+    setReviewPlaying(false);
+  }
+
+  function sendVideoReview() {
+    if (!reviewVideo) return;
+    onSendVoice(reviewVideo.duration, reviewVideo.url, reviewVideo.blob, { ...sendOpts(), videoNote: true });
+    setReviewVideo(null);
     setReviewPlaying(false);
     setEphemeralMode(false);
   }
@@ -258,14 +301,27 @@ export function MessageComposer({
       const held = Date.now() - start.t;
       if (recordingRef.current && !lockedRef.current && !cancelRef.current) {
         if (held >= 400) {
-          voiceRecorderRef.current?.stopAndSend(); // → review
+          // Release after meaningful hold → stop and auto-send (or review if locked)
+          if (videoMode) {
+            videoRecorderRef.current?.stopAndSend();
+          } else {
+            voiceRecorderRef.current?.stopAndSend();
+          }
         } else {
-          voiceRecorderRef.current?.cancel();
+          // Too short tap while recording started → cancel
+          if (videoMode) {
+            videoRecorderRef.current?.cancel();
+          } else {
+            voiceRecorderRef.current?.cancel();
+          }
           setRecordingMode(false);
           recordingRef.current = false;
         }
       } else if (!recordingRef.current && hasText && !longPressedRef.current) {
         submit(); // plain tap with text
+      } else if (!recordingRef.current && !hasText && !longPressedRef.current) {
+        // Quick tap on empty field → toggle voice/video mode
+        setVideoMode((v) => !v);
       }
       cleanup();
     };
@@ -411,6 +467,37 @@ export function MessageComposer({
         <div className="chat-composer__inner">
           {selectionMode ? (
             <p className="chat-composer__hint">Tap messages to select them</p>
+          ) : reviewVideo ? (
+            <div className="voice-review video-note-review">
+              <button
+                type="button"
+                className="icon-btn icon-btn--ghost voice-review__del"
+                aria-label="Delete video note"
+                title="Delete"
+                onClick={discardVideoReview}
+              >
+                <IconX size={18} />
+              </button>
+              <video
+                className="video-note-review__thumb"
+                src={reviewVideo.url}
+                playsInline
+                muted
+                onClick={toggleReviewPlay}
+                aria-label={reviewPlaying ? "Pause" : "Play video note preview"}
+              />
+              <span className="voice-review__time">{fmtDur(reviewVideo.duration)}</span>
+              <button
+                type="button"
+                className="icon-btn icon-btn--primary chat-composer__send"
+                aria-label="Send video note"
+                title="Send"
+                onClick={sendVideoReview}
+              >
+                <IconSend size={18} />
+              </button>
+              <audio ref={reviewAudioRef} src={reviewVideo.url} onEnded={() => setReviewPlaying(false)} hidden />
+            </div>
           ) : reviewVoice ? (
             <div className="voice-review">
               <button
@@ -461,22 +548,39 @@ export function MessageComposer({
               />
             </div>
           ) : recordingMode ? (
-            <VoiceRecorder
-              ref={voiceRecorderRef}
-              autoStart
-              disabled={disabled}
-              locked={recordLocked}
-              dragHint={dragHint}
-              ephemeral={ephemeralMode}
-              onToggleEphemeral={isSecret ? undefined : () => setEphemeralMode((v) => !v)}
-              onRecorded={(dur, url, blob) => handleVoiceRecorded(dur, url, blob)}
-              onCancel={() => {
-                setRecordingMode(false);
-                setRecordLocked(false);
-                recordingRef.current = false;
-                lockedRef.current = false;
-              }}
-            />
+            videoMode ? (
+              <VideoNoteRecorder
+                ref={videoRecorderRef}
+                autoStart
+                disabled={disabled}
+                locked={recordLocked}
+                dragHint={dragHint}
+                onRecorded={(dur, url, blob) => handleVideoRecorded(dur, url, blob)}
+                onCancel={() => {
+                  setRecordingMode(false);
+                  setRecordLocked(false);
+                  recordingRef.current = false;
+                  lockedRef.current = false;
+                }}
+              />
+            ) : (
+              <VoiceRecorder
+                ref={voiceRecorderRef}
+                autoStart
+                disabled={disabled}
+                locked={recordLocked}
+                dragHint={dragHint}
+                ephemeral={ephemeralMode}
+                onToggleEphemeral={isSecret ? undefined : () => setEphemeralMode((v) => !v)}
+                onRecorded={(dur, url, blob) => handleVoiceRecorded(dur, url, blob)}
+                onCancel={() => {
+                  setRecordingMode(false);
+                  setRecordLocked(false);
+                  recordingRef.current = false;
+                  lockedRef.current = false;
+                }}
+              />
+            )
           ) : (
             <>
               {/* Accessory buttons stay visible at all times — emoji, attach and
@@ -558,19 +662,21 @@ export function MessageComposer({
               ) : (
                 <button
                   type="button"
-                  className={`icon-btn icon-btn--primary chat-composer__send ${ephemeralMode ? "chat-composer__send--ephemeral" : ""} ${text.trim() ? "" : "chat-composer__send--voice"}`}
+                  className={`icon-btn icon-btn--primary chat-composer__send${ephemeralMode ? " chat-composer__send--ephemeral" : ""}${text.trim() ? "" : videoMode ? " chat-composer__send--video" : " chat-composer__send--voice"}`}
                   disabled={disabled}
-                  aria-label={text.trim() ? "Send message — hold for disappearing" : "Hold to record a voice message"}
+                  aria-label={text.trim() ? "Send message" : videoMode ? "Tap to switch to voice · Hold to record video note" : "Tap to switch to video · Hold to record voice message"}
                   onPointerDown={onSendPointerDown}
                   onContextMenu={(e) => e.preventDefault()}
                 >
-                  {/* Default: 3 typing dots (text). Hold to switch to voice
-                      mode — the recorder then shows the voice impulse icon. */}
-                  <span className="typing-dots" aria-hidden>
-                    <span />
-                    <span />
-                    <span />
-                  </span>
+                  {text.trim() ? (
+                    <span className="typing-dots" aria-hidden>
+                      <span /><span /><span />
+                    </span>
+                  ) : videoMode ? (
+                    <span className="send-mode-icon" aria-hidden><IconVideo size={20} /></span>
+                  ) : (
+                    <span className="send-mode-icon" aria-hidden><IconMic size={20} /></span>
+                  )}
                 </button>
               )}
             </>

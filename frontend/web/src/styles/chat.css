@@ -1153,6 +1153,165 @@
   .chat-composer__send--voice::after { animation: none; }
 }
 
+/* ── Send button: mode icons (mic / camera) when field is empty ─────────── */
+.send-mode-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: send-mode-breathe 2s ease-in-out infinite;
+}
+@keyframes send-mode-breathe {
+  0%, 100% { transform: scale(1);    opacity: 0.9; }
+  50%       { transform: scale(1.14); opacity: 1;   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .send-mode-icon { animation: none; }
+}
+
+/* Video-mode pulsing ring — same shape as voice, but red-orange */
+.chat-composer__send--video::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: send-pulse-video 2.4s ease-out infinite;
+}
+@keyframes send-pulse-video {
+  0%        { box-shadow: 0 0 0 0  rgba(239, 68, 68, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 9px rgba(239, 68, 68, 0);   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-composer__send--video::after { animation: none; }
+}
+
+/* ── VideoNoteRecorder — floating circle above the composer ─────────────── */
+.vidnote-recorder {
+  position: fixed;
+  bottom: 82px;
+  right: 14px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: visible;
+  z-index: 110;
+  pointer-events: none;
+  /* Not visible until recording starts */
+  opacity: 0;
+  transform: scale(0.5);
+  transition: none;
+}
+.vidnote-recorder--active {
+  opacity: 1;
+  transform: scale(1);
+  animation: vidnote-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes vidnote-pop {
+  from { opacity: 0; transform: scale(0.45); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+.vidnote-recorder__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #000;
+  display: block;
+  z-index: 1;
+  /* Mirrored like selfie cam — left/right flipped */
+  transform: scaleX(-1);
+}
+.vidnote-recorder__ring {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  pointer-events: none;
+  z-index: 2;
+}
+.vidnote-recorder__hud {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  z-index: 3;
+  pointer-events: none;
+}
+.vidnote-recorder__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f43f5e;
+  flex-shrink: 0;
+  animation: vidnote-dot 1s ease-in-out infinite;
+}
+@keyframes vidnote-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+.vidnote-recorder__timer {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.75);
+  font-variant-numeric: tabular-nums;
+}
+/* Cancel hint: desaturate the preview */
+.vidnote-recorder--cancelling .vidnote-recorder__preview {
+  filter: saturate(0.4) brightness(0.75);
+}
+/* Locked: green glow border */
+.vidnote-recorder--locked .vidnote-recorder__ring circle:last-child {
+  stroke: var(--success, #10b981);
+}
+
+/* Camera-mode impulse button in the composer bar (mirrors voice-mrt) */
+.vidnote-mrt {
+  flex: 0 0 auto;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: var(--shadow-sm), 0 3px 12px rgba(239, 68, 68, 0.45);
+  animation: mrt-glow-video 1.2s ease-in-out infinite;
+}
+.vidnote-mrt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 7l-7 5 7 5V7z'/%3E%3Crect x='1' y='5' width='15' height='14' rx='2' ry='2'/%3E%3C/svg%3E") center / 22px no-repeat;
+}
+@keyframes mrt-glow-video {
+  0%, 100% { box-shadow: var(--shadow-sm), 0 3px 12px rgba(239, 68, 68, 0.45); }
+  50%       { box-shadow: var(--shadow-sm), 0 3px 18px rgba(239, 68, 68, 0.8);  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vidnote-mrt { animation: none; }
+}
+
+/* ── Video note review bar (locked recording → manual send) ─────────────── */
+.video-note-review {
+  align-items: center;
+}
+.video-note-review__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  cursor: pointer;
+  background: #000;
+  transform: scaleX(-1); /* selfie mirror */
+}
+
 /* Call overlay */
 .call-overlay {
   position: fixed;
