@@ -166,18 +166,39 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Aut
         )
     await protection.record_success(login_id, ip)
     fp = fingerprint_request(request)
-    known_fps = {s.device_fingerprint for s in await session_store.list_user_sessions(user.id)}
+    existing_sessions = await session_store.list_user_sessions(user.id)
+    known_fps = {s.device_fingerprint for s in existing_sessions}
+    # Real IP-change detection: compare the current request IP against the IPs of
+    # this user's existing sessions. A bare IP change (Wi-Fi<->LTE roaming) is a
+    # weak signal and never blocks on its own — only a *new* IP we have not seen
+    # for any active session counts, and even then it merely nudges the score.
+    known_ips = {s.ip_hint for s in existing_sessions if s.ip_hint}
+    ip_changed = bool(ip and known_ips and ip not in known_ips)
     risk = assess_login(
         known_fingerprints=known_fps,
         fingerprint=fp,
         failed_attempts_recent=0,
-        ip_changed=bool(known_fps and ip),
+        ip_changed=ip_changed,
+        step_up_threshold=settings.login_risk_step_up_threshold,
+        block_threshold=settings.login_risk_block_threshold,
     )
     if risk.block:
         audit_log.record("auth.login_blocked", user_id=user.id, ip_hint=ip, metadata={"flags": risk.flags})
         raise HTTPException(
             status_code=403,
             detail={"error": {"code": "LOGIN_BLOCKED", "message": "Suspicious sign-in blocked"}},
+        )
+    # Medium risk: prefer a soft step-up (re-prompt 2FA) over a hard block. If the
+    # account has TOTP enabled the standard 2FA path below already enforces it;
+    # otherwise we cannot step up, so we allow the sign-in and record it for audit
+    # rather than locking a legitimate user out on a false positive.
+    state = totp_store.get(user.id)
+    if risk.step_up:
+        audit_log.record(
+            "auth.login_step_up" if state.enabled else "auth.login_step_up_unavailable",
+            user_id=user.id,
+            ip_hint=ip,
+            metadata={"flags": risk.flags},
         )
     if not user.is_email_verified:
         raise HTTPException(
@@ -189,7 +210,6 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Aut
                 }
             },
         )
-    state = totp_store.get(user.id)
     if state.enabled:
         challenge = login_challenge_store.create(
             user.id,

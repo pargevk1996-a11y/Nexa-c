@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from nexa_shared.security.passwords import verify_password
 
 from app.api.session_routes import _set_refresh_cookie
+from app.core.config import settings
 from app.schemas.auth import (
     AccountDeleteRequest,
     AuthResponse,
@@ -28,6 +29,20 @@ router = APIRouter(prefix="/api/v1", tags=["security"])
 
 def _user_id(authorization: str | None = Header(default=None)) -> str:
     return decode_bearer_token(authorization)["sub"]
+
+
+def _require_webauthn_enabled() -> None:
+    """Gate the (stub) WebAuthn endpoints behind a feature flag.
+
+    The ceremony is not really implemented yet, so exposing it in production
+    would be an illusion of security and a dead-end UX. Until WEBAUTHN_ENABLED
+    is turned on (and a real flow ships), every WebAuthn route 404s as if it did
+    not exist (fix-brief #5)."""
+    if not settings.webauthn_enabled:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "NOT_FOUND", "message": "Not found"}},
+        )
 
 
 @router.post("/2fa/setup", response_model=TotpSetupResponse)
@@ -93,11 +108,16 @@ async def security_status(user_id: str = Depends(_user_id)) -> SecurityStatusRes
         phone_verified=user.is_phone_verified,
         totp_enabled=totp_store.is_enabled(user_id),
         webauthn_credentials=webauthn_store.count_for_user(user_id),
+        webauthn_enabled=settings.webauthn_enabled,
         active_sessions=len(sessions),
     )
 
 
-@router.post("/webauthn/register", response_model=MessageResponse)
+@router.post(
+    "/webauthn/register",
+    response_model=MessageResponse,
+    dependencies=[Depends(_require_webauthn_enabled)],
+)
 async def webauthn_register(
     body: WebAuthnRegisterRequest,
     user_id: str = Depends(_user_id),
@@ -111,7 +131,11 @@ async def webauthn_register(
     return MessageResponse(message="Biometric key registered on this device.")
 
 
-@router.get("/webauthn/credentials", response_model=list[WebAuthnCredentialResponse])
+@router.get(
+    "/webauthn/credentials",
+    response_model=list[WebAuthnCredentialResponse],
+    dependencies=[Depends(_require_webauthn_enabled)],
+)
 async def webauthn_list(user_id: str = Depends(_user_id)) -> list[WebAuthnCredentialResponse]:
     return [
         WebAuthnCredentialResponse(
@@ -123,7 +147,11 @@ async def webauthn_list(user_id: str = Depends(_user_id)) -> list[WebAuthnCreden
     ]
 
 
-@router.delete("/webauthn/credentials", response_model=MessageResponse)
+@router.delete(
+    "/webauthn/credentials",
+    response_model=MessageResponse,
+    dependencies=[Depends(_require_webauthn_enabled)],
+)
 async def webauthn_remove(user_id: str = Depends(_user_id)) -> MessageResponse:
     removed = webauthn_store.remove_for_user(user_id)
     return MessageResponse(message=f"Removed {removed} biometric credential(s).")
@@ -156,7 +184,7 @@ async def delete_account(
     return MessageResponse(message="Account scheduled for deletion. Sign-in disabled.")
 
 
-@router.post("/webauthn/login/start")
+@router.post("/webauthn/login/start", dependencies=[Depends(_require_webauthn_enabled)])
 async def webauthn_login_start(body: WebAuthnLoginStartRequest) -> dict:
     user = await user_store.get_by_email(body.email)
     if not user:
@@ -178,7 +206,11 @@ async def webauthn_login_start(body: WebAuthnLoginStartRequest) -> dict:
     }
 
 
-@router.post("/webauthn/login/finish", response_model=AuthResponse)
+@router.post(
+    "/webauthn/login/finish",
+    response_model=AuthResponse,
+    dependencies=[Depends(_require_webauthn_enabled)],
+)
 async def webauthn_login_finish(
     body: WebAuthnLoginFinishRequest,
     request: Request,

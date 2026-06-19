@@ -33,6 +33,21 @@ class Settings(BaseSettings):
         validation_alias="LOGIN_PROTECTION_USE_MEMORY",
     )
 
+    # Suspicious-login risk scoring (see nexa_shared.security.login_risk).
+    # Conservative prod defaults: an IP change alone (weight 20) never reaches
+    # step-up; a hard block needs a combination of strong signals.
+    login_risk_step_up_threshold: int = Field(
+        default=50, validation_alias="LOGIN_RISK_STEP_UP_THRESHOLD"
+    )
+    login_risk_block_threshold: int = Field(
+        default=100, validation_alias="LOGIN_RISK_BLOCK_THRESHOLD"
+    )
+
+    # WebAuthn / passkeys are a stub (no real challenge->attestation->assertion
+    # ceremony yet). Keep the option hidden & the endpoints disabled in
+    # production until the ceremony is implemented (fix-brief #5).
+    webauthn_enabled: bool = Field(default=False, validation_alias="WEBAUTHN_ENABLED")
+
     oauth_enabled: bool = Field(default=True, validation_alias="OAUTH_ENABLED")
     frontend_url: str = Field(default="http://127.0.0.1:5173", validation_alias="FRONTEND_URL")
     oauth_public_base_url: str = Field(

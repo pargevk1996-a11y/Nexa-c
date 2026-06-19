@@ -138,6 +138,10 @@ class SecurityStatusResponse(BaseModel):
     phone_verified: bool = False
     totp_enabled: bool = False
     webauthn_credentials: int = 0
+    # Whether the (still-stub) WebAuthn ceremony is enabled on this deployment.
+    # Off in production until a real challenge->attestation->assertion flow lands;
+    # the frontend uses this to hide the passkey option so users don't hit a dead end.
+    webauthn_enabled: bool = False
     active_sessions: int = 0
 
 

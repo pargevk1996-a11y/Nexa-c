@@ -14,6 +14,16 @@ export function PrivacySettingsSection() {
   const [message, setMessage] = useState<string | null>(null);
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
+  // Native wrappers (Tauri desktop / Electron) enforce real OS-level capture
+  // blocking; a plain browser can only run best-effort deterrents. Keep the
+  // description honest per platform — the OS-level guarantee does not exist on web.
+  const isNativeApp =
+    typeof window !== "undefined" &&
+    ("__TAURI__" in window || /electron/i.test(navigator.userAgent));
+  const screenshotDescription = isNativeApp
+    ? "Off by default. This app enforces screen-capture blocking at the OS level. Enter your signature (4–6 digits) to allow screenshots."
+    : "Off by default. In a browser this is a best-effort deterrent — your operating system can still capture the screen. Enter your signature (4–6 digits) to allow screenshots.";
+
   useEffect(() => {
     if (profile?.privacy) setPrivacy(profile.privacy);
   }, [profile]);
@@ -55,10 +65,7 @@ export function PrivacySettingsSection() {
         title="Allow screenshots"
       />
       <div className="settings-card">
-        <SettingRow
-          title="Allow screenshots"
-          description="Off by default. Enter your signature (4–6 digits) to enable."
-        >
+        <SettingRow title="Allow screenshots" description={screenshotDescription}>
           <Toggle
             label="Allow screenshots"
             checked={settings.allowScreenshots}

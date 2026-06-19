@@ -103,7 +103,8 @@ export function LandingPage() {
           <p className="home__tagline">{BRAND_TAGLINE}</p>
           <p className="home__sub">
             A next-generation messenger built with security, speed, and
-            simplicity in mind — end-to-end encrypted and realtime by design.
+            simplicity in mind — encrypted in transit and at rest, realtime by
+            design, with end-to-end encryption rolling out.
           </p>
           <div className="home__cta">
             <Link to="/login" className="home__btn home__btn--ghost">
