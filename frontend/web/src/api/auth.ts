@@ -261,9 +261,19 @@ export async function refreshAccessToken(): Promise<AuthSession | null> {
     };
     await storeSession(session);
     return session;
-  } catch {
-    await clearSession();
-    return null;
+  } catch (err) {
+    // Only tear the session down on a CONFIRMED auth failure — the refresh
+    // cookie is genuinely invalid/expired/revoked (401/403). A transient error
+    // (network blip, backend unreachable, 5xx) must NOT log the user out and
+    // bounce them to the landing page: keep the existing session so a later
+    // retry (focus refresh / next request) recovers without re-login.
+    const authFailed =
+      err instanceof ApiError && (err.status === 401 || err.status === 403);
+    if (authFailed) {
+      await clearSession();
+      return null;
+    }
+    return getCachedSession();
   }
 }
 

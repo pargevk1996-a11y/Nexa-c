@@ -259,7 +259,7 @@ function mockLinkPreview(url: string): LinkPreview {
     url,
     siteName: "nexa.app",
     title: "Nexa — Secure messaging",
-    description: "End-to-end encrypted chat, calls, and channels.",
+    description: "Private chat, calls, and channels — encrypted in transit and at rest.",
     imageUrl: "https://picsum.photos/seed/nexa/320/180",
   };
 }
@@ -588,12 +588,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [conversations, liveChatEnabled]);
 
-  // Peer presence decays server-side (`effective_online` via a last_seen TTL),
-  // but the public-profile cache is process-lifetime and real-time presence.update
-  // events are routed to the subject's own devices — never to peers. So a peer's
-  // dot would otherwise freeze GREEN forever. Re-fetch the ACTIVE conversation
-  // peer's live presence on an interval and on tab focus, and drive it through
-  // state so the indicator correctly decays to gray when they go offline.
+  // Peers now get real-time presence.update over the WS: the gateway fans an
+  // online/offline frame out to everyone subscribed to a shared conversation
+  // (onLivePresence updates the sidebar dot for every chat with that peer). This
+  // poll is the decay FALLBACK for the ACTIVE chat only: it covers a missed WS
+  // frame and the last_seen TTL expiry (peer's tab crashed without a clean
+  // close), so the indicator still settles to gray. Re-fetch on an interval and
+  // on tab focus, and drive it through state.
   const activePeerId = useMemo(
     () => conversations.find((c) => c.id === activeId)?.peerUserId,
     [conversations, activeId],

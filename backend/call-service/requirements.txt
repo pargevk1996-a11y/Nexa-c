@@ -3,3 +3,4 @@ starlette==0.41.3
 uvicorn[standard]>=0.32.0
 pydantic-settings>=2.6.0
 redis>=5.0.0
+PyJWT>=2.8.0

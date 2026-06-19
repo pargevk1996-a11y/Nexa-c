@@ -188,7 +188,67 @@ class WsHandler:
                     node_id=settings.node_id,
                     conn_id=conn_id,
                 )
-            self._manager.remove(conn_id)
+            removed = self._manager.remove(conn_id)
+            # When the user's LAST live connection on this node closes, tell their
+            # peers they went offline so every contact's sidebar dot turns gray
+            # in real time (sub-second) instead of waiting on the 30s poll. Other
+            # tabs of the same user keep them online (multi-tab safe). Best-effort:
+            # a transport error mid-broadcast must never mask disconnect cleanup.
+            if (
+                user_id
+                and removed is not None
+                and not self._manager.connections_for_user(user_id)
+            ):
+                try:
+                    await self._emit_presence(
+                        user_id=user_id,
+                        conversation_ids=removed.subscribed_conversations,
+                        is_online=False,
+                    )
+                except Exception:
+                    pass
+
+    async def _emit_presence(
+        self,
+        *,
+        user_id: str,
+        conversation_ids,
+        is_online: bool,
+    ) -> None:
+        """Fan a ``presence.update`` out to a user's peers.
+
+        Presence rides the same conversation-subscription paths as typing: every
+        peer currently subscribed to a conversation this user belongs to receives
+        a single frame (deduped across shared conversations). The client keys the
+        update by ``user_id`` and refreshes the online dot for every chat with
+        that peer — so the sidebar updates without the chat being open.
+
+        Node-local by design, matching the existing typing fan-out: the prod
+        gateway is a single node. Cross-node presence is a scaling follow-up
+        (would route through the Redis bus once peer ids are resolvable here).
+        """
+        if not conversation_ids:
+            return
+        frame_out = ws_frame_to_json(
+            WsFrame(
+                type="event",
+                name="presence.update",
+                payload={"user_id": user_id, "is_online": is_online},
+            ),
+        )
+        seen: set[str] = set()
+        for conv_id in conversation_ids:
+            for peer in self._manager.connections_subscribed_to(
+                conv_id,
+                exclude_user_id=user_id,
+            ):
+                if peer.conn_id in seen:
+                    continue
+                seen.add(peer.conn_id)
+                try:
+                    await peer.websocket.send_text(frame_out)
+                except Exception:
+                    self._manager.remove(peer.conn_id)
 
     async def _dispatch(
         self,
@@ -209,6 +269,13 @@ class WsHandler:
             if isinstance(conv_ids, list):
                 str_ids = [str(c) for c in conv_ids]
                 self._manager.subscribe(conn.conn_id, str_ids)
+                # Announce "online" to peers in the just-subscribed conversations
+                # so their sidebar lights up green as soon as this user connects.
+                await self._emit_presence(
+                    user_id=conn.user_id,
+                    conversation_ids=str_ids,
+                    is_online=True,
+                )
                 for conv_id in str_ids:
                     last_seq = since_seqs.get(conv_id, 0)
                     if last_seq:

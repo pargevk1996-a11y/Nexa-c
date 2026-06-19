@@ -40,6 +40,12 @@ export class CallEngine {
   private qualityTier = 0;
   private preferredFacing: "user" | "environment" = "user";
   private videoDeviceId: string | null = null;
+  /** Peers we created the offer for — only the offerer drives ICE restart (no glare). */
+  private offererFor = new Set<string>();
+  /** Pending "disconnected" grace timers, per peer, before escalating to a restart. */
+  private iceRestartTimers = new Map<string, number>();
+  /** Peers with an ICE restart already in flight (avoids stacking restarts). */
+  private restarting = new Set<string>();
 
   setHandlers(handlers: {
     onRemoteStream?: (userId: string, stream: MediaStream) => void;
@@ -124,6 +130,8 @@ export class CallEngine {
     } else if (signalType === "answer" && payload.sdp) {
       const pc = this.peers.get(from);
       if (pc) await pc.setRemoteDescription(payload.sdp as RTCSessionDescriptionInit);
+      // Round-trip done: allow a fresh restart if the link drops again.
+      this.restarting.delete(from);
     } else if (signalType === "ice" && payload.candidate) {
       const pc = this.peers.get(from);
       if (pc) await pc.addIceCandidate(payload.candidate as RTCIceCandidateInit);
@@ -170,6 +178,28 @@ export class CallEngine {
         void this.sendSignal(remoteUserId, "ice", { candidate: ev.candidate.toJSON() });
       }
     };
+    // Network-recovery: on a transient drop wait a short grace period, on a hard
+    // failure restart ICE immediately. Only fires in broken states, so it can
+    // never degrade a healthy connection — at worst it's a no-op.
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      if (state === "connected" || state === "completed") {
+        this.clearIceRestartTimer(remoteUserId);
+        this.restarting.delete(remoteUserId);
+      } else if (state === "failed") {
+        this.clearIceRestartTimer(remoteUserId);
+        void this.restartIce(remoteUserId);
+      } else if (state === "disconnected") {
+        if (this.iceRestartTimers.has(remoteUserId)) return;
+        const timer = window.setTimeout(() => {
+          this.iceRestartTimers.delete(remoteUserId);
+          if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
+            void this.restartIce(remoteUserId);
+          }
+        }, 2500);
+        this.iceRestartTimers.set(remoteUserId, timer);
+      }
+    };
     const callType = (this.call?.call_type ?? "audio") as CallType;
     applySendBitrate(pc, callType, this.qualityTier);
     void monitorAdaptiveBitrate(pc, callType, () => this.qualityTier, (tier) => {
@@ -187,11 +217,38 @@ export class CallEngine {
       this.peers.set(remoteUserId, pc);
     }
     if (createOffer) {
+      this.offererFor.add(remoteUserId);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       await this.sendSignal(remoteUserId, "offer", { sdp: offer });
     }
     return pc;
+  }
+
+  /** Re-negotiate ICE on the existing peer connection without dropping the call.
+   *  Only the original offerer restarts (the answerer recovers via handleSignal's
+   *  "offer" branch), so the two sides never collide. */
+  private async restartIce(remoteUserId: string): Promise<void> {
+    if (!this.offererFor.has(remoteUserId)) return;
+    if (this.restarting.has(remoteUserId)) return;
+    const pc = this.peers.get(remoteUserId);
+    if (!pc || pc.connectionState === "closed" || pc.signalingState !== "stable") return;
+    this.restarting.add(remoteUserId);
+    try {
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      await this.sendSignal(remoteUserId, "offer", { sdp: offer });
+    } catch {
+      this.restarting.delete(remoteUserId);
+    }
+  }
+
+  private clearIceRestartTimer(remoteUserId: string): void {
+    const timer = this.iceRestartTimers.get(remoteUserId);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      this.iceRestartTimers.delete(remoteUserId);
+    }
   }
 
   private async initiatePeer(remoteUserId: string, asCaller: boolean): Promise<void> {
@@ -328,6 +385,10 @@ export class CallEngine {
   async cleanup(): Promise<void> {
     for (const stop of this.statsCleanups) stop();
     this.statsCleanups = [];
+    for (const timer of this.iceRestartTimers.values()) window.clearTimeout(timer);
+    this.iceRestartTimers.clear();
+    this.offererFor.clear();
+    this.restarting.clear();
     for (const pc of this.peers.values()) pc.close();
     this.peers.clear();
     this.localStream?.getTracks().forEach((t) => t.stop());

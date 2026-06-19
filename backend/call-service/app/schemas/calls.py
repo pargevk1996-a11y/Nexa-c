@@ -25,6 +25,8 @@ class CallResponse(BaseModel):
     participant_ids: list[str]
     conversation_id: str | None
     is_group: bool
+    # "mesh" = peer-to-peer (1:1); "sfu" = join the LiveKit room with a token.
+    mode: str = "mesh"
     created_at: str
 
 
@@ -33,3 +35,12 @@ class SignalRequest(BaseModel):
     signal_type: str = Field(description="offer|answer|ice|hangup|screen")
     sdp: dict | None = None
     candidate: dict | None = None
+
+
+class CallTokenResponse(BaseModel):
+    """Everything a client needs to join the SFU room for a group call."""
+
+    room: str
+    url: str
+    token: str
+    expires_in: int

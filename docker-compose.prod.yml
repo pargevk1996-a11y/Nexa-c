@@ -49,6 +49,34 @@ services:
 
   call-service:
     restart: unless-stopped
+    environment:
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      SFU_MIN_PARTICIPANTS: ${SFU_MIN_PARTICIPANTS:-3}
+
+  # SFU for GROUP calls (> 2 participants). 1:1 calls stay peer-to-peer and never
+  # touch this. Host networking: LiveKit needs a wide UDP range for WebRTC media
+  # plus the signaling port. Requires the AWS Security Group to allow:
+  #   7880 tcp (signaling/WS), 7881 tcp (TURN/TLS fallback), 50000-60000 udp (media).
+  # call-service mints join tokens with ${LIVEKIT_API_KEY}/${LIVEKIT_API_SECRET};
+  # those MUST match the keys below. Webhook posts back to call-service over the
+  # internal network for room-state reconciliation.
+  livekit:
+    image: livekit/livekit-server:v1.8
+    restart: unless-stopped
+    network_mode: host
+    # Single SFU node — no Redis needed. For multi-node scaling add
+    # --redis-host (with the stack's Redis password) so nodes share room state.
+    command:
+      - --bind
+      - 0.0.0.0
+      - --node-ip
+      - 18.145.177.213
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      # Webhook back to the SFU integration in call-service (signed; verified there).
+      LIVEKIT_WEBHOOK_URLS: ${LIVEKIT_WEBHOOK_URL:-http://127.0.0.1:8011/api/v1/livekit/webhook}
 
   # TURN/STUN relay for WebRTC media (calls). Host networking so the wide UDP
   # relay range works without mapping thousands of ports. Requires the AWS

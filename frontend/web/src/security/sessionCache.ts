@@ -26,11 +26,28 @@ export async function refreshSessionCache(): Promise<AuthSession | null> {
     cachedSession = null;
     return null;
   }
-  cachedSession = await getSecureItem<AuthSession>(storageKeys.session, uid);
-  if (!cachedSession) {
-    localStorage.removeItem(ACTIVE_UID_KEY);
+  const restored = await getSecureItem<AuthSession>(storageKeys.session, uid);
+  if (restored) {
+    cachedSession = restored;
+    return cachedSession;
   }
-  return cachedSession;
+  // restored === null — distinguish "genuinely signed out" from a TRANSIENT
+  // failure. getSecureItem returns null both when there is no stored blob AND
+  // when an existing blob cannot be decrypted *right now* (device key in
+  // IndexedDB not ready yet, a crypto/storage hiccup, or the key was just
+  // regenerated under browser storage pressure). If the encrypted blob is still
+  // present, treat it as transient: do NOT wipe the active-uid pointer and do
+  // NOT downgrade a previously restored session to null — that would log the
+  // user out on a momentary glitch and bounce them to the landing page. A later
+  // refresh (focus, bootstrap retry, or /auth/refresh re-persist) recovers it.
+  const blobPresent = localStorage.getItem(storageKeys.session) != null;
+  if (blobPresent) {
+    return cachedSession;
+  }
+  // No stored blob at all → genuinely signed out (or storage cleared).
+  cachedSession = null;
+  localStorage.removeItem(ACTIVE_UID_KEY);
+  return null;
 }
 
 export async function persistSession(session: AuthSession): Promise<void> {

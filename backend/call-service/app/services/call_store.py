@@ -16,8 +16,12 @@ class CallRoom:
     conversation_id: str | None
     is_group: bool
     status: str
+    # "mesh" = peer-to-peer (1:1); "sfu" = routed through LiveKit (group).
+    mode: str = "mesh"
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     ended_at: datetime | None = None
+    # Identities currently connected to the SFU room (kept in sync from webhooks).
+    joined: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -32,6 +36,7 @@ class CallStore:
         participant_ids: list[str],
         conversation_id: str | None,
         is_group: bool,
+        mode: str = "mesh",
     ) -> CallRoom:
         all_participants = list({caller_id, *participant_ids})
         room = CallRoom(
@@ -42,8 +47,21 @@ class CallStore:
             conversation_id=conversation_id,
             is_group=is_group or len(all_participants) > 2,
             status="ringing",
+            mode=mode,
         )
         self._rooms[room.id] = room
+        return room
+
+    def mark_joined(self, call_id: str, identity: str) -> CallRoom | None:
+        room = self._rooms.get(call_id)
+        if room:
+            room.joined.add(identity)
+        return room
+
+    def mark_left(self, call_id: str, identity: str) -> CallRoom | None:
+        room = self._rooms.get(call_id)
+        if room:
+            room.joined.discard(identity)
         return room
 
     def get(self, call_id: str) -> CallRoom | None:

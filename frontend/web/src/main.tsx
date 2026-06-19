@@ -22,6 +22,12 @@ startPerformanceGovernor();
 // reference hashed chunks that no longer exist (404) → blank screen on a route
 // switch. Reload once (rate-limited) to pull a fresh index.html + correct chunks.
 window.addEventListener("vite:preloadError", () => {
+  // Only a stale post-deploy chunk warrants a reload. If we're offline the
+  // chunk simply isn't reachable yet — reloading would just blank the screen,
+  // so skip it and let the SW/offline path or a later retry handle it. The
+  // reload preserves the current URL, so an online recovery lands the user back
+  // on the same route (the session survives — see refreshSessionCache).
+  if (!navigator.onLine) return;
   const last = Number(sessionStorage.getItem("nexa-chunk-reload") || 0);
   if (Date.now() - last > 10000) {
     sessionStorage.setItem("nexa-chunk-reload", String(Date.now()));
