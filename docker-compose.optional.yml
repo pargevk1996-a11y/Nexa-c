@@ -42,10 +42,13 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.55.1
+    restart: unless-stopped
     volumes:
       - ./infrastructure/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    # Bound to loopback only — never expose the metrics store publicly.
+    # Reach it via SSH tunnel: ssh -L 9090:localhost:9090 <host>
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     networks:
       - internal
     profiles:
@@ -55,13 +58,15 @@ services:
 
   grafana:
     image: grafana/grafana:11.4.0
+    restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    # Bound to loopback only — dashboards reached via SSH tunnel, never public.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infrastructure/observability/grafana/dashboards:/etc/grafana/dashboards:ro
