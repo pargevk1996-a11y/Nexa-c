@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from app.core.deps import get_current_user_id
 from app.schemas.profile import (
@@ -12,7 +13,6 @@ from app.schemas.profile import (
 )
 from app.services.profile_store import ProfilePrivacy, profile_store
 from app.services.screen_lock_store import screen_lock_store
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 
