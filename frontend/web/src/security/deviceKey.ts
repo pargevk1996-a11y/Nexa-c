@@ -16,6 +16,11 @@ const DB_STORE = "device-keys";
 const DEVICE_KEY_SLOT = "v2:device-hkdf";
 
 let _cachedKey: CryptoKey | null = null;
+// In-flight dedup: without this, two concurrent cold callers (bootstrap pre-warm,
+// session decrypt, vault load, signature verify…) could each generate a DIFFERENT
+// base key on first run — data written under one key then fails to decrypt under
+// the other. Sharing a single promise guarantees every caller gets the same key.
+let _inflight: Promise<CryptoKey> | null = null;
 
 function _openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -71,6 +76,18 @@ async function _generateKey(): Promise<CryptoKey> {
 
 export async function getOrCreateDeviceBaseKey(): Promise<CryptoKey> {
   if (_cachedKey) return _cachedKey;
+  // Coalesce concurrent cold callers onto one resolution so they all share the
+  // SAME key (see _inflight note above).
+  if (_inflight) return _inflight;
+  _inflight = _resolveDeviceBaseKey();
+  try {
+    return await _inflight;
+  } finally {
+    _inflight = null;
+  }
+}
+
+async function _resolveDeviceBaseKey(): Promise<CryptoKey> {
   try {
     const db = await _openDb();
     const stored = await _idbGet(db);

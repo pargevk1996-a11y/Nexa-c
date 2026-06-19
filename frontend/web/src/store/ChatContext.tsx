@@ -828,51 +828,72 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
     const candidate = search.slice(1);
     if (!/^\d{4,6}$/.test(candidate)) return;
-    const s = getCachedSession();
-    if (!s) return;
-    void verifySignatureForUser(s.user.id, candidate).then((ok) => {
-      setPinUnlocked(ok);
-    });
-  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Use the resolved context userId (not a fresh getCachedSession()) so the
+    // reveal verifies as soon as auth is ready — it no longer silently no-ops
+    // when the session cache isn't warm yet, which is why typing the signature
+    // used to only work AFTER opening the lock overlay (which warmed it).
+    if (!userId) return;
+    let cancelled = false;
+    void verifySignatureForUser(userId, candidate)
+      .then((ok) => {
+        if (!cancelled) setPinUnlocked(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setPinUnlocked(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [search, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const savedConversation = useMemo(() => {
     const found = conversations.find((c) => c.id === SAVED_MESSAGES_ID);
     return found ?? createSavedMessagesConversation();
   }, [conversations]);
 
+  // Hard gate: never render ANY chat until the encrypted vault has loaded and
+  // applied the per-chat `hidden` flag. Otherwise "make invisible" chats flash
+  // visible for a frame between the first paint (mock/cache) and the vault/server
+  // resolving their hidden state. No reveal is possible before vaultReady anyway.
   const visibleConversations = useMemo(
     () =>
-      conversations.filter((c) => {
-        if (c.id === SAVED_MESSAGES_ID) return false;
-        if (isConversationHidden(c, hiddenChatIds)) return false;
-        if (c.blocked) return false;
-        if (c.contactRemoved) return false;
-        if (c.archived) return false;
-        return true;
-      }),
-    [conversations, hiddenChatIds],
+      !vaultReady
+        ? []
+        : conversations.filter((c) => {
+            if (c.id === SAVED_MESSAGES_ID) return false;
+            if (isConversationHidden(c, hiddenChatIds)) return false;
+            if (c.blocked) return false;
+            if (c.contactRemoved) return false;
+            if (c.archived) return false;
+            return true;
+          }),
+    [conversations, hiddenChatIds, vaultReady],
   );
 
   const archivedConversations = useMemo(
     () =>
-      conversations.filter((c) => {
-        if (c.id === SAVED_MESSAGES_ID) return false;
-        if (isConversationHidden(c, hiddenChatIds)) return false;
-        if (c.blocked || c.contactRemoved) return false;
-        return Boolean(c.archived);
-      }),
-    [conversations, hiddenChatIds],
+      !vaultReady
+        ? []
+        : conversations.filter((c) => {
+            if (c.id === SAVED_MESSAGES_ID) return false;
+            if (isConversationHidden(c, hiddenChatIds)) return false;
+            if (c.blocked || c.contactRemoved) return false;
+            return Boolean(c.archived);
+          }),
+    [conversations, hiddenChatIds, vaultReady],
   );
 
   const hiddenConversations = useMemo(
     () =>
-      conversations.filter((c) => {
-        if (c.id === SAVED_MESSAGES_ID) return false;
-        if (!isConversationHidden(c, hiddenChatIds)) return false;
-        if (c.blocked || c.contactRemoved) return false;
-        return true;
-      }),
-    [conversations, hiddenChatIds],
+      !vaultReady
+        ? []
+        : conversations.filter((c) => {
+            if (c.id === SAVED_MESSAGES_ID) return false;
+            if (!isConversationHidden(c, hiddenChatIds)) return false;
+            if (c.blocked || c.contactRemoved) return false;
+            return true;
+          }),
+    [conversations, hiddenChatIds, vaultReady],
   );
 
   const activeConversation = useMemo(
@@ -919,11 +940,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const conversationsLoading = Boolean(
-    liveChatEnabled &&
-      vaultReady &&
-      realtimeState === "reconnecting" &&
-      !liveMode &&
-      conversations.length === 0,
+    // Show the skeleton (not an empty list) while the vault is still resolving
+    // hidden state — the list is intentionally gated to [] until vaultReady.
+    !vaultReady ||
+      (liveChatEnabled &&
+        realtimeState === "reconnecting" &&
+        !liveMode &&
+        conversations.length === 0),
   );
 
   const offlineMode = useOfflineStore((s) => s.offlineMode);
