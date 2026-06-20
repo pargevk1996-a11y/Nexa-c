@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { searchProfiles } from "@/api/profile";
 import {
@@ -39,6 +39,40 @@ export function ContactsPage() {
   const [error, setError] = useState<string | null>(null);
   const showBlocked = searchParams.get("v") === "blocked";
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  // Mobile: two-finger horizontal swipe → blocked / all contacts
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    let startX = 0;
+    let lastX = 0;
+    let two = false;
+    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const onStart = (e: TouchEvent) => {
+      if (window.innerWidth > 768) { two = false; return; }
+      two = e.touches.length === 2;
+      if (two) startX = lastX = mid(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (two && e.touches.length === 2) lastX = mid(e);
+    };
+    const onEnd = () => {
+      if (!two) return;
+      two = false;
+      const dx = lastX - startX;
+      if (Math.abs(dx) < 50) return;
+      setSearchParams(dx < 0 ? { v: "blocked" } : {}, { replace: true });
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [setSearchParams]);
 
   // Load the blocked list whenever the blocked view is opened.
   useEffect(() => {
@@ -229,7 +263,7 @@ export function ContactsPage() {
   }, []);
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" ref={pageRef}>
       <div className="page-shell__inner contacts-page glass-panel">
         <header className="contacts-page__head">
           <h1>Contacts</h1>
