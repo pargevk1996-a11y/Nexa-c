@@ -50,9 +50,11 @@ function FabSpeedDial({ onContact, onGroup, onChannel }: {
       onClick: onChannel,
       icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.9 9.77 19.79 19.79 0 0 1 1.88 1.2 2 2 0 0 1 3.86.02h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 7.91a16 16 0 0 0 6.08 6.08l1.25-1.25a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-          <line x1="16" y1="2" x2="22" y2="2" />
-          <line x1="19" y1="-1" x2="19" y2="5" />
+          <circle cx="12" cy="12" r="2"/>
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49"/>
+          <path d="M7.76 16.24a6 6 0 0 1 0-8.49"/>
+          <path d="M20.07 3.93a10 10 0 0 1 0 16.14"/>
+          <path d="M3.93 20.07a10 10 0 0 1 0-16.14"/>
         </svg>
       ),
     },
@@ -184,9 +186,6 @@ export function ChatLeftPanel({
   };
 
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
-  // When the in-list "+ create" row scrolls up under the search, surface a
-  // compact "+" next to the search so the create action stays reachable.
-  const [showHeadAdd, setShowHeadAdd] = useState(false);
 
   useEffect(() => {
     const s = getCachedSession();
@@ -238,17 +237,6 @@ export function ChatLeftPanel({
     };
   }, [category, onCategoryChange]);
 
-  // Reveal the header "+" once the list is scrolled and the create row goes
-  // under the search block.
-  useEffect(() => {
-    const el = document.querySelector<HTMLElement>(".chat-left-panel .chat-conversations");
-    if (!el) return;
-    const onScroll = () => setShowHeadAdd(el.scrollTop > 8);
-    onScroll();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [category]);
-
   const effectiveSearch = pinUnlocked && search.startsWith("#") ? "" : search;
 
   const allConversations = useMemo(
@@ -264,15 +252,6 @@ export function ChatLeftPanel({
     () => sortChatList(allConversations.filter((c) => !c.pinned), drafts),
     [allConversations, drafts],
   );
-
-  // Context-aware create action per category (drives both the "+" head button
-  // and the create row at the top of the list).
-  const createMeta =
-    category === "groups"
-      ? { label: "Create group", onClick: onCreateGroup }
-      : category === "channels"
-        ? { label: "Create channel", onClick: onCreateGroup }
-        : { label: "Add contact", onClick: () => navigate("/app/contacts") };
 
   return (
     <aside className="chat-left-panel glass-panel" aria-label="Chat list">
@@ -323,19 +302,6 @@ export function ChatLeftPanel({
           </label>
 
           <div className="chat-left-panel__head-actions">
-            {/* Category-aware create "+" — appears once the in-list create row
-                scrolls under the search. */}
-            {showHeadAdd ? (
-              <button
-                type="button"
-                className="chat-left-panel__head-btn chat-left-panel__head-add"
-                onClick={createMeta.onClick}
-                aria-label={createMeta.label}
-                title={createMeta.label}
-              >
-                +
-              </button>
-            ) : null}
             {/* Saved Messages shortcut — right of search, left of the bell. */}
             <button
               type="button"
@@ -380,8 +346,6 @@ export function ChatLeftPanel({
       <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
         {CHAT_CATEGORIES.map((c) => {
           const active = category === c.id;
-          const addTitle =
-            c.id === "channels" ? "New channel" : c.id === "groups" ? "New group" : "Find contact";
           return (
             <span key={c.id} className="chat-folder-wrap">
               <button
@@ -391,17 +355,6 @@ export function ChatLeftPanel({
               >
                 {c.label}
               </button>
-              {active ? (
-                <button
-                  type="button"
-                  className="chat-folder-add"
-                  title={addTitle}
-                  aria-label={addTitle}
-                  onClick={() => (c.id === "all" ? navigate("/app/contacts") : onCreateGroup())}
-                >
-                  +
-                </button>
-              ) : null}
             </span>
           );
         })}
@@ -409,7 +362,6 @@ export function ChatLeftPanel({
 
       <ChatSidebar
         loading={loading}
-        createMeta={createMeta}
         savedConversation={savedConversation}
         pinnedConversations={pinned}
         conversations={regular}
