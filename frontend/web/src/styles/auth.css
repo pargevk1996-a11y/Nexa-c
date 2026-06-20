@@ -581,7 +581,45 @@ html:has(.auth-layout) body {
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-elevated, #1a1d24));
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  transition: border-color 0.2s, background 0.2s;
+  transition: padding 0.3s ease, border-radius 0.3s ease, background 0.3s ease,
+              border-color 0.3s ease, margin-bottom 0.3s ease;
+}
+
+/* Accepted: collapses to a compact pill showing only the checkmark */
+.consent-block--accepted {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface-elevated, #1a1d24));
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  margin-bottom: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+}
+.consent-block--accepted .consent-block__label {
+  gap: 0.4rem;
+  align-items: center;
+}
+.consent-block--accepted .consent-block__text {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  width: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, width 0.3s ease;
+  pointer-events: none;
+}
+.consent-block--accepted .consent-block__accepted-hint {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  animation: consent-accepted-in 0.25s ease both;
+}
+@keyframes consent-accepted-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.consent-block__accepted-hint {
+  display: none;
 }
 .consent-block--error {
   border-color: var(--error, #f43f5e);

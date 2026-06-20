@@ -95,7 +95,7 @@ export function RegisterPage() {
       <AuthAlert variant="success">{success}</AuthAlert>
 
       {/* Consent gate — must be accepted before any registration path */}
-      <div className={`consent-block${consentError ? " consent-block--error" : ""}`}>
+      <div className={`consent-block${consentError ? " consent-block--error" : ""}${consentGiven ? " consent-block--accepted" : ""}`}>
         <label className="consent-block__label">
           <input
             type="checkbox"
@@ -115,6 +115,9 @@ export function RegisterPage() {
             including intercepting screenshot keyboard shortcuts in the browser and enabling
             OS-level screen-capture restrictions in native apps, to protect private communications.
           </span>
+          {consentGiven && (
+            <span className="consent-block__accepted-hint">Agreed</span>
+          )}
         </label>
         {consentError && (
           <p className="consent-block__error" role="alert">
