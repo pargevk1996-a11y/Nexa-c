@@ -243,17 +243,9 @@ button.side-nav__item {
   text-align: center;
 }
 
-/* Red icon background for secondary views (Blocked / Missed Calls) */
+/* Red icon color for secondary views (Blocked / Missed Calls) */
 .side-nav__icon--red {
-  background: rgba(244, 63, 94, 0.82);
-  color: #fff;
-  border-radius: 6px;
-  padding: 4px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--danger, #f43f5e);
 }
 .side-nav__item--secondary .side-nav__label {
   color: var(--danger, #f43f5e);
