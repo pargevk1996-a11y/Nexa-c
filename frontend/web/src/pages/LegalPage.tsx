@@ -21,8 +21,8 @@ interface LegalDoc {
 const COPY: Record<LegalKind, LegalDoc> = {
   privacy: {
     title: "Privacy Policy",
-    effective: "2026-06-14",
-    version: "1.1",
+    effective: "2026-06-21",
+    version: "1.2",
     intro: `${BRAND_NAME} is built privacy-first. This policy explains in full detail what personal data we collect, why we collect it, how we protect it, and what rights you have over it. We operate under EU GDPR and California CCPA/CPRA.`,
     sections: [
       {
@@ -127,19 +127,33 @@ const COPY: Record<LegalKind, LegalDoc> = {
         ],
       },
       {
-        h: "12. Security measures",
+        h: "12. Screenshot and screen-recording protection — consent",
+        p: `${BRAND_NAME} activates technical measures to protect the confidentiality of your private conversations from being captured by screenshots or screen recordings. By accepting these measures during registration, you explicitly consent to the following:`,
+        items: [
+          "Browser-level interception: we intercept and block keyboard shortcuts and browser APIs commonly used to take screenshots or initiate screen recordings (e.g. PrintScreen, Win+Shift+S, Cmd+Shift+4, Ctrl+Shift+S, and recording hotkeys on all major operating systems and browsers).",
+          "Keyboard Lock API: in supported browsers (Chromium-based) we request the Keyboard Lock API to suppress OS-level screenshot keys when the app is in full-screen or focus mode.",
+          "Clipboard and drag protection: we block copy, cut, drag, and context-menu actions on message content to prevent indirect capture.",
+          "Visibility blackout: when the app loses focus or is backgrounded, a privacy seal is applied instantly to prevent thumbnail capture in the OS task-switcher.",
+          "OS-level protection on native apps: on Android the FLAG_SECURE window flag is set, preventing screenshots via both the Android system and third-party screen-capture apps. On macOS and Windows the Tauri desktop app applies NSWindowSharingNone / WDA_EXCLUDEFROMCAPTURE at OS level.",
+          "Security telemetry: detected capture attempts are logged as anonymised events (no message content) and sent to our servers for abuse detection as described in section 2.",
+          "Limitations: web-browser screen capture initiated via OS menus, hardware buttons, or external tools operating outside the browser process cannot be blocked. Native apps provide stronger protection. By consenting you acknowledge these technical limitations.",
+          "Legal basis: your explicit consent at registration is the legal basis (GDPR Art. 6(1)(a)) for activating these measures. You may withdraw consent by deleting your account; continued use of the service after account creation constitutes ongoing consent to these measures being active.",
+        ],
+      },
+      {
+        h: "13. General security measures",
         p: "Our technical and organisational security measures include: TLS 1.2/1.3 with HSTS preload, strict Content Security Policy (no unsafe-inline or eval for scripts), HttpOnly + Secure + SameSite=Strict cookies, AES-GCM encrypted access-token cookies, Argon2id password hashing, truncated-and-hashed (not raw) IP storage, per-service database isolation, brute-force rate limiting on authentication endpoints, CSRF protection, optional TOTP 2FA, WebAuthn hardware key support (rolling out), screenshot and screen-recording deterrents on web and native clients, and single-session enforcement with reuse-detection token rotation. See docs/security/ for technical details.",
       },
       {
-        h: "13. Children's privacy",
+        h: "15. Children's privacy",
         p: `${BRAND_NAME} is not directed to children under 16. We do not knowingly collect personal data from children under 16. If you believe a child under 16 has created an account, contact nexa@nexa-c.com immediately and we will delete the account and all associated data without delay.`,
       },
       {
-        h: "14. Changes to this policy",
+        h: "16. Changes to this policy",
         p: "We may update this Privacy Policy from time to time. For material changes, we will provide at least 14 days' advance notice in-app before the new version takes effect. Every revision is committed to our public repository (docs/legal/PRIVACY_POLICY.md) so the full audit trail is available via git history. The effective date at the top of this page indicates when the current version became effective. Continued use of the service after the effective date of a revised policy constitutes your acceptance of the changes.",
       },
       {
-        h: "15. Contact",
+        h: "17. Contact",
         p: "Data Protection Officer: nexa@nexa-c.com. For EU supervisory authority contacts: edpb.europa.eu/about-edpb/board/members_en. For California residents: oag.ca.gov/privacy.",
       },
     ],

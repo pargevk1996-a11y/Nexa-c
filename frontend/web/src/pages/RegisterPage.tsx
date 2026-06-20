@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { PASSWORD_HINT, validateClientPassword } from "@/utils/passwordMessages";
 import { COUNTRY_CODES } from "@/data/countryCodes";
+import { BRAND_NAME } from "@/config/brand";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -28,12 +29,20 @@ export function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Privacy & screenshot-protection consent — required before any registration path.
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [consentError, setConsentError] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setFieldErrors({});
+
+    if (!consentGiven) {
+      setConsentError(true);
+      return;
+    }
 
     const trimmedEmail = email.trim();
     const trimmedUsername = username.trim();
@@ -85,7 +94,41 @@ export function RegisterPage() {
       <AuthAlert variant="error">{error}</AuthAlert>
       <AuthAlert variant="success">{success}</AuthAlert>
 
-      <OAuthButtons alwaysShow onError={(msg) => setError(msg || null)} />
+      {/* Consent gate — must be accepted before any registration path */}
+      <div className={`consent-block${consentError ? " consent-block--error" : ""}`}>
+        <label className="consent-block__label">
+          <input
+            type="checkbox"
+            className="consent-block__checkbox"
+            checked={consentGiven}
+            onChange={(e) => {
+              setConsentGiven(e.target.checked);
+              if (e.target.checked) setConsentError(false);
+            }}
+          />
+          <span className="consent-block__text">
+            I have read and agree to {BRAND_NAME}'s{" "}
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>
+            {" "}and{" "}
+            <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.
+            {" "}I consent to {BRAND_NAME} activating screenshot and screen-recording protection on my device,
+            including intercepting screenshot keyboard shortcuts in the browser and enabling
+            OS-level screen-capture restrictions in native apps, to protect private communications.
+          </span>
+        </label>
+        {consentError && (
+          <p className="consent-block__error" role="alert">
+            You must accept the Privacy Policy and screenshot-protection consent to create an account.
+          </p>
+        )}
+      </div>
+
+      <OAuthButtons
+        alwaysShow
+        consentGiven={consentGiven}
+        onConsentMissing={() => setConsentError(true)}
+        onError={(msg) => setError(msg || null)}
+      />
 
       <p className="auth-divider" role="separator">
         <span>or sign up with email or username</span>
@@ -180,7 +223,7 @@ export function RegisterPage() {
           </div>
         </div>
 
-        <Button type="submit" fullWidth loading={loading}>
+        <Button type="submit" fullWidth loading={loading} disabled={loading || !consentGiven}>
           Create account
         </Button>
       </form>

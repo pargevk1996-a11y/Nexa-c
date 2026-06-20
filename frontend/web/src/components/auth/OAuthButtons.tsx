@@ -46,16 +46,27 @@ interface OAuthButtonsProps {
   onError?: (message: string) => void;
   /** Override feature flag — show buttons even if VITE_OAUTH_ENABLED is unset */
   alwaysShow?: boolean;
+  /** When false (registration page), clicking a provider triggers onConsentMissing instead of OAuth. */
+  consentGiven?: boolean;
+  /** Called when the user tries OAuth without having accepted the consent checkbox. */
+  onConsentMissing?: () => void;
 }
 
-export function OAuthButtons({ onError, alwaysShow }: OAuthButtonsProps) {
+export function OAuthButtons({ onError, alwaysShow, consentGiven, onConsentMissing }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
+  // consentGiven is only relevant on the registration page (where the prop is passed).
+  // On login or other pages it is undefined → treat as allowed.
+  const requiresConsent = consentGiven !== undefined;
 
   if (!alwaysShow && !isOAuthEnabled()) {
     return null;
   }
 
   function handleProvider(provider: OAuthProvider) {
+    if (requiresConsent && !consentGiven) {
+      onConsentMissing?.();
+      return;
+    }
     setLoadingProvider(provider);
     onError?.("");
     startOAuthLogin(provider);
@@ -67,9 +78,11 @@ export function OAuthButtons({ onError, alwaysShow }: OAuthButtonsProps) {
         <button
           key={id}
           type="button"
-          className={`oauth-btn oauth-btn--${id}`}
+          className={`oauth-btn oauth-btn--${id}${requiresConsent && !consentGiven ? " oauth-btn--consent-locked" : ""}`}
           disabled={loadingProvider !== null}
           aria-busy={loadingProvider === id}
+          aria-disabled={requiresConsent && !consentGiven ? "true" : undefined}
+          title={requiresConsent && !consentGiven ? "Please accept the Privacy Policy and consent first" : undefined}
           onClick={() => handleProvider(id)}
         >
           <span className="oauth-btn__icon">{icon}</span>
