@@ -19,45 +19,39 @@
   --secure-teal-muted: rgba(94, 234, 212, 0.12);
   --secure-border: rgba(94, 234, 212, 0.22);
 
-  /* NEXA — refined premium palette */
-  --neon-purple: #a855f7;
-  --neon-violet: #8b5cf6;
-  --neon-blue: #3b82f6;
-  --neon-cyan: #22d3ee;
-  --electric-blue: #2563eb;
+  /* NEXA — Clarity palette */
+  --bg-root: #08081A;
+  --bg-gradient-1: #0C0C22;
+  --bg-gradient-2: #080816;
+  --bg-gradient-3: #0A0A1C;
 
-  --bg-root: #050508;
-  --bg-gradient-1: #0a0618;
-  --bg-gradient-2: #060612;
-  --bg-gradient-3: #0c1028;
+  --glass-bg: rgba(12, 12, 30, 0.68);
+  --glass-bg-strong: rgba(15, 15, 35, 0.80);
+  --glass-border: rgba(91, 110, 255, 0.12);
+  --glass-blur: 14px;
 
-  --glass-bg: rgba(12, 14, 28, 0.55);
-  --glass-bg-strong: rgba(16, 18, 36, 0.72);
-  --glass-border: rgba(79, 124, 255, 0.18);
-  --glass-blur: 20px;
-
-  --bg-surface: rgba(10, 12, 24, 0.85);
-  --bg-elevated: rgba(18, 20, 40, 0.9);
-  --bg-hover: rgba(79, 124, 255, 0.12);
-  --bg-input: rgba(255, 255, 255, 0.04);
+  --bg-surface: #0F0F22;
+  --bg-elevated: #16162C;
+  --bg-hover: rgba(91, 110, 255, 0.1);
+  --bg-input: rgba(255, 255, 255, 0.05);
 
   --border: rgba(255, 255, 255, 0.08);
-  --border-focus: #4f7cff;
+  --border-focus: #5B6EFF;
 
-  --text: #f6f6fa;
-  --text-muted: #a8a3bc;
-  --text-faint: #8a8597;
+  --text: #EAEAFF;
+  --text-muted: #7879A2;
+  --text-faint: #4E4F6E;
 
-  --accent: #4f7cff;
-  --accent-hover: #93b4ff;
-  --accent-strong: #3b6dff;
-  --accent-muted: rgba(79, 124, 255, 0.14);
-  --accent-glow: rgba(70, 110, 255, 0.45);
-  --accent-gradient: linear-gradient(135deg, #4f7cff 0%, #3b6dff 50%, #6a5cff 100%);
-  --accent-gradient-soft: linear-gradient(135deg, rgba(79, 124, 255, 0.95), rgba(59, 109, 255, 0.9));
-  --bubble-out-gradient: linear-gradient(135deg, #3b6dff 0%, #4f6cff 50%, #5a4dff 100%);
+  --accent: #5B6EFF;
+  --accent-hover: #7B8CFF;
+  --accent-strong: #4A5AEE;
+  --accent-muted: rgba(91, 110, 255, 0.14);
+  --accent-glow: rgba(91, 110, 255, 0.38);
+  --accent-gradient: linear-gradient(135deg, #5B6EFF 0%, #8B7FFF 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(91, 110, 255, 0.95), rgba(100, 90, 255, 0.9));
+  --bubble-out-gradient: linear-gradient(135deg, #4A5AFF 0%, #6B5FFF 100%);
   --bubble-in-bg: rgba(255, 255, 255, 0.06);
-  --bubble-in-border: rgba(255, 255, 255, 0.1);
+  --bubble-in-border: rgba(255, 255, 255, 0.08);
 
   --danger: #f43f5e;
   --danger-muted: rgba(244, 63, 94, 0.15);

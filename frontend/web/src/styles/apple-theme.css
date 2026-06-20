@@ -1,106 +1,169 @@
 /* =========================================================================
-   APPLE THEME (preview) — "black void with one lit object"
-   Reskins Nexa to the Apple MacBook-Pro design language by overriding the
-   design tokens in tokens.css. Imported LAST in global.css so it wins.
-   Dark-only: the same values are applied to :root and both data-theme states
-   so the app always renders the Apple dark look regardless of the theme flag.
-   To revert: remove the @import "./apple-theme.css" line in global.css.
+   NEXA DESIGN SYSTEM — v3 "Clarity"
+   Premium minimal. Montserrat font, Nexa Indigo accent, proper dark + light.
+   Imported LAST in global.css so it wins all specificity battles.
    ========================================================================= */
 
+/* ─── Dark mode ─────────────────────────────────────────────────────────── */
 :root,
-[data-theme="dark"],
-[data-theme="light"] {
+[data-theme="dark"] {
   color-scheme: dark;
 
-  /* —— Typography: SF Pro (system on Apple devices), Inter fallback —— */
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
-    "Helvetica Neue", Arial, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
-    "Helvetica Neue", Arial, sans-serif;
-  --font-brand: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
-    sans-serif;
+  /* Typography — Montserrat self-hosted, zero third-party origins */
+  --font: "Montserrat", system-ui, -apple-system, sans-serif;
+  --font-display: "Montserrat", system-ui, -apple-system, sans-serif;
+  --font-brand: "Montserrat", system-ui, -apple-system, sans-serif;
 
-  /* Tight, engineered tracking; no heavy weights */
-  --tracking-tight: -0.022em;
+  --tracking-tight: -0.02em;
   --tracking-normal: -0.01em;
-  --tracking-brand: 0.01em;
-  --leading-tight: 1.08;
-  --leading-normal: 1.45;
-  --leading-relaxed: 1.5;
+  --tracking-brand: 0.08em;
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
 
-  /* —— Surfaces: pure black canvas, grayscale step layering —— */
-  --bg-root: #000000;
-  --bg-gradient-1: #000000;
-  --bg-gradient-2: #000000;
-  --bg-gradient-3: #000000;
+  /* Surfaces — deep blue-black, not flat black */
+  --bg-root: #08081A;
+  --bg-gradient-1: #0C0C22;
+  --bg-gradient-2: #080816;
+  --bg-gradient-3: #0A0A1C;
 
-  /* No glass — solid graphite cards (depth via tone, not blur/shadow) */
-  --glass-bg: #1d1d1f;
-  --glass-bg-strong: #1d1d1f;
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: 0px;
+  --glass-bg: rgba(12, 12, 30, 0.68);
+  --glass-bg-strong: rgba(15, 15, 35, 0.80);
+  --glass-border: rgba(91, 110, 255, 0.12);
+  --glass-blur: 14px;
 
-  --bg-surface: #161617;
-  --bg-elevated: #1d1d1f;
-  --surface-elevated: #1d1d1f;
-  --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-input: #1d1d1f;
+  --bg-surface: #0F0F22;
+  --bg-elevated: #16162C;
+  --surface-elevated: #16162C;
+  --bg-hover: rgba(91, 110, 255, 0.1);
+  --bg-input: rgba(255, 255, 255, 0.05);
 
-  --border: rgba(255, 255, 255, 0.10);
-  --border-focus: #2997ff;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: #5B6EFF;
 
-  /* —— Text: pearl / fog —— */
-  --text: #f5f5f7;
-  --text-muted: #86868b;
-  --text-faint: #6e6e73;
+  /* Text */
+  --text: #EAEAFF;
+  --text-muted: #7879A2;
+  --text-faint: #4E4F6E;
 
-  /* —— Rationed blue: link #2997ff, CTA #0071e3 (no gradients) —— */
-  --accent: #0071e3;
-  --accent-hover: #2997ff;
-  --accent-strong: #0066cc;
-  --accent-muted: rgba(41, 151, 255, 0.14);
-  --accent-glow: transparent;
-  --accent-gradient: #0071e3;
-  --accent-gradient-soft: #0071e3;
+  /* Accent — Nexa Indigo */
+  --accent: #5B6EFF;
+  --accent-hover: #7B8CFF;
+  --accent-strong: #4A5AEE;
+  --accent-muted: rgba(91, 110, 255, 0.14);
+  --accent-glow: rgba(91, 110, 255, 0.38);
+  --accent-gradient: linear-gradient(135deg, #5B6EFF 0%, #8B7FFF 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(91, 110, 255, 0.95), rgba(100, 90, 255, 0.9));
 
-  /* iMessage-like bubbles: blue out, smoke-gray in */
-  --bubble-out-gradient: #0071e3;
-  --bubble-in-bg: #2c2c2e;
-  --bubble-in-border: transparent;
+  /* Bubbles */
+  --bubble-out-gradient: linear-gradient(135deg, #4A5AFF 0%, #6B5FFF 100%);
+  --bubble-in-bg: rgba(255, 255, 255, 0.06);
+  --bubble-in-border: rgba(255, 255, 255, 0.08);
 
-  /* Security pill: recolor off teal onto the rationed grayscale + blue */
-  --secure-teal: #f5f5f7;
-  --secure-teal-muted: #333336;
-  --secure-border: rgba(255, 255, 255, 0.10);
+  /* Security */
+  --secure-teal: #5EEAD4;
+  --secure-teal-muted: rgba(94, 234, 212, 0.1);
+  --secure-border: rgba(94, 234, 212, 0.18);
 
-  /* Status colors kept close to Apple system */
-  --danger: #ff453a;
-  --warning: #ffd60a;
-  --success: #30d158;
+  /* Status */
+  --danger: #FF4757;
+  --danger-muted: rgba(255, 71, 87, 0.14);
+  --warning: #FFD93D;
+  --success: #2DD4BF;
 
-  /* —— Radii: Apple set (cards 28, pill 999) —— */
-  --radius-sm: 10px;
+  /* Radii — modern, comfortable */
+  --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
-  --radius-2xl: 28px;
-  --radius-full: 980px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
 
-  /* —— No shadows. Depth = surface tone + radius only. —— */
-  --shadow-subtle: none;
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-glow: none;
-  --shadow-neu: none;
-  --shadow-inset: none;
+  /* Shadows — subtle depth */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 4px 20px rgba(91, 110, 255, 0.22);
+  --shadow-neu: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* —— Kill the aurora / starfield background → pure black stage —— */
-html,
-body {
-  background: #000000 !important;
+/* ─── Light mode ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --font: "Montserrat", system-ui, -apple-system, sans-serif;
+  --font-display: "Montserrat", system-ui, -apple-system, sans-serif;
+  --font-brand: "Montserrat", system-ui, -apple-system, sans-serif;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: -0.01em;
+  --tracking-brand: 0.08em;
+
+  --bg-root: #F6F7FF;
+  --bg-gradient-1: #EEF0FF;
+  --bg-gradient-2: #F8F8FF;
+  --bg-gradient-3: #E8ECFF;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(91, 110, 255, 0.12);
+  --glass-blur: 14px;
+
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F2F2FF;
+  --surface-elevated: #F2F2FF;
+  --bg-hover: rgba(91, 110, 255, 0.07);
+  --bg-input: rgba(91, 110, 255, 0.04);
+
+  --border: rgba(0, 0, 30, 0.08);
+  --border-focus: #5B6EFF;
+
+  --text: #0C0C20;
+  --text-muted: #565678;
+  --text-faint: #8A8AA8;
+
+  --accent: #4A5AFF;
+  --accent-hover: #5B6EFF;
+  --accent-strong: #3A4AEE;
+  --accent-muted: rgba(74, 90, 255, 0.1);
+  --accent-glow: rgba(74, 90, 255, 0.2);
+  --accent-gradient: linear-gradient(135deg, #4A5AFF 0%, #7B5FFF 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(74, 90, 255, 0.95), rgba(91, 70, 255, 0.9));
+
+  --bubble-out-gradient: linear-gradient(135deg, #4A5AFF 0%, #6B5FFF 100%);
+  --bubble-in-bg: #F0F0FF;
+  --bubble-in-border: rgba(91, 110, 255, 0.1);
+
+  --secure-teal: #0D9488;
+  --secure-teal-muted: rgba(13, 148, 136, 0.1);
+  --secure-border: rgba(13, 148, 136, 0.2);
+
+  --danger: #E83B4C;
+  --danger-muted: rgba(232, 59, 76, 0.1);
+  --warning: #F5A623;
+  --success: #059669;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 20, 0.1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 20, 0.1);
+  --shadow-md: 0 8px 24px rgba(0, 0, 20, 0.12);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 20, 0.15);
+  --shadow-glow: 0 4px 20px rgba(74, 90, 255, 0.14);
+  --shadow-neu: 0 2px 10px rgba(0, 0, 20, 0.08);
+  --shadow-inset: inset 0 1px 0 rgba(0, 0, 0, 0.04);
 }
+
+/* —— Base background (overridden by scenic section below) —— */
+html { background: transparent !important; }
+body { background: #08081A !important; }
 body::before,
 body::after,
 body:has(.app-shell)::before,
@@ -127,7 +190,7 @@ body:has(.app-shell)::before,
   box-shadow: none !important;
 }
 
-/* —— Buttons: fully-rounded pills, solid fill, no shadow —— */
+/* —— Buttons: rounded pills with gradient fill —— */
 .btn,
 .btn--primary,
 .chat-left-panel__new-btn,
@@ -135,14 +198,15 @@ body:has(.app-shell)::before,
 .auth-security-pill,
 .realtime-status {
   border-radius: var(--radius-full) !important;
-  box-shadow: none !important;
 }
 .btn--primary {
-  background: var(--accent) !important;
+  background: var(--accent-gradient) !important;
   color: #ffffff !important;
+  box-shadow: 0 4px 16px var(--accent-glow) !important;
 }
 .btn--primary:hover:not(:disabled) {
-  background: var(--accent-hover) !important;
+  filter: brightness(1.08) !important;
+  box-shadow: 0 6px 24px var(--accent-glow) !important;
 }
 
 /* —— Links use the signal blue, underline only —— */
@@ -660,42 +724,36 @@ h3,
    (Overrides the earlier solid-black Apple surfaces.)
    ============================================================ */
 
-/* Glassy, see-through surface tokens. */
+/* Mobile scenic — see-through glass tokens. */
 :root,
 [data-theme="dark"] {
-  --glass-bg: rgba(10, 14, 34, 0.34);
-  --glass-bg-strong: rgba(10, 14, 34, 0.5);
-  --bg-surface: rgba(8, 12, 28, 0.3);
-  --bg-elevated: rgba(16, 20, 44, 0.42);
+  --glass-bg: rgba(10, 10, 28, 0.38);
+  --glass-bg-strong: rgba(12, 12, 32, 0.54);
+  --bg-surface: rgba(8, 8, 24, 0.34);
+  --bg-elevated: rgba(16, 16, 40, 0.46);
   --bg-input: rgba(255, 255, 255, 0.06);
-  --bg-hover: rgba(255, 255, 255, 0.09);
-  --border: rgba(255, 255, 255, 0.12);
+  --bg-hover: rgba(91, 110, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.1);
   --glass-blur: 16px;
 }
 [data-theme="light"] {
-  --glass-bg: rgba(255, 255, 255, 0.36);
-  --glass-bg-strong: rgba(255, 255, 255, 0.52);
-  --bg-surface: rgba(255, 255, 255, 0.32);
-  --bg-elevated: rgba(255, 255, 255, 0.46);
-  --bg-input: rgba(255, 255, 255, 0.6);
-  --bg-hover: rgba(0, 0, 0, 0.05);
-  --border: rgba(255, 255, 255, 0.55);
+  --glass-bg: rgba(255, 255, 255, 0.44);
+  --glass-bg-strong: rgba(255, 255, 255, 0.62);
+  --bg-surface: rgba(255, 255, 255, 0.38);
+  --bg-elevated: rgba(255, 255, 255, 0.52);
+  --bg-input: rgba(255, 255, 255, 0.72);
+  --bg-hover: rgba(74, 90, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.5);
   --glass-blur: 16px;
-  --text: #0c2233;
-  --text-muted: #41607a;
-  --text-faint: #6f8aa0;
-  --bubble-in-bg: rgba(255, 255, 255, 0.6);
 }
 
-/* Sky canvas (overrides the solid #000). */
-html {
-  background: transparent !important;
-}
+/* Sky canvas. */
+html { background: transparent !important; }
 body {
-  background: radial-gradient(130% 100% at 50% -20%, #243169 0%, #0d1330 45%, #05060f 100%) !important;
+  background: radial-gradient(120% 80% at 50% -8%, #1C2160 0%, #09102A 44%, #08081A 100%) !important;
 }
 [data-theme="light"] body {
-  background: linear-gradient(180deg, #4fb0ff 0%, #93d4ff 48%, #d6efff 100%) !important;
+  background: linear-gradient(180deg, #BCCEFF 0%, #DCE8FF 52%, #F0F4FF 100%) !important;
 }
 
 /* Panels: see-through + blur (re-enabled). */
@@ -852,29 +910,37 @@ body {
    phones keep the scenic theme).
    ============================================================ */
 @media (min-width: 769px) {
+  /* Desktop — solid surfaces, no glass blur needed. */
   :root,
-  [data-theme="dark"],
-  [data-theme="light"] {
-    --glass-bg: #1d1d1f;
-    --glass-bg-strong: #1d1d1f;
-    --bg-surface: #161617;
-    --bg-elevated: #1d1d1f;
-    --bg-input: #1d1d1f;
-    --bg-hover: rgba(255, 255, 255, 0.06);
-    --border: rgba(255, 255, 255, 0.1);
+  [data-theme="dark"] {
+    --glass-bg: #0F0F22;
+    --glass-bg-strong: #13132A;
+    --bg-surface: #0F0F22;
+    --bg-elevated: #16162C;
+    --bg-input: rgba(255, 255, 255, 0.05);
+    --bg-hover: rgba(91, 110, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.08);
     --glass-blur: 0px;
-    --text: #f5f5f7;
-    --text-muted: #86868b;
-    --text-faint: #6e6e73;
+  }
+  [data-theme="light"] {
+    --glass-bg: #FFFFFF;
+    --glass-bg-strong: #FFFFFF;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F2F2FF;
+    --bg-input: #F0F0FA;
+    --bg-hover: rgba(74, 90, 255, 0.07);
+    --border: rgba(0, 0, 30, 0.08);
+    --glass-blur: 0px;
+    --text: #0C0C20;
+    --text-muted: #565678;
+    --text-faint: #8A8AA8;
   }
 
-  html,
-  body,
-  [data-theme="light"] body {
-    background: #000000 !important;
-  }
+  html { background: transparent !important; }
+  body { background: #08081A !important; }
+  [data-theme="light"] body { background: #F4F5FF !important; }
 
-  /* Solid, no-blur panels (kill the see-through glass). */
+  /* Solid panels on desktop. */
   .glass-panel,
   .chat-main,
   .chat-sidebar,
@@ -901,8 +967,7 @@ body {
     display: none !important;
   }
 
-  /* Mobile-only extras hidden on desktop/tablet (the Saved button stays — it's
-     all versions). */
+  /* Mobile-only extras hidden on desktop/tablet. */
   .chat-create-row,
   .chat-left-panel__head-logo {
     display: none !important;
@@ -1446,7 +1511,7 @@ body {
   border: none !important;
   border-radius: 30px !important;
   background:
-    radial-gradient(130% 70% at 50% -10%, rgba(41, 151, 255, 0.22), transparent 60%),
+    radial-gradient(130% 70% at 50% -10%, rgba(91, 110, 255, 0.22), transparent 60%),
     linear-gradient(180deg, #0c0d12 0%, #000 100%) !important;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.65) !important;
   display: flex;
@@ -1479,7 +1544,7 @@ body {
   border-radius: 50% !important;
   box-shadow:
     0 0 0 6px rgba(255, 255, 255, 0.04),
-    0 0 70px rgba(41, 151, 255, 0.4);
+    0 0 70px rgba(91, 110, 255, 0.4);
 }
 .call-overlay__center h2 {
   margin: 0.6rem 0 0;
@@ -1520,7 +1585,7 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 .call-overlay__actions .icon-btn--active {
-  background: rgba(41, 151, 255, 0.28);
+  background: rgba(91, 110, 255, 0.28);
   color: #fff;
 }
 /* End-call = solid red circle, slightly larger. */

@@ -10,7 +10,7 @@
 }
 
 /* ── 1. ANIMATED AURORA BACKGROUND ───────────────────────────── */
-/* Three soft-glow orbs that drift slowly — gives depth without noise */
+/* Soft Indigo orbs — subtle depth, no visual noise */
 body::before {
   content: "";
   position: fixed;
@@ -18,14 +18,11 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 88% 58% at 16% -4%,  rgba(59, 109, 255,0.28) 0%, transparent 66%),
-    radial-gradient(ellipse 72% 52% at 90% 10%,  rgba(59,130,246,0.20) 0%, transparent 62%),
-    radial-gradient(ellipse 55% 68% at 6%  96%,  rgba(34,211,238,0.09) 0%, transparent 60%),
-    radial-gradient(ellipse 48% 42% at 78% 96%,  rgba(79, 124, 255,0.13) 0%, transparent 58%);
-  animation: v2-aurora 26s ease-in-out infinite alternate;
-  /* No will-change: this is a full-viewport always-on layer; promoting it
-     permanently blows the browser's will-change memory budget. The transform
-     animation is GPU-composited while it runs regardless. */
+    radial-gradient(ellipse 80% 55% at 14% -6%, rgba(91, 110, 255, 0.22) 0%, transparent 64%),
+    radial-gradient(ellipse 68% 48% at 88% 8%, rgba(91, 110, 255, 0.16) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 64% at 5% 94%, rgba(91, 90, 255, 0.07) 0%, transparent 58%),
+    radial-gradient(ellipse 44% 38% at 76% 94%, rgba(91, 110, 255, 0.1) 0%, transparent 56%);
+  animation: v2-aurora 28s ease-in-out infinite alternate;
 }
 
 @keyframes v2-aurora {
@@ -39,11 +36,10 @@ body::before {
 /* ── 2. LEFT PANEL ────────────────────────────────────────────── */
 .chat-left-panel {
   position: relative;
-  /* Glassy + transparent so the star-field clearly shows through */
-  background: rgba(9, 7, 20, 0.22);
+  background: rgba(8, 8, 22, 0.22);
   -webkit-backdrop-filter: blur(10px) saturate(1.2);
   backdrop-filter: blur(10px) saturate(1.2);
-  border: 1px solid rgba(79, 124, 255, 0.1);
+  border: 1px solid rgba(91, 110, 255, 0.1);
 }
 
 /* —— NEXA logo + wordmark watermark behind the chat list —— */
@@ -133,7 +129,7 @@ body::before {
   font-size: 1.45rem;
   font-weight: 800;
   letter-spacing: 0.12em;
-  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 48%, #38bdf8 100%);
+  background: linear-gradient(135deg, #EAEAFF 0%, #A0AAFF 50%, #7B8CFF 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -148,14 +144,14 @@ body::before {
   flex-shrink: 0;
   border: none;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #3b6dff, #4f6cff);
+  background: linear-gradient(135deg, #5B6EFF, #8B6FFF);
   color: #fff;
   font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
   display: grid;
   place-items: center;
-  box-shadow: 0 0 16px rgba(59, 109, 255,0.5);
+  box-shadow: 0 0 16px rgba(91, 110, 255, 0.48);
   transition:
     transform 220ms var(--ease-spring),
     box-shadow 200ms var(--ease);
@@ -163,7 +159,7 @@ body::before {
 
 .chat-left-panel__add-btn:hover {
   transform: scale(1.12) rotate(90deg);
-  box-shadow: 0 0 30px rgba(59, 109, 255,0.75), 0 0 60px rgba(59, 109, 255,0.3);
+  box-shadow: 0 0 30px rgba(91, 110, 255, 0.72), 0 0 60px rgba(91, 110, 255, 0.28);
 }
 
 .chat-left-panel__add-btn:active {
@@ -174,16 +170,16 @@ body::before {
 /* Search bar — glassy pill */
 .chat-left-panel__search {
   border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.5rem 0.9rem;
   margin: 0;
   transition: border-color 180ms var(--ease), box-shadow 180ms var(--ease);
 }
 
 .chat-left-panel__search:focus-within {
-  border-color: rgba(129,140,248,0.5);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.1), 0 0 12px rgba(99,102,241,0.08);
+  border-color: rgba(91, 110, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(91, 110, 255, 0.1), 0 0 12px rgba(91, 110, 255, 0.08);
 }
 
 .chat-left-panel__search input {
@@ -224,7 +220,7 @@ body::before {
 }
 
 .chat-folder-pill:hover {
-  border-color: rgba(79, 124, 255,0.32);
+  border-color: rgba(91, 110, 255,0.32);
   color: var(--text);
   transform: translateY(-1px);
 }
@@ -233,7 +229,7 @@ body::before {
   background: var(--accent-gradient);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 6px 16px rgba(79, 124, 255,0.4), 0 0 0 1px rgba(167,139,250,0.35);
+  box-shadow: 0 6px 16px rgba(91, 110, 255,0.4), 0 0 0 1px rgba(139, 127, 255,0.35);
   transform: none;
 }
 
@@ -285,8 +281,8 @@ body::before {
 }
 
 .chat-conv-item--active {
-  background: rgba(79, 124, 255,0.13) !important;
-  box-shadow: inset 0 0 0 1px rgba(79, 124, 255,0.2) !important;
+  background: rgba(91, 110, 255,0.13) !important;
+  box-shadow: inset 0 0 0 1px rgba(91, 110, 255,0.2) !important;
 }
 
 .chat-conv-item:active {
@@ -321,9 +317,9 @@ body::before {
   font-size: 0.68rem;
   font-weight: 700;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #3b6dff, #4f6cff);
+  background: linear-gradient(135deg, #5B6EFF, #7B8CFF);
   color: #fff;
-  box-shadow: 0 0 12px rgba(59, 109, 255,0.6);
+  box-shadow: 0 0 12px rgba(91, 110, 255,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -377,7 +373,7 @@ body::before {
 
 .chat-left-panel__app-nav-item--active {
   color: #c4b5fd !important;
-  background: rgba(79, 124, 255,0.17) !important;
+  background: rgba(91, 110, 255,0.17) !important;
 }
 
 .chat-left-panel__app-nav-item--active svg {
@@ -395,7 +391,7 @@ body::before {
     background: rgba(7,5,16,0.90);
     -webkit-backdrop-filter: blur(30px) saturate(1.5);
     backdrop-filter: blur(30px) saturate(1.5);
-    border-top: 1px solid rgba(79, 124, 255,0.16);
+    border-top: 1px solid rgba(91, 110, 255,0.16);
     padding: 0.55rem 0.75rem calc(0.55rem + var(--safe-bottom));
     box-shadow: 0 -6px 28px rgba(0,0,0,0.4);
   }
@@ -409,7 +405,7 @@ body::before {
   }
 
   .chat-left-panel__app-nav-item--active {
-    background: rgba(79, 124, 255,0.22) !important;
+    background: rgba(91, 110, 255,0.22) !important;
   }
 
   .chat-left-panel__head {
@@ -474,7 +470,7 @@ body::before {
 /* ── 7. FLOATING COMPOSER ─────────────────────────────────────── */
 .chat-shell--telegram .chat-composer {
   border-radius: 24px;
-  border: 1px solid rgba(79, 124, 255,0.18);
+  border: 1px solid rgba(91, 110, 255,0.18);
   background: rgba(9,7,20,0.84);
   -webkit-backdrop-filter: blur(30px) saturate(1.5);
   backdrop-filter: blur(30px) saturate(1.5);
@@ -517,11 +513,11 @@ body::before {
 
 .chat-conversations {
   scrollbar-width: thin;
-  scrollbar-color: rgba(79, 124, 255,0.15) transparent;
+  scrollbar-color: rgba(91, 110, 255,0.15) transparent;
 }
 .chat-conversations::-webkit-scrollbar { width: 4px; }
 .chat-conversations::-webkit-scrollbar-thumb {
-  background: rgba(79, 124, 255,0.15);
+  background: rgba(91, 110, 255,0.15);
   border-radius: 4px;
 }
 
@@ -587,7 +583,7 @@ body::before {
 /* PIN input — feels like a premium lock screen */
 .lock-overlay__pin-input {
   background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(79, 124, 255,0.28);
+  border: 1px solid rgba(91, 110, 255,0.28);
   border-radius: 16px;
   font-size: 1.5rem;
   letter-spacing: 0.5em;
@@ -621,10 +617,10 @@ body::before {
   font-size: 0.92rem;
   font-weight: 700;
   border-radius: 14px;
-  background: linear-gradient(135deg, #3b6dff, #4f6cff);
+  background: linear-gradient(135deg, #5B6EFF, #7B8CFF);
   border: none;
   color: #fff;
-  box-shadow: 0 0 20px rgba(59, 109, 255,0.45);
+  box-shadow: 0 0 20px rgba(91, 110, 255,0.45);
   transition:
     transform 120ms var(--ease-spring),
     box-shadow 200ms var(--ease),
@@ -633,7 +629,7 @@ body::before {
 
 .lock-overlay__pin-btn:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 32px rgba(59, 109, 255,0.65);
+  box-shadow: 0 0 32px rgba(91, 110, 255,0.65);
   filter: brightness(1.07);
 }
 
@@ -671,13 +667,13 @@ body::before {
 
 /* Primary button */
 .btn--primary {
-  background: linear-gradient(135deg, #3b6dff 0%, #4f6cff 52%, #2563eb 100%);
+  background: linear-gradient(135deg, #5B6EFF 0%, #7B8CFF 52%, #4A5AFF 100%);
   border: none;
   border-radius: 13px;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  box-shadow: 0 4px 22px rgba(59, 109, 255,0.40);
+  box-shadow: 0 4px 22px rgba(91, 110, 255,0.40);
   transition:
     transform 120ms var(--ease-spring),
     box-shadow 200ms var(--ease),
@@ -686,7 +682,7 @@ body::before {
 
 .btn--primary:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 34px rgba(59, 109, 255,0.55);
+  box-shadow: 0 8px 34px rgba(91, 110, 255,0.55);
   filter: brightness(1.06);
 }
 
@@ -703,7 +699,7 @@ body::before {
 
 /* Secondary / ghost button */
 .btn--ghost {
-  border: 1px solid rgba(79, 124, 255,0.25);
+  border: 1px solid rgba(91, 110, 255,0.25);
   color: var(--text-muted);
   border-radius: 13px;
   background: transparent;
@@ -714,14 +710,14 @@ body::before {
 }
 
 .btn--ghost:hover {
-  background: rgba(79, 124, 255,0.1);
-  border-color: rgba(79, 124, 255,0.4);
+  background: rgba(91, 110, 255,0.1);
+  border-color: rgba(91, 110, 255,0.4);
   color: var(--text);
 }
 
 /* ── 12. GLASS SURFACES ───────────────────────────────────────── */
 .glass-panel {
-  border: 1px solid rgba(79, 124, 255,0.14);
+  border: 1px solid rgba(91, 110, 255,0.14);
   box-shadow:
     0 8px 36px rgba(0,0,0,0.32),
     inset 0 1px 0 rgba(255,255,255,0.048);
@@ -741,7 +737,7 @@ body::before {
   background: rgba(11,8,24,0.94);
   -webkit-backdrop-filter: blur(28px) saturate(1.4);
   backdrop-filter: blur(28px) saturate(1.4);
-  border: 1px solid rgba(79, 124, 255,0.18);
+  border: 1px solid rgba(91, 110, 255,0.18);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 52px rgba(0,0,0,0.45);
 }
@@ -1232,7 +1228,7 @@ body::before {
   background: rgba(9,7,20,0.78);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
-  border: 1px solid rgba(79, 124, 255,0.14);
+  border: 1px solid rgba(91, 110, 255,0.14);
   border-radius: var(--radius-2xl);
 }
 
@@ -1241,7 +1237,7 @@ body::before {
   background: rgba(9,7,20,0.72);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
-  border: 1px solid rgba(79, 124, 255,0.13);
+  border: 1px solid rgba(91, 110, 255,0.13);
   border-radius: var(--radius-2xl);
 }
 
@@ -1263,17 +1259,17 @@ body::before {
 .contacts-page__row:hover,
 .calls-page__quick-btn:hover {
   background: rgba(255,255,255,0.07);
-  border-color: rgba(79, 124, 255,0.25);
+  border-color: rgba(91, 110, 255,0.25);
 }
 
 /* ── SCROLLBAR GLOBAL ─────────────────────────────────────────── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(79, 124, 255,0.18) transparent;
+  scrollbar-color: rgba(91, 110, 255,0.18) transparent;
 }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 124, 255,0.18);
+  background: rgba(91, 110, 255,0.18);
   border-radius: 4px;
 }
 
@@ -1284,7 +1280,7 @@ body::before {
    ════════════════════════════════════════════════════════════════════ */
 [data-theme="light"] .chat-left-panel {
   background: rgba(255, 255, 255, 0.82);
-  border-color: rgba(79, 124, 255, 0.2);
+  border-color: rgba(91, 110, 255, 0.2);
 }
 [data-theme="light"] .chat-left-panel__search {
   background: rgba(15, 23, 42, 0.05);
@@ -1312,13 +1308,13 @@ body::before {
 }
 [data-theme="light"] .chat-shell--telegram .chat-composer {
   background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(79, 124, 255, 0.28);
+  border-color: rgba(91, 110, 255, 0.28);
 }
 
 @media (max-width: 768px) {
   [data-theme="light"] .chat-left-panel__app-nav {
     background: rgba(255, 255, 255, 0.96);
-    border-top-color: rgba(79, 124, 255, 0.18);
+    border-top-color: rgba(91, 110, 255, 0.18);
   }
 }
 
@@ -1553,8 +1549,8 @@ body::before {
 /* Glossy sphere surfaces (idle + active) reused by both nav variants. */
 :root {
   --nav-ball-idle: radial-gradient(circle at 50% 32%, rgba(255,255,255,0.16), rgba(255,255,255,0.05) 62%, rgba(255,255,255,0.02));
-  --nav-ball-active: radial-gradient(circle at 50% 30%, #9db0ff, var(--accent, #4f7cff) 58%, #4733c2);
-  --nav-ball-active-shadow: 0 10px 22px rgba(79,124,255,0.5), inset 0 2px 6px rgba(255,255,255,0.35), 0 0 0 1px rgba(167,139,250,0.4);
+  --nav-ball-active: radial-gradient(circle at 50% 30%, #9db0ff, var(--accent, #5B6EFF) 58%, #4733c2);
+  --nav-ball-active-shadow: 0 10px 22px rgba(79,124,255,0.5), inset 0 2px 6px rgba(255,255,255,0.35), 0 0 0 1px rgba(139, 127, 255,0.4);
 }
 
 /* --- Chats-section bottom nav: float the balls, drop the bar block --- */

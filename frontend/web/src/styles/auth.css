@@ -396,38 +396,38 @@ html:has(.auth-layout) body {
   z-index: 2;
   width: 100%;
   max-width: min(94vw, 440px);
-  background: linear-gradient(180deg, rgba(22, 16, 48, 0.66), rgba(8, 6, 22, 0.74));
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(14, 12, 36, 0.72), rgba(10, 8, 28, 0.82));
+  border: 1px solid rgba(91, 110, 255, 0.14);
+  border-radius: 24px;
   padding: 2.5rem 2.25rem 2rem;
   overflow: hidden;
   -webkit-backdrop-filter: blur(28px) saturate(140%);
   backdrop-filter: blur(28px) saturate(140%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 30px 80px -22px rgba(0, 0, 0, 0.72),
-    0 0 120px -34px rgba(110, 70, 230, 0.4);
+    0 28px 72px -20px rgba(0, 0, 0, 0.68),
+    0 0 100px -30px rgba(91, 110, 255, 0.35);
 }
 
-/* Aurora wash — soft coloured glow behind the form content */
+/* Soft indigo glow behind the form */
 .auth-card::before {
   content: "";
   position: absolute;
-  inset: -45% -15% auto -15%;
-  height: 62%;
+  inset: -50% -10% auto -10%;
+  height: 60%;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(60% 100% at 28% 0%, rgba(79, 124, 255, 0.42), transparent 70%),
-    radial-gradient(55% 100% at 82% 8%, rgba(56, 128, 255, 0.32), transparent 72%);
-  filter: blur(22px);
-  opacity: 0.85;
-  animation: aurora-shift 14s ease-in-out infinite alternate;
+    radial-gradient(60% 100% at 30% 0%, rgba(91, 110, 255, 0.38), transparent 70%),
+    radial-gradient(52% 100% at 80% 10%, rgba(91, 90, 255, 0.26), transparent 72%);
+  filter: blur(24px);
+  opacity: 0.8;
+  animation: aurora-shift 16s ease-in-out infinite alternate;
 }
 
 @keyframes aurora-shift {
   0% { transform: translateX(-4%) translateY(0) scale(1); }
-  100% { transform: translateX(6%) translateY(3%) scale(1.06); }
+  100% { transform: translateX(6%) translateY(4%) scale(1.07); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -454,7 +454,7 @@ html:has(.auth-layout) body {
 }
 
 .auth-card__header h2:not(.auth-card__title--brand) {
-  background: linear-gradient(118deg, #ffffff 18%, #bcd0ff 55%, #6aa3ff 92%);
+  background: linear-gradient(118deg, #FFFFFF 18%, #C0CAFF 55%, #7B8CFF 92%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -521,9 +521,9 @@ html:has(.auth-layout) body {
 
 .auth-card .field__input:focus {
   outline: none;
-  border-color: rgba(79, 124, 255, 0.75);
-  background: rgba(79, 124, 255, 0.08);
-  box-shadow: 0 0 0 4px rgba(70, 110, 255, 0.16);
+  border-color: rgba(91, 110, 255, 0.75);
+  background: rgba(91, 110, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(91, 110, 255, 0.16);
 }
 
 /* The placeholder is replaced by the floating label */
@@ -560,7 +560,7 @@ html:has(.auth-layout) body {
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #6aa3ff;
+  color: #7B8CFF;
 }
 
 .auth-card .field:has(.field__input:not(:focus):not(:placeholder-shown)) .auth-form__label {
@@ -585,8 +585,8 @@ html:has(.auth-layout) body {
 }
 
 .auth-card .btn--primary {
-  background: linear-gradient(135deg, #4f7cff 0%, #3b6dff 50%, #6a5cff 100%);
-  box-shadow: 0 12px 34px -10px rgba(70, 110, 255, 0.7);
+  background: linear-gradient(135deg, #5B6EFF 0%, #8B6FFF 100%);
+  box-shadow: 0 8px 28px -8px rgba(91, 110, 255, 0.65);
   transition:
     transform 0.15s var(--ease),
     box-shadow 0.2s var(--ease),
@@ -595,8 +595,8 @@ html:has(.auth-layout) body {
 
 .auth-card .btn--primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 18px 44px -10px rgba(70, 110, 255, 0.85);
-  filter: brightness(1.06);
+  box-shadow: 0 14px 36px -8px rgba(91, 110, 255, 0.82);
+  filter: brightness(1.07);
 }
 
 .auth-card .btn--primary:active:not(:disabled) {
@@ -723,7 +723,7 @@ html:has(.auth-layout) body {
 }
 
 .auth-card .auth-footer a:hover {
-  color: #6aa3ff;
+  color: #7B8CFF;
 }
 
 .sessions-list {
