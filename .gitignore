@@ -134,3 +134,5 @@ docs/security/
 SECURITY.md
 bandit.yaml
 .github/workflows/security.yml
+Nexa_Bug_Report_Full.pdf
+Nexa_Bug_Report_v2.pdf

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { getCachedSession } from "@/api/auth";
 import { clearMyAvatar, updatePresence } from "@/api/profile";
@@ -10,13 +10,25 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useProfile } from "@/store/ProfileContext";
 import { uploadFileResumable } from "@/media/resumableUpload";
-import { displayName, formatLastSeen, presenceLine } from "@/utils/presenceText";
+import { displayName, formatLastSeen } from "@/utils/presenceText";
 import type { AvatarKind, ProfilePrivacy } from "@/types/profile";
 import { DEFAULT_PROFILE_PRIVACY } from "@/types/profile";
+import {
+  IconChats,
+  IconPhone,
+  IconVideo,
+  IconSettings,
+  IconBell,
+  IconShield,
+  IconLock,
+  IconStar,
+  IconSun,
+} from "@/components/icons/Icons";
 
 export function ProfilePage() {
   const session = getCachedSession();
   const { profile, loading, save, refresh } = useProfile();
+  const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const animRef = useRef<HTMLInputElement>(null);
 
@@ -27,10 +39,12 @@ export function ProfilePage() {
   const [isOnline, setIsOnline] = useState(true);
   const [privacy, setPrivacy] = useState<ProfilePrivacy>(DEFAULT_PROFILE_PRIVACY);
   const [saving, setSaving] = useState(false);
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [secureMode, setSecureMode] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -57,6 +71,7 @@ export function ProfilePage() {
         privacy: { ...privacy, secure_mode: secureMode },
       });
       setMessage("Profile saved");
+      setEditing(false);
     } catch (err) {
       setError(
         err instanceof ApiError && err.code === "USERNAME_TAKEN"
@@ -68,14 +83,26 @@ export function ProfilePage() {
     }
   }
 
+  async function handleSavePrivacy() {
+    setSavingPrivacy(true);
+    setError(null);
+    try {
+      await save({ privacy: { ...privacy, secure_mode: secureMode } });
+      setMessage("Privacy updated");
+    } catch {
+      setError("Could not save privacy");
+    } finally {
+      setSavingPrivacy(false);
+    }
+  }
+
   async function handleAvatar(file: File, animated: boolean) {
     setUploading(true);
     setError(null);
     try {
       const uploaded = await uploadFileResumable(file);
       const url = uploaded.stream_url || uploaded.preview_url;
-      const isGif =
-        file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+      const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
       const isWebp = file.type === "image/webp";
       const kind: AvatarKind = animated || isGif || isWebp ? "animated" : "image";
       await save(
@@ -121,10 +148,6 @@ export function ProfilePage() {
     setPrivacy((p) => ({ ...p, [key]: !p[key] }));
   }
 
-  function toggleSecureMode() {
-    setSecureMode((v) => !v);
-  }
-
   if (!session) {
     return (
       <div className="page-shell page-shell__inner">
@@ -147,26 +170,19 @@ export function ProfilePage() {
 
   return (
     <div className="page-shell page-shell__inner glass-panel profile-page">
-      <header className="profile-page__header">
-        <h1>My profile</h1>
-        <Link to="/app/settings" className="profile-page__back">
-          ← Settings
-        </Link>
-      </header>
-
       {loading && !profile ? <p className="auth-hint">Loading profile…</p> : null}
-      {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
-      {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
 
       {profile ? (
-        <form className="profile-page__form" onSubmit={handleSave}>
-          <div className="profile-page__hero">
-            <div className="profile-page__avatar-col">
+        <>
+          {/* ── HERO ─────────────────────────────────────────────── */}
+          <div className="profile-hero">
+            <div className="profile-hero__av-wrap">
               <button
                 type="button"
-                className="profile-page__avatar-btn"
+                className="profile-hero__av-btn"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
+                aria-label="Change photo"
               >
                 <Avatar
                   name={displayName({ username, nickname })}
@@ -176,8 +192,11 @@ export function ProfilePage() {
                   animatedUrl={profile.animated_avatar_url}
                   avatarKind={profile.avatar_kind}
                 />
-                <span className="profile-page__avatar-hint">
-                  {uploading ? "Uploading…" : "Photo"}
+                <span className="profile-hero__cam" aria-hidden>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
                 </span>
               </button>
               <input
@@ -191,14 +210,6 @@ export function ProfilePage() {
                   e.target.value = "";
                 }}
               />
-              <button
-                type="button"
-                className="profile-page__avatar-secondary"
-                onClick={() => animRef.current?.click()}
-                disabled={uploading}
-              >
-                Upload GIF / animated
-              </button>
               <input
                 ref={animRef}
                 type="file"
@@ -210,128 +221,173 @@ export function ProfilePage() {
                   e.target.value = "";
                 }}
               />
-              {(profile.avatar_url || profile.animated_avatar_url) && (
-                <button
-                  type="button"
-                  className="profile-page__avatar-remove"
-                  onClick={() => void handleRemoveAvatar()}
-                  disabled={uploading}
-                >
-                  Remove avatar
+            </div>
+
+            <h1 className="profile-hero__name">
+              {displayName({ username, nickname })}
+              <VerificationBadge badge={profile.verification_badge} />
+            </h1>
+            <p className="profile-hero__handle">@{username.replace(/^\$/, "")}</p>
+            <p className="profile-hero__status">
+              <span className={`profile-hero__dot${isOnline ? " profile-hero__dot--on" : ""}`} />
+              {isOnline ? "Online" : (formatLastSeen(profile.last_seen_at) || "Offline")}
+            </p>
+          </div>
+
+          {/* ── QUICK ACTIONS ────────────────────────────────────── */}
+          <div className="profile-qa">
+            <button type="button" className="profile-qa__btn" onClick={() => navigate("/app/chats")}>
+              <span className="profile-qa__icon"><IconChats size={22} /></span>
+              <span className="profile-qa__label">Message</span>
+            </button>
+            <button type="button" className="profile-qa__btn" onClick={() => navigate("/app/calls")}>
+              <span className="profile-qa__icon"><IconPhone size={22} /></span>
+              <span className="profile-qa__label">Call</span>
+            </button>
+            <button type="button" className="profile-qa__btn" onClick={() => navigate("/app/calls")}>
+              <span className="profile-qa__icon"><IconVideo size={22} /></span>
+              <span className="profile-qa__label">Video</span>
+            </button>
+            <button
+              type="button"
+              className={`profile-qa__btn${editing ? " profile-qa__btn--active" : ""}`}
+              onClick={() => setEditing((v) => !v)}
+              aria-pressed={editing}
+            >
+              <span className="profile-qa__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </span>
+              <span className="profile-qa__label">Edit</span>
+            </button>
+          </div>
+
+          {/* ── ALERTS ───────────────────────────────────────────── */}
+          {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
+          {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
+
+          {/* ── INFO CARD ────────────────────────────────────────── */}
+          <form className="profile-card" onSubmit={handleSave}>
+            <div className="profile-card__head">
+              <span className="profile-card__title">Profile info</span>
+              {!editing && (
+                <button type="button" className="profile-card__edit-btn" onClick={() => setEditing(true)}>
+                  Edit
                 </button>
               )}
             </div>
-            <div className="profile-page__titles">
-              <h2>
-                {displayName({ username, nickname })}
-                <VerificationBadge badge={profile.verification_badge} />
-              </h2>
-              <p className="profile-page__handle">${username.replace(/^\$/, "")}</p>
-              <p className="profile-page__presence">{presenceLine({ ...profile, is_online: isOnline, status_text: statusText })}</p>
-              <p className="profile-page__uid">UID {profile.uid}</p>
-              {profile.phone_number ? (
-                <p className="profile-page__phone">{profile.phone_number}</p>
-              ) : null}
-              {profile.last_seen_at && !isOnline ? (
-                <p className="profile-page__last-seen">{formatLastSeen(profile.last_seen_at)}</p>
-              ) : null}
-            </div>
-          </div>
 
-          <section className="profile-page__section">
-            <h3>Presence</h3>
+            {editing ? (
+              <div className="profile-card__edit-body">
+                <Input
+                  label="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/^\$/, ""))}
+                  hint="Unique handle — shown as $username"
+                />
+                <Input
+                  label="Display name"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  hint="Name shown in chats and calls"
+                />
+                <Input
+                  label="Bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  hint="Up to 500 characters"
+                />
+                <Input
+                  label="Status"
+                  value={statusText}
+                  onChange={(e) => setStatusText(e.target.value)}
+                  hint="Shown when you are online"
+                />
+                <div className="profile-card__edit-actions">
+                  <Button type="submit" loading={saving}>Save</Button>
+                  <button
+                    type="button"
+                    className="profile-card__cancel"
+                    onClick={() => setEditing(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="profile-card__view">
+                {profile.phone_number ? (
+                  <div className="profile-info-row">
+                    <span className="profile-info-row__label">Phone</span>
+                    <span className="profile-info-row__value">{profile.phone_number}</span>
+                  </div>
+                ) : null}
+                <div className="profile-info-row">
+                  <span className="profile-info-row__label">Username</span>
+                  <span className="profile-info-row__value">@{username.replace(/^\$/, "")}</span>
+                </div>
+                {bio ? (
+                  <div className="profile-info-row">
+                    <span className="profile-info-row__label">Bio</span>
+                    <span className="profile-info-row__value">{bio}</span>
+                  </div>
+                ) : null}
+                {statusText ? (
+                  <div className="profile-info-row">
+                    <span className="profile-info-row__label">Status</span>
+                    <span className="profile-info-row__value profile-info-row__value--accent">{statusText}</span>
+                  </div>
+                ) : null}
+                {profile.uid ? (
+                  <div className="profile-info-row">
+                    <span className="profile-info-row__label">User ID</span>
+                    <span className="profile-info-row__value profile-info-row__value--mono">{profile.uid}</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </form>
+
+          {/* ── PRESENCE CARD ────────────────────────────────────── */}
+          <div className="profile-card">
+            <div className="profile-card__head">
+              <span className="profile-card__title">Status</span>
+            </div>
             <div className="profile-presence-toggle">
               <button
                 type="button"
-                className={`profile-presence-toggle__btn ${isOnline ? "profile-presence-toggle__btn--on" : ""}`}
+                className={`profile-presence-toggle__btn${isOnline ? " profile-presence-toggle__btn--on" : ""}`}
                 onClick={() => void handleOnlineToggle(true)}
               >
                 Online
               </button>
               <button
                 type="button"
-                className={`profile-presence-toggle__btn ${!isOnline ? "profile-presence-toggle__btn--on" : ""}`}
+                className={`profile-presence-toggle__btn${!isOnline ? " profile-presence-toggle__btn--on" : ""}`}
                 onClick={() => void handleOnlineToggle(false)}
               >
                 Away
               </button>
             </div>
-            <p className="field__hint">Others see this when your privacy allows online status and last seen.</p>
-          </section>
+            <p className="profile-card__hint">Visible to contacts when privacy allows it.</p>
+          </div>
 
-          <section className="profile-page__section">
-            <h3>Identity</h3>
-            <Input
-              label="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/^\$/, ""))}
-              hint="Unique handle — shown as $username"
-            />
-            <Input
-              label="Nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              hint="Display name in chats and calls"
-            />
-            <Input
-              label="Bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              hint="Up to 500 characters"
-            />
-            <Input
-              label="Status"
-              value={statusText}
-              onChange={(e) => setStatusText(e.target.value)}
-              hint="Shown when you are online (e.g. At work)"
-            />
-          </section>
-
-          <section className="profile-page__section">
-            <h3>Verification</h3>
-            <p className="field__hint">Badges are assigned by NEXA for trusted accounts.</p>
-            <ProfileBadgeLegend />
-            {profile.verification_badge !== "none" ? (
-              <p className="profile-page__your-badge">
-                Your badge: <VerificationBadge badge={profile.verification_badge} />
-              </p>
-            ) : null}
-          </section>
-
-          <section className="profile-page__section">
-            <h3>Secure Mode</h3>
-            <p className="field__hint">
-              When enabled, only your User ID and username are visible to others. All other profile
-              fields — avatar, bio, status, online status — are hidden.
-            </p>
-            <label className="profile-secure-mode__toggle">
-              <input
-                type="checkbox"
-                checked={secureMode}
-                onChange={toggleSecureMode}
-              />
-              <span className={`profile-secure-mode__label${secureMode ? " profile-secure-mode__label--on" : ""}`}>
-                {secureMode ? "Secure mode is ON — profile is hidden" : "Secure mode is OFF"}
-              </span>
-            </label>
-            {secureMode ? (
-              <div className="profile-secure-mode__notice">
-                Only visible to others: <strong>User ID</strong> and <strong>@{username}</strong>
-              </div>
-            ) : null}
-          </section>
-
-          <section className="profile-page__section">
-            <h3>Privacy</h3>
+          {/* ── PRIVACY CARD ─────────────────────────────────────── */}
+          <div className="profile-card">
+            <div className="profile-card__head">
+              <span className="profile-card__title">Privacy</span>
+            </div>
             <ul className="profile-privacy-list">
               {(
                 [
-                  ["show_online_status", "Show online status"],
-                  ["show_last_seen", "Show last seen"],
-                  ["show_bio", "Show bio to others"],
-                  ["show_status_text", "Show status text"],
-                  ["show_avatar", "Show avatar"],
-                  ["allow_search_by_username", "Allow search by username"],
+                  ["show_online_status", "Online status visible"],
+                  ["show_last_seen", "Last seen visible"],
+                  ["show_bio", "Bio visible"],
+                  ["show_status_text", "Status text visible"],
+                  ["show_avatar", "Photo visible"],
+                  ["allow_search_by_username", "Searchable by username"],
                 ] as const
               ).map(([key, label]) => (
                 <li key={key}>
@@ -346,12 +402,133 @@ export function ProfilePage() {
                 </li>
               ))}
             </ul>
-          </section>
+            <button
+              type="button"
+              className="profile-card__save-privacy"
+              onClick={() => void handleSavePrivacy()}
+              disabled={savingPrivacy}
+            >
+              {savingPrivacy ? "Saving…" : "Save privacy"}
+            </button>
+          </div>
 
-          <Button type="submit" loading={saving}>
-            Save profile
-          </Button>
-        </form>
+          {/* ── SECURE MODE CARD ─────────────────────────────────── */}
+          <div className={`profile-card${secureMode ? " profile-card--danger" : ""}`}>
+            <div className="profile-card__head">
+              <span className="profile-card__title">Secure Mode</span>
+              <label className="profile-toggle" aria-label="Secure mode">
+                <input
+                  type="checkbox"
+                  checked={secureMode}
+                  onChange={() => setSecureMode((v) => !v)}
+                />
+                <span className="profile-toggle__track">
+                  <span className="profile-toggle__thumb" />
+                </span>
+              </label>
+            </div>
+            <p className="profile-card__hint">
+              Hides your avatar, bio, status and online presence. Only your user ID and username stay visible.
+            </p>
+            {secureMode ? (
+              <div className="profile-secure-mode__notice">
+                Profile hidden — only <strong>@{username.replace(/^\$/, "")}</strong> is visible to others.
+              </div>
+            ) : null}
+          </div>
+
+          {/* ── NAV CARDS ────────────────────────────────────────── */}
+          <nav className="profile-nav" aria-label="Account">
+            <Link to="/app/settings" className="profile-nav__item">
+              <span className="profile-nav__icon profile-nav__icon--blue"><IconBell size={20} /></span>
+              <div className="profile-nav__text">
+                <span className="profile-nav__label">Notifications</span>
+                <span className="profile-nav__desc">Sounds, badges and alerts</span>
+              </div>
+              <span className="profile-nav__chevron" aria-hidden>›</span>
+            </Link>
+            <Link to="/app/settings" className="profile-nav__item">
+              <span className="profile-nav__icon profile-nav__icon--orange"><IconSun size={20} /></span>
+              <div className="profile-nav__text">
+                <span className="profile-nav__label">Appearance</span>
+                <span className="profile-nav__desc">Theme, font size, wallpaper</span>
+              </div>
+              <span className="profile-nav__chevron" aria-hidden>›</span>
+            </Link>
+            <Link to="/app/settings" className="profile-nav__item">
+              <span className="profile-nav__icon profile-nav__icon--green"><IconShield size={20} /></span>
+              <div className="profile-nav__text">
+                <span className="profile-nav__label">Security</span>
+                <span className="profile-nav__desc">2FA, active sessions, login history</span>
+              </div>
+              <span className="profile-nav__chevron" aria-hidden>›</span>
+            </Link>
+            <Link to="/app/settings" className="profile-nav__item">
+              <span className="profile-nav__icon profile-nav__icon--indigo"><IconLock size={20} /></span>
+              <div className="profile-nav__text">
+                <span className="profile-nav__label">Devices</span>
+                <span className="profile-nav__desc">Trusted access points</span>
+              </div>
+              <span className="profile-nav__chevron" aria-hidden>›</span>
+            </Link>
+            <Link to="/app/chats" className="profile-nav__item">
+              <span className="profile-nav__icon profile-nav__icon--teal"><IconStar size={20} /></span>
+              <div className="profile-nav__text">
+                <span className="profile-nav__label">Saved Messages</span>
+                <span className="profile-nav__desc">Your personal cloud notes</span>
+              </div>
+              <span className="profile-nav__chevron" aria-hidden>›</span>
+            </Link>
+            <Link to="/app/settings" className="profile-nav__item">
+              <span className="profile-nav__icon profile-nav__icon--purple"><IconSettings size={20} /></span>
+              <div className="profile-nav__text">
+                <span className="profile-nav__label">Settings</span>
+                <span className="profile-nav__desc">All preferences</span>
+              </div>
+              <span className="profile-nav__chevron" aria-hidden>›</span>
+            </Link>
+          </nav>
+
+          {/* ── PHOTO MANAGEMENT ─────────────────────────────────── */}
+          <div className="profile-card profile-card--minimal">
+            <div className="profile-card__head">
+              <span className="profile-card__title">Photo</span>
+            </div>
+            <div className="profile-av-actions">
+              <button
+                type="button"
+                className="profile-av-btn"
+                onClick={() => animRef.current?.click()}
+                disabled={uploading}
+              >
+                Upload GIF / animated
+              </button>
+              {(profile.avatar_url || profile.animated_avatar_url) ? (
+                <button
+                  type="button"
+                  className="profile-av-btn profile-av-btn--danger"
+                  onClick={() => void handleRemoveAvatar()}
+                  disabled={uploading}
+                >
+                  Remove photo
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {/* ── VERIFICATION ─────────────────────────────────────── */}
+          <div className="profile-card profile-card--minimal">
+            <div className="profile-card__head">
+              <span className="profile-card__title">Verification</span>
+            </div>
+            <ProfileBadgeLegend />
+            {profile.verification_badge !== "none" ? (
+              <p className="profile-page__your-badge">
+                Your badge: <VerificationBadge badge={profile.verification_badge} />
+              </p>
+            ) : null}
+          </div>
+        </>
       ) : null}
     </div>
   );

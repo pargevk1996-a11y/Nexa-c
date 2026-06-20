@@ -346,6 +346,11 @@ h3,
   .app-shell--nexa-chats .chat-left-panel__head-logo {
     display: none;
   }
+  /* Hide the floating logo when a conversation is open — the chat header
+     has its own controls and the logo overlaps them on narrow screens. */
+  .app-shell--nexa-chats:has(.chat-shell--conversation-open) .app-brand {
+    display: none;
+  }
   /* Leave room on the right so action buttons don't hide under the fixed logo. */
   .chat-left-panel__title-row {
     padding-right: 52px;
@@ -552,95 +557,19 @@ h3,
   }
 }
 
-/* ===== Settings: mobile drill-in (list → open section); desktop unchanged ===== */
-
-/* Drill-in chrome (bar/back/title/logo) is mobile-only. */
-.settings-layout__bar,
-.settings-layout__back,
-.settings-layout__detail-title,
-.settings-layout__logo {
-  display: none;
-}
+/* ===== Settings: mobile spacing + setting-row stacking ===== */
 
 @media (max-width: 768px) {
-  /* Drop the top "Settings / Signed in / Reset preferences" block on phones. */
-  .settings-page__header {
-    display: none;
-  }
-
-  /* Back button higher (small top padding) but keep comfortable side gutters so
-     nothing is flush against the screen edges (~16px, ~symmetric to the logo's
-     14px right inset). */
   .page-shell--settings .page-shell__inner {
-    padding: 44px 20px 20px;
+    padding: 44px 16px 20px;
   }
   .page-shell--settings .settings-page-layout {
     padding: 0 0 28px;
   }
-  /* Back button nudged a bit right (margin-left) and further down (margin-top). */
-  .settings-layout__bar {
-    margin: 22px 0 12px 6px;
-  }
 
-  /* Initial list page sits below the logo so its borders don't touch it. */
+  /* Initial list: leave room for fixed app-brand logo top-right */
   .settings-layout:not(.settings-layout--detail-open) .settings-nav {
-    padding-top: 48px;
-  }
-
-  .settings-layout {
-    display: block;
-  }
-  /* List view: section nav visible, content hidden (no overlap). */
-  .settings-layout .settings-nav {
-    display: block;
-  }
-  .settings-layout .settings-layout__content {
-    display: none;
-  }
-  /* Detail view: opened section full-width, nav hidden. */
-  .settings-layout--detail-open .settings-nav {
-    display: none;
-  }
-  .settings-layout--detail-open .settings-layout__content {
-    display: block;
-  }
-
-  /* Opened-section top bar: back-to-list (left) + logo/theme-toggle (right). */
-  .settings-layout__bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0 0 14px;
-  }
-  .settings-layout__back {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin: 0;
-    padding: 8px 16px;
-    border: none;
-    border-radius: var(--radius-full);
-    background: var(--bg-elevated);
-    color: var(--accent-hover);
-    font-size: 0.95rem;
-    cursor: pointer;
-  }
-  .settings-layout__back span {
-    font-size: 1.25rem;
-    line-height: 1;
-  }
-  .settings-layout__logo {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-  .settings-layout__detail-title {
-    display: block;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1.4rem;
-    letter-spacing: var(--tracking-tight);
-    margin: 0 0 12px;
+    padding-top: 52px;
   }
 
   /* Fix the shifted borders: stack each row (title/desc on top, control full

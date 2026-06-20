@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getCachedSession } from "@/api/auth";
-import { Button } from "@/components/ui/Button";
 import { SettingsLayout } from "@/settings/SettingsLayout";
 import { AccountSettingsSection } from "@/settings/sections/AccountSettingsSection";
 import { AccountDeletionSection } from "@/settings/sections/AccountDeletionSection";
@@ -12,20 +10,14 @@ import { PrivacySettingsSection } from "@/settings/sections/PrivacySettingsSecti
 import { SecuritySettingsSection } from "@/settings/sections/SecuritySettingsSection";
 import { SessionsSettingsSection } from "@/settings/sections/SessionsSettingsSection";
 import { ThemeSettingsSection } from "@/settings/sections/ThemeSettingsSection";
-import type { SettingsSectionId } from "@/settings/types";
-import { useSettings } from "@/store/SettingsContext";
+import { CallsSettingsSection } from "@/settings/sections/CallsSettingsSection";
+import { StorageSettingsSection } from "@/settings/sections/StorageSettingsSection";
+import { AccessibilitySettingsSection } from "@/settings/sections/AccessibilitySettingsSection";
+import { HelpSettingsSection } from "@/settings/sections/HelpSettingsSection";
+import { AdvancedSettingsSection } from "@/settings/sections/AdvancedSettingsSection";
+import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/settings/types";
 
-const VALID: SettingsSectionId[] = [
-  "account",
-  "privacy",
-  "security",
-  "devices",
-  "sessions",
-  "blocked",
-  "notifications",
-  "appearance",
-  "danger",
-];
+const VALID = SETTINGS_SECTIONS.map((s) => s.id);
 
 function parseSection(raw: string | null): SettingsSectionId {
   if (raw && (VALID as string[]).includes(raw)) return raw as SettingsSectionId;
@@ -33,10 +25,8 @@ function parseSection(raw: string | null): SettingsSectionId {
 }
 
 export function SettingsPage() {
-  const session = getCachedSession();
   const [params, setParams] = useSearchParams();
   const active = parseSection(params.get("section"));
-  const { resetAll } = useSettings();
 
   function setSection(id: SettingsSectionId) {
     setParams({ section: id }, { replace: true });
@@ -44,46 +34,27 @@ export function SettingsPage() {
 
   const content = useMemo(() => {
     switch (active) {
-      case "account":
-        return <AccountSettingsSection />;
-      case "privacy":
-        return <PrivacySettingsSection />;
-      case "security":
-        return <SecuritySettingsSection />;
-      case "devices":
-        return <DevicesSettingsSection />;
-      case "sessions":
-        return <SessionsSettingsSection />;
-      case "blocked":
-        return <BlockedUsersSection />;
-      case "notifications":
-        return <NotificationSettingsSection />;
-      case "appearance":
-        return <ThemeSettingsSection />;
-      case "danger":
-        return <AccountDeletionSection />;
-      default:
-        return <AccountSettingsSection />;
+      case "account":       return <AccountSettingsSection />;
+      case "privacy":       return <PrivacySettingsSection />;
+      case "security":      return <SecuritySettingsSection />;
+      case "devices":       return <DevicesSettingsSection />;
+      case "sessions":      return <SessionsSettingsSection />;
+      case "blocked":       return <BlockedUsersSection />;
+      case "notifications": return <NotificationSettingsSection />;
+      case "appearance":    return <ThemeSettingsSection />;
+      case "calls":         return <CallsSettingsSection />;
+      case "storage":       return <StorageSettingsSection />;
+      case "accessibility": return <AccessibilitySettingsSection />;
+      case "help":          return <HelpSettingsSection />;
+      case "advanced":      return <AdvancedSettingsSection />;
+      case "danger":        return <AccountDeletionSection />;
+      default:              return <AccountSettingsSection />;
     }
   }, [active]);
 
   return (
     <div className="page-shell page-shell--settings">
       <div className="settings-page-layout page-shell__inner glass-panel">
-        <header className="settings-page__header">
-          <h1>Settings</h1>
-          {session ? (
-            <p>
-              Signed in as <strong>{session.user.username}</strong>
-            </p>
-          ) : null}
-          <div className="settings-page__header-actions">
-            <Button variant="secondary" type="button" onClick={resetAll}>
-              Reset app preferences
-            </Button>
-          </div>
-        </header>
-
         <SettingsLayout active={active} onSelect={setSection}>
           {content}
         </SettingsLayout>

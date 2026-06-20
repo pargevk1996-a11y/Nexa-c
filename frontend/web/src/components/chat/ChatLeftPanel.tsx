@@ -9,6 +9,7 @@ import {
   IconProfile,
   IconSearch,
   IconSettings,
+  IconX,
 } from "@/components/icons/Icons";
 import { features } from "@/features/registry";
 import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
@@ -74,6 +75,17 @@ export function ChatLeftPanel({
   const navigate = useNavigate();
   const { lock } = useLock();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const openSearch = () => {
+    setSearchOpen(true);
+    requestAnimationFrame(() => searchRef.current?.focus());
+  };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    onSearchChange("");
+  };
 
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   // When the in-list "+ create" row scrolls up under the search, surface a
@@ -174,7 +186,18 @@ export function ChatLeftPanel({
         <span className="chat-left-panel__watermark-text">NEXA</span>
       </div>
       <header className="chat-left-panel__head">
-        <div className="chat-left-panel__title-row">
+        <div className={`chat-left-panel__title-row${searchOpen ? " chat-left-panel__title-row--searching" : ""}`}>
+          {/* Mobile: icon button that opens the search field */}
+          <button
+            type="button"
+            className="chat-left-panel__search-toggle"
+            onClick={openSearch}
+            aria-label="Search chats"
+          >
+            <IconSearch size={20} />
+          </button>
+
+          {/* Search field — always in DOM for controlled value; CSS shows/hides per breakpoint */}
           <label className="chat-left-panel__search">
             <IconSearch size={18} className="chat-left-panel__search-icon" />
             <input
@@ -184,8 +207,25 @@ export function ChatLeftPanel({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               aria-label="Search chats"
+              onBlur={(e) => {
+                // If focus moved to the close button let its onClick handle it;
+                // otherwise, collapse back to icon when the field is empty
+                // (covers: keyboard dismissed, tapped outside, etc.).
+                if (e.relatedTarget?.classList.contains("chat-left-panel__search-close")) return;
+                if (!search) closeSearch();
+              }}
             />
+            {/* Mobile close button — inside the field, right side */}
+            <button
+              type="button"
+              className="chat-left-panel__search-close"
+              onClick={closeSearch}
+              aria-label="Close search"
+            >
+              <IconX size={16} />
+            </button>
           </label>
+
           <div className="chat-left-panel__head-actions">
             {/* Category-aware create "+" — appears once the in-list create row
                 scrolls under the search. */}
