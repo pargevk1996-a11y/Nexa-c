@@ -350,7 +350,7 @@ export function ProfilePage() {
             <ul className="profile-privacy-list">
               {(
                 [
-                  ["show_last_seen", "Last seen visible"],
+
                   ["show_bio", "Bio visible"],
                   ["show_status_text", "Status text visible"],
                   ["show_avatar", "Photo visible"],
