@@ -74,8 +74,10 @@ export function ProfilePage() {
     const onEnd = () => {
       if (!two) return;
       two = false;
-      if (Math.abs(lastX - startX) < 50) return;
-      setEditing(true);
+      const dx = lastX - startX;
+      if (Math.abs(dx) < 50) return;
+      if (dx < 0) setEditing(true);   // swipe left → open edit
+      else setEditing(false);          // swipe right → close edit
     };
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: true });
