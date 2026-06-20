@@ -243,14 +243,17 @@ button.side-nav__item {
   text-align: center;
 }
 
-/* Red icon bubble for secondary views */
-.side-nav__icon--red {
-  background: rgba(244, 63, 94, 0.15);
-  color: var(--danger, #f43f5e);
-  border-radius: var(--radius-full, 9999px);
-  padding: 2px;
+/* Red background for secondary views (Blocked / Missed Calls) */
+.side-nav__item--secondary {
+  background: rgba(244, 63, 94, 0.18) !important;
+  color: var(--danger, #f43f5e) !important;
 }
-
+.side-nav__item--secondary:hover {
+  background: rgba(244, 63, 94, 0.28) !important;
+}
+.side-nav__icon--red {
+  color: var(--danger, #f43f5e);
+}
 .side-nav__item--secondary .side-nav__label {
   color: var(--danger, #f43f5e);
 }

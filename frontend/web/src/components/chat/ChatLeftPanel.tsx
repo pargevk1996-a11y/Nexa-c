@@ -121,7 +121,7 @@ import {
 } from "@/utils/chatTypes";
 import type { Conversation } from "@/types";
 import type { ChatMenuAction } from "@/components/chat/ChatContextMenu";
-import { StoryPeek } from "@/components/stories/StoryPeek";
+
 
 interface ChatLeftPanelProps {
   loading?: boolean;
@@ -373,7 +373,6 @@ export function ChatLeftPanel({
             </button>
             {/* Logo (day/night toggle) sits to the RIGHT of the lock. */}
             <LogoThemeToggle size={30} className="chat-left-panel__head-logo" />
-            <StoryPeek />
           </div>
         </div>
       </header>

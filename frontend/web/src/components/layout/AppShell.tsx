@@ -5,7 +5,7 @@ import { GlobalCallUi } from "@/components/calls/GlobalCallUi";
 import { ChatProvider } from "@/store/ChatContext";
 import { ProfileProvider } from "@/store/ProfileContext";
 import { SettingsProvider } from "@/store/SettingsContext";
-import { SocialProvider } from "@/store/SocialContext";
+
 import { AmbientBackground } from "./AmbientBackground";
 import { SideNav } from "./SideNav";
 import { LogoThemeToggle } from "./LogoThemeToggle";
@@ -18,7 +18,7 @@ import { useSectionSwipe } from "@/hooks/useSectionSwipe";
 function prefetchSecondaryRoutes() {
   void import("@/pages/ContactsPage");
   void import("@/pages/CallsPage");
-  void import("@/pages/PostsPage");
+
   void import("@/pages/SettingsPage");
   void import("@/pages/ProfilePage");
 }
@@ -116,15 +116,13 @@ function AppShellInner() {
 export function AppShell() {
   return (
     <SettingsProvider>
-      <SocialProvider>
-        <CallProvider>
-          <ChatProvider>
-            <ProfileProvider>
-              <AppShellInner />
-            </ProfileProvider>
-          </ChatProvider>
-        </CallProvider>
-      </SocialProvider>
+      <CallProvider>
+        <ChatProvider>
+          <ProfileProvider>
+            <AppShellInner />
+          </ProfileProvider>
+        </ChatProvider>
+      </CallProvider>
     </SettingsProvider>
   );
 }

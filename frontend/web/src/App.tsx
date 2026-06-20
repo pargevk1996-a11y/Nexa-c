@@ -28,9 +28,7 @@ const ContactsPage = lazy(() =>
 const CallsPage = lazy(() =>
   import("@/pages/CallsPage").then((m) => ({ default: m.CallsPage })),
 );
-const PostsPage = lazy(() =>
-  import("@/pages/PostsPage").then((m) => ({ default: m.PostsPage })),
-);
+
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
@@ -106,9 +104,9 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="/app/chats" element={<ChatPage />} />
             <Route path="/app/contacts" element={<ContactsPage />} />
-            <Route path="/app/stories" element={<Navigate to="/app/chats" replace />} />
+
             <Route path="/app/calls" element={<CallsPage />} />
-            <Route path="/app/posts" element={<PostsPage />} />
+
             <Route path="/app/settings" element={<SettingsPage />} />
             <Route path="/app/profile" element={<ProfilePage />} />
             <Route path="/app/user/:userId" element={<UserProfilePage />} />
