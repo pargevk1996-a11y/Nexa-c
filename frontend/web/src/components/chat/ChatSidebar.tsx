@@ -214,9 +214,9 @@ export function ChatSidebar({
             ) : null}
             {regular.length > 0 ? (
               <section className="chat-sidebar__section">
-                {pinned.length > 0 || showSaved ? (
-                  <h3 className="chat-sidebar__section-title">Chats</h3>
-                ) : null}
+                <h3 className="chat-sidebar__section-title">
+                  {category === "groups" ? "Groups" : category === "channels" ? "Channels" : category === "private" ? "Direct Messages" : category === "secret" ? "Secret Chats" : "Chats"}
+                </h3>
                 <ConvList items={regular} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
