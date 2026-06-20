@@ -12,6 +12,7 @@ import { LogoThemeToggle } from "./LogoThemeToggle";
 import { OfflineBanner } from "./OfflineBanner";
 import { BRAND_NAME } from "@/config/brand";
 import { useSectionSwipe } from "@/hooks/useSectionSwipe";
+import { useScreenshotPrevention } from "@/hooks/useScreenshotPrevention";
 
 // Warm the secondary route chunks once the shell is interactive so switching
 // sections never pays a cold network fetch.
@@ -39,6 +40,7 @@ function AppShellInner() {
   const isChats = location.pathname.startsWith("/app/chats");
 
   useSectionSwipe();
+  useScreenshotPrevention();
 
   useEffect(() => {
     if (typeof window.requestIdleCallback === "function") {

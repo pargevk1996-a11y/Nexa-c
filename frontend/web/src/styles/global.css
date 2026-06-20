@@ -36,6 +36,22 @@ html {
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
+/* ── Screenshot / screen-capture protection ─────────────────────────────── */
+[data-screenshot-guard="1"] .chat-bubble,
+[data-screenshot-guard="1"] .chat-main,
+[data-screenshot-guard="1"] .chat-left-panel {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Black overlay injected by JS covers everything */
+#nexa-screenshot-guard {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  background: #000 !important;
+  pointer-events: none !important;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
