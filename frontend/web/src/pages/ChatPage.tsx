@@ -38,6 +38,7 @@ export function ChatPage() {
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [schedulePendingText, setSchedulePendingText] = useState("");
   const [contactRequestId, setContactRequestId] = useState<string | null>(null);
   const [contactRequestBusy, setContactRequestBusy] = useState(false);
   const {
@@ -108,36 +109,7 @@ export function ChatPage() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // Two-finger horizontal swipe inside the chat opens the "send later" scheduler.
   const chatMainRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = chatMainRef.current;
-    if (!el) return;
-    let startX = 0;
-    let lastX = 0;
-    let two = false;
-    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    const onStart = (e: TouchEvent) => {
-      two = e.touches.length === 2;
-      if (two) startX = lastX = mid(e);
-    };
-    const onMove = (e: TouchEvent) => {
-      if (two && e.touches.length === 2) lastX = mid(e);
-    };
-    const onEnd = () => {
-      if (!two) return;
-      two = false;
-      if (Math.abs(lastX - startX) > 50) setScheduleOpen(true);
-    };
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: true });
-    el.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
-    };
-  }, [activeId]);
 
   const handleEscape = useCallback(() => {
     if (searchOpen) {
@@ -466,6 +438,10 @@ export function ChatPage() {
                   initialText={activeId ? (drafts[activeId] ?? "") : ""}
                   onDraftChange={(text) => activeId && setDraft(activeId, text)}
                   onSend={sendMessage}
+                  onScheduleRequest={(t) => {
+                    setSchedulePendingText(t);
+                    setScheduleOpen(true);
+                  }}
                   onSendVoice={sendVoiceMessage}
                   onSendFile={sendFileMessage}
                   onSendGif={sendGifMessage}
@@ -481,9 +457,9 @@ export function ChatPage() {
                 {scheduleOpen && activeId ? (
                   <ScheduleModal
                     conversationId={activeId}
-                    text={drafts[activeId] ?? ""}
-                    onClose={() => setScheduleOpen(false)}
-                    onScheduled={() => setDraft(activeId, "")}
+                    text={schedulePendingText}
+                    onClose={() => { setScheduleOpen(false); setSchedulePendingText(""); }}
+                    onScheduled={() => { setScheduleOpen(false); setSchedulePendingText(""); }}
                   />
                 ) : null}
               </>

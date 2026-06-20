@@ -78,6 +78,7 @@ interface MessageComposerProps {
   onCancelReply?: () => void;
   onSendGif?: (gif: DemoGif) => void;
   onSendSticker?: (sticker: DemoSticker) => void;
+  onScheduleRequest?: (text: string) => void;
 }
 
 export function MessageComposer({
@@ -101,6 +102,7 @@ export function MessageComposer({
   onCancelReply,
   onSendGif,
   onSendSticker,
+  onScheduleRequest,
 }: MessageComposerProps) {
   const { settings } = useSettings();
   const chat = useChatOptional();
@@ -169,11 +171,18 @@ export function MessageComposer({
     if (!trimmed || disabled) return;
     if (isEditing && onSaveEdit) {
       onSaveEdit(trimmed);
-    setText("");
-    clearReplies();
-    stopTyping();
-    return;
-  }
+      setText("");
+      clearReplies();
+      stopTyping();
+      return;
+    }
+    if (trimmed.startsWith("#") && trimmed.length > 1 && onScheduleRequest) {
+      onScheduleRequest(trimmed.slice(1).trim());
+      setText("");
+      clearReplies();
+      stopTyping();
+      return;
+    }
     onSend(trimmed, {
       ...sendOpts(),
       replyTo: replyingTo ?? undefined,
