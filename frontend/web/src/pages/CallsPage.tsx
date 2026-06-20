@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
 import { IconPhone, IconVideo } from "@/components/icons/Icons";
@@ -8,6 +9,12 @@ import { useCall } from "@/calls/CallProvider";
 import { resolveDemoCallPeers } from "@/calls/demoCallPeers";
 import { useChat } from "@/store/ChatContext";
 import type { CallType } from "@/types";
+
+function isMissedCall(c: CallSession, meId: string): boolean {
+  if (c.status === "missed" || c.status === "no_answer" || c.status === "declined") return true;
+  if (c.caller_id && c.caller_id !== meId && c.status !== "completed") return true;
+  return false;
+}
 
 function formatCallTime(iso: string): string {
   const d = new Date(iso);
@@ -40,6 +47,9 @@ export function CallsPage() {
   const call = useCall();
   const session = getCachedSession();
   const [recent, setRecent] = useState<CallSession[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showMissed = searchParams.get("v") === "missed";
+  const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!session?.user?.id || session?.demoMode) return;
@@ -47,6 +57,39 @@ export function CallsPage() {
       .then(setRecent)
       .catch(() => setRecent([]));
   }, [session?.user?.id, session?.demoMode]);
+
+  // Mobile: two-finger horizontal swipe → missed / all calls
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    let startX = 0;
+    let lastX = 0;
+    let two = false;
+    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const onStart = (e: TouchEvent) => {
+      if (window.innerWidth > 768) { two = false; return; }
+      two = e.touches.length === 2;
+      if (two) startX = lastX = mid(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (two && e.touches.length === 2) lastX = mid(e);
+    };
+    const onEnd = () => {
+      if (!two) return;
+      two = false;
+      const dx = lastX - startX;
+      if (Math.abs(dx) < 50) return;
+      setSearchParams(dx < 0 ? { v: "missed" } : {}, { replace: true });
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [setSearchParams]);
 
   function startCall(
     conversationId: string,
@@ -85,12 +128,13 @@ export function CallsPage() {
   }
 
   const meId = session?.user.id ?? "";
+  const displayedCalls = showMissed ? recent.filter((c) => isMissedCall(c, meId)) : recent;
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" ref={pageRef}>
       <div className="page-shell__inner calls-page glass-panel">
         <header className="calls-page__head">
-          <h1>Calls</h1>
+          <h1>{showMissed ? "Missed calls" : "Calls"}</h1>
           <p>
             Voice and video over WebRTC (STUN/TURN, adaptive bitrate)
             {session?.demoMode ? " — demo uses local preview + simulated peers" : ""}
@@ -98,12 +142,16 @@ export function CallsPage() {
         </header>
         <section className="calls-page__recent">
           <h2>Recent</h2>
-          {recent.length === 0 ? (
-            <p className="calls-page__empty">No calls yet — use quick dial below.</p>
+          {displayedCalls.length === 0 ? (
+            <p className="calls-page__empty">
+              {showMissed ? "No missed calls." : "No calls yet — use quick dial below."}
+            </p>
           ) : (
             <ul>
-              {recent.slice(0, 20).map((c) => (
-                <li key={c.id} className="calls-page__item">
+              {displayedCalls.slice(0, 20).map((c) => {
+                const missed = isMissedCall(c, meId);
+                return (
+                <li key={c.id} className={`calls-page__item${missed ? " calls-page__item--missed" : ""}`}>
                   <Avatar name={callLabel(c, meId)} />
                   <div className="calls-page__item-body">
                     <strong>{callLabel(c, meId)}</strong>
@@ -111,8 +159,7 @@ export function CallsPage() {
                       {formatCallTime(c.created_at)}
                       {" · "}
                       {c.call_type === "video" ? "Video" : "Audio"}
-                      {" · "}
-                      {c.status}
+                      {missed ? <span className="calls-page__missed-label"> · missed</span> : null}
                     </span>
                   </div>
                   <IconButton
@@ -142,7 +189,8 @@ export function CallsPage() {
                     {c.call_type === "video" ? <IconVideo size={20} /> : <IconPhone size={20} />}
                   </IconButton>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           )}
         </section>

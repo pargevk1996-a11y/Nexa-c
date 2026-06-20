@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { searchProfiles } from "@/api/profile";
 import {
   type BlockedUser,
@@ -28,6 +28,7 @@ type ProfileWithStatus = PublicProfile & { contactStatus?: ContactStatus; reques
 
 export function ContactsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const session = getCachedSession();
   const { visibleConversations, selectConversation, refreshConversations } = useChat();
   const [query, setQuery] = useState("");
@@ -36,43 +37,8 @@ export function ContactsPage() {
   const [incomingRequests, setIncomingRequests] = useState<ContactRequest[]>([]);
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [showBlocked, setShowBlocked] = useState(false);
+  const showBlocked = searchParams.get("v") === "blocked";
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
-
-  // Mobile: two-finger horizontal swipe reveals / hides the blocked-users list.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let startX = 0;
-    let lastX = 0;
-    let two = false;
-    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    const onStart = (e: TouchEvent) => {
-      if (window.innerWidth > 768) {
-        two = false;
-        return;
-      }
-      two = e.touches.length === 2;
-      if (two) startX = lastX = mid(e);
-    };
-    const onMove = (e: TouchEvent) => {
-      if (two && e.touches.length === 2) lastX = mid(e);
-    };
-    const onEnd = () => {
-      if (!two) return;
-      two = false;
-      const dx = lastX - startX;
-      if (Math.abs(dx) < 50) return;
-      setShowBlocked(dx < 0); // swipe left → blocked, swipe right → back
-    };
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchmove", onMove, { passive: true });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onEnd);
-    };
-  }, []);
 
   // Load the blocked list whenever the blocked view is opened.
   useEffect(() => {
@@ -289,7 +255,11 @@ export function ContactsPage() {
           <section className="contacts-page__blocked">
             <div className="contacts-page__blocked-head">
               <h2 className="contacts-page__subtitle">Blocked users</h2>
-              <button type="button" className="btn" onClick={() => setShowBlocked(false)}>
+              <button
+                type="button"
+                className="btn contacts-page__blocked-back"
+                onClick={() => setSearchParams({}, { replace: true })}
+              >
                 Back
               </button>
             </div>

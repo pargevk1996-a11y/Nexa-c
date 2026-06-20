@@ -228,3 +228,34 @@
      Higher specificity beats telegram-layout.css's later rule. */
   .app-shell--nexa-chats .chat-left-panel__app-nav { display: none; }
 }
+
+/* ── Toggle-nav button reset (Contacts / Calls become <button>) ──────── */
+button.side-nav__item {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  width: 100%;
+  text-align: center;
+}
+
+/* Red icon bubble for secondary views */
+.side-nav__icon--red {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--danger, #f43f5e);
+  border-radius: var(--radius-full, 9999px);
+  padding: 2px;
+}
+
+.side-nav__item--secondary .side-nav__label {
+  color: var(--danger, #f43f5e);
+}
+
+/* Hide Back button inside blocked users on mobile */
+@media (max-width: 768px) {
+  .contacts-page__blocked-back { display: none !important; }
+}

@@ -833,6 +833,15 @@ a:hover {
   color: var(--danger);
 }
 
+.calls-page__item--missed .calls-page__item-body strong {
+  color: var(--danger, #f43f5e);
+}
+
+.calls-page__missed-label {
+  color: var(--danger, #f43f5e);
+  font-weight: 600;
+}
+
 .calls-page__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
