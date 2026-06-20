@@ -68,7 +68,7 @@ function ToggleNavItem({ primaryTo, secondaryParam, primaryLabel, secondaryLabel
       type="button"
       className={[
         "side-nav__item",
-        isActive ? "side-nav__item--active" : "",
+        isActive && !secondaryActive ? "side-nav__item--active" : "",
         secondaryActive ? "side-nav__item--secondary" : "",
       ].join(" ").trim()}
       onClick={handleClick}

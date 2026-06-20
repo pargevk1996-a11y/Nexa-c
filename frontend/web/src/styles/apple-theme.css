@@ -1767,11 +1767,3 @@ body {
 .home-modal__close {
   border-radius: 10px !important;
 }
-
-/* ── Secondary nav state: Blocked / Missed Calls — red, not blue ─────────── */
-.side-nav__item--secondary,
-.app-shell:not(.app-shell--nexa-chats) .side-nav__item--secondary {
-  background: rgba(244, 63, 94, 0.75) !important;
-  color: #fff !important;
-  box-shadow: none !important;
-}

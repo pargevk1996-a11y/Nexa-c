@@ -243,14 +243,18 @@ button.side-nav__item {
   text-align: center;
 }
 
-/* Red background for secondary views (Blocked / Missed Calls) */
+/* Secondary nav state: Blocked / Missed Calls — red background, white icon */
 .side-nav__item--secondary {
-  background: rgba(244, 63, 94, 0.72) !important;
-  box-shadow: none !important;
+  background: rgba(244, 63, 94, 0.75);
+  color: #fff;
+  box-shadow: none;
+}
+.side-nav__item--secondary:hover {
+  background: rgba(244, 63, 94, 0.9);
 }
 .side-nav__item--secondary .side-nav__icon {
-  filter: none !important;
-  color: #fff !important;
+  filter: none;
+  color: #fff;
 }
 .side-nav__item--secondary .side-nav__label {
   color: var(--danger, #f43f5e);
