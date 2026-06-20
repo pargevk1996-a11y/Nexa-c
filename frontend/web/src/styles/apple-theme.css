@@ -29,7 +29,7 @@
 
   --glass-bg: rgba(12, 12, 30, 0.68);
   --glass-bg-strong: rgba(15, 15, 35, 0.80);
-  --glass-border: rgba(91, 110, 255, 0.12);
+  --glass-border: transparent;
   --glass-blur: 14px;
 
   --bg-surface: #0F0F22;
@@ -71,12 +71,12 @@
   --warning: #FFD93D;
   --success: #2DD4BF;
 
-  /* Radii — modern, comfortable */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  /* Radii — flat design, square panels */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
   --radius-full: 9999px;
 
   /* Shadows — subtle depth */
@@ -108,7 +108,7 @@
 
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-bg-strong: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(91, 110, 255, 0.12);
+  --glass-border: transparent;
   --glass-blur: 14px;
 
   --bg-surface: #FFFFFF;
@@ -145,11 +145,11 @@
   --warning: #F5A623;
   --success: #059669;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
   --radius-full: 9999px;
 
   --shadow-subtle: 0 1px 3px rgba(0, 0, 20, 0.1);
@@ -330,20 +330,25 @@ h3,
 }
 
 @media (max-width: 768px) {
-  /* Mobile — Chats: logo lives in the folder row, so hide the floating brand. */
-  .app-shell--nexa-chats .app-brand {
-    display: none;
-  }
-  /* Mobile — every OTHER section: show just the logo, pinned to the top-RIGHT
-     corner (no NEXA wordmark). It still doubles as the day/night toggle. */
+  /* Mobile — Chats AND all other sections: logo pinned top-right, same size/position. */
+  .app-shell--nexa-chats .app-brand,
   .app-shell:not(.app-shell--nexa-chats) .app-brand {
     display: flex;
     top: 8px;
     left: auto;
     right: 14px;
   }
-  .app-shell:not(.app-shell--nexa-chats) .app-brand__text {
+  /* Hide wordmark on mobile — icon only, matching every other section. */
+  .app-brand__text {
     display: none;
+  }
+  /* The in-header LogoThemeToggle is replaced by the top-right app-brand on mobile. */
+  .app-shell--nexa-chats .chat-left-panel__head-logo {
+    display: none;
+  }
+  /* Leave room on the right so action buttons don't hide under the fixed logo. */
+  .chat-left-panel__title-row {
+    padding-right: 52px;
   }
   .chat-folders__logo {
     display: inline-grid;
@@ -363,6 +368,69 @@ h3,
   /* Mobile keeps its own logo in the folder row — no brand in the rail. */
   .side-nav__brand {
     display: none;
+  }
+
+  /* ── Search: icon button ↔ expanded field (mobile Chats) ───────────────── */
+
+  /* Search toggle button: visible on mobile, hidden on desktop. */
+  .chat-left-panel__search-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  }
+  .chat-left-panel__search-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  /* Search field hidden by default on mobile; shown when --searching. */
+  .chat-left-panel__search {
+    display: none;
+  }
+  .chat-left-panel__title-row--searching .chat-left-panel__search {
+    display: flex;
+    flex: 1;
+    align-items: center;
+  }
+
+  /* When searching: hide toggle button, actions, and remove logo padding. */
+  .chat-left-panel__title-row--searching .chat-left-panel__search-toggle {
+    display: none;
+  }
+  .chat-left-panel__title-row--searching .chat-left-panel__head-actions {
+    display: none;
+  }
+  .chat-left-panel__title-row--searching {
+    padding-right: 0;
+  }
+
+  /* Close button inside the search field — mobile only. */
+  .chat-left-panel__search-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  }
+  .chat-left-panel__search-close:hover {
+    background: var(--bg-hover);
+    color: var(--text);
   }
 }
 
@@ -971,6 +1039,18 @@ body {
   .chat-create-row,
   .chat-left-panel__head-logo {
     display: none !important;
+  }
+
+  /* On desktop: search always expanded, toggle and close hidden. */
+  .chat-left-panel__search-toggle,
+  .chat-left-panel__search-close {
+    display: none !important;
+  }
+  .chat-left-panel__search {
+    display: flex !important;
+  }
+  .chat-left-panel__title-row {
+    padding-right: 0;
   }
 }
 
@@ -1706,3 +1786,37 @@ body {
     transform: scale(1);
   }
 }
+
+/* ── FLAT DESIGN: square panels everywhere, no structural borders ───
+   Zeroes out any hardcoded border-radius / border on containers.
+   Circular elements (avatars, badges, pills) keep --radius-full.    */
+
+/* Call overlay panels */
+.call-overlay--voice .call-overlay__panel { border-radius: 0 !important; border: none !important; }
+.call-overlay__actions { border: none !important; }
+
+/* Schedule modal */
+.schedule-modal__inner { border-radius: 0 !important; border: none !important; }
+.schedule-modal__text,
+.schedule-modal__when,
+.schedule-modal__item { border-radius: 0 !important; }
+.schedule-modal__list { border-top: none !important; }
+
+/* Message bubbles — keep a small 4px radius so adjacent bubbles flow naturally */
+.chat-bubble { border-radius: 4px !important; }
+
+/* Context menus and popups — flat */
+.msg-context-menu { border-radius: 0 !important; }
+.msg-context-menu__react-more { border-radius: 0 !important; }
+
+/* Ephemeral tag — keep circular (it's a small badge indicator) */
+/* .chat-bubble__ephemeral-tag stays 50% */
+
+/* Chat panels structural borders */
+.chat-left-panel,
+.chat-header,
+.settings-panel { border-radius: 0 !important; border: none !important; }
+
+/* Remove any remaining glass-border borders on glass panels */
+[class*="panel"]:not([class*="__"]) { border: none !important; }
+

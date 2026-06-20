@@ -36,9 +36,8 @@
   z-index: 2;
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 1fr 440px;
-  max-width: 1120px;
-  margin: 0 auto;
+  grid-template-columns: 1fr 420px;
+  width: 100%;
 }
 
 /* ── Brand side (left) ───────────────────────────────────────────── */
@@ -171,7 +170,7 @@
   overscroll-behavior: contain;
   scrollbar-width: none;
   padding: clamp(2rem, 5vh, 3.5rem) clamp(1.5rem, 3vw, 2.5rem);
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: none;
   background: rgba(8, 8, 24, 0.42);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
@@ -269,7 +268,6 @@
 }
 .home--light .home__features li { color: rgba(26, 26, 64, 0.68); }
 .home--light .home__auth-side {
-  border-left-color: rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.38);
 }
 .home--light .home__auth-tabs {
@@ -319,13 +317,6 @@
 .home__legal > * { pointer-events: auto; }
 
 /* ── Responsive ──────────────────────────────────────────────────── */
-
-/* Tablet (860–1120): slightly narrower auth panel */
-@media (max-width: 1120px) {
-  .home__split {
-    grid-template-columns: 1fr 400px;
-  }
-}
 
 /* Tablet (max 860): stack vertically */
 @media (max-width: 860px) {

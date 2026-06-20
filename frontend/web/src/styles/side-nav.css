@@ -8,12 +8,11 @@
   /* Full-height rail so the bottom (Settings) group pins to the bottom-left. */
   align-self: stretch;
   padding: 0.6rem 0.45rem;
-  border-radius: var(--radius-xl);
+  border-radius: 0;
   background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-border);
+  border: none;
   -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
-  box-shadow: var(--shadow-md);
 }
 
 .side-nav__item {
