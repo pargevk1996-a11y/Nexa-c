@@ -185,9 +185,47 @@
 }
 } /* end @media (max-width: 768px) */
 
-/* Desktop: hide the Chats in-panel bottom nav — the unified left rail replaces
-   it everywhere. Higher specificity (app-shell--nexa-chats …) so it beats
-   telegram-layout.css's later `.chat-left-panel__app-nav { display: grid }`. */
+/* ── DESKTOP: show labels below icons ────────────────────────────────────── */
 @media (min-width: 769px) {
+  /* Wider rail so the label text fits */
+  .side-nav {
+    width: 64px;
+    padding: 0.6rem 0.35rem;
+  }
+
+  /* Stack icon above label; font-size 0 was hiding labels — restore it */
+  .side-nav__item {
+    flex-direction: column;
+    gap: 0.22rem;
+    padding: 0.55rem 0.2rem 0.45rem;
+    font-size: 0.6rem;
+  }
+
+  /* Make labels visible — override the sr-only reset */
+  .side-nav__label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    clip: auto;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-align: center;
+    text-transform: uppercase;
+    color: inherit;
+    white-space: nowrap;
+  }
+
+  /* Slightly smaller icon so icon+label fits in the narrower rail */
+  .side-nav__icon svg { width: 19px; height: 19px; }
+
+  /* Badge repositioned for the tighter item */
+  .side-nav__badge { top: 0.05rem; right: 0; }
+
+  /* Hide the Chats in-panel bottom nav — the unified left rail replaces it.
+     Higher specificity beats telegram-layout.css's later rule. */
   .app-shell--nexa-chats .chat-left-panel__app-nav { display: none; }
 }
