@@ -402,15 +402,13 @@ h3,
     align-items: center;
   }
 
-  /* When searching: hide toggle button, actions, and remove logo padding. */
+  /* When searching: hide toggle button and action buttons.
+     Keep padding-right so the field never slides under the fixed logo. */
   .chat-left-panel__title-row--searching .chat-left-panel__search-toggle {
     display: none;
   }
   .chat-left-panel__title-row--searching .chat-left-panel__head-actions {
     display: none;
-  }
-  .chat-left-panel__title-row--searching {
-    padding-right: 0;
   }
 
   /* Close button inside the search field — mobile only. */
@@ -925,10 +923,10 @@ body {
 /* Create row at the top of the list — looks like a conversation row:
    round avatar with "+" + label (Add contact / Create group / Create channel). */
 .chat-create-row {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.85rem;
-  width: calc(100% - 1rem);
+  width: auto;
   margin: 4px 0.5rem 6px;
   padding: 0.6rem var(--panel-pad, 1rem);
   border: none;
