@@ -11,6 +11,102 @@ import {
   IconSettings,
   IconX,
 } from "@/components/icons/Icons";
+
+/* ── FAB speed-dial ─────────────────────────────────────────────────────── */
+function FabSpeedDial({ onContact, onGroup, onChannel }: {
+  onContact: () => void;
+  onGroup: () => void;
+  onChannel: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const options = [
+    {
+      label: "Add contact",
+      onClick: onContact,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+          <line x1="19" y1="8" x2="19" y2="14" />
+          <line x1="16" y1="11" x2="22" y2="11" />
+        </svg>
+      ),
+    },
+    {
+      label: "Create group",
+      onClick: onGroup,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      label: "Create channel",
+      onClick: onChannel,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.9 9.77 19.79 19.79 0 0 1 1.88 1.2 2 2 0 0 1 3.86.02h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 7.91a16 16 0 0 0 6.08 6.08l1.25-1.25a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+          <line x1="16" y1="2" x2="22" y2="2" />
+          <line x1="19" y1="-1" x2="19" y2="5" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="chat-fab-wrap">
+      {/* Blur backdrop */}
+      {open && (
+        <div
+          className="chat-fab-backdrop"
+          onClick={() => setOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {/* Speed-dial row */}
+      <div className={`chat-fab-options${open ? " chat-fab-options--open" : ""}`} aria-hidden={!open}>
+        {options.map((opt, i) => (
+          <button
+            key={opt.label}
+            type="button"
+            className="chat-fab-option"
+            style={{ transitionDelay: open ? `${i * 45}ms` : `${(options.length - 1 - i) * 30}ms` }}
+            tabIndex={open ? 0 : -1}
+            onClick={() => { setOpen(false); opt.onClick(); }}
+            aria-label={opt.label}
+          >
+            <span className="chat-fab-option__icon">{opt.icon}</span>
+            <span className="chat-fab-option__label">{opt.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Main FAB */}
+      <button
+        type="button"
+        className={`chat-fab-btn${open ? " chat-fab-btn--open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Close" : "New conversation"}
+        aria-expanded={open}
+      >
+        <svg
+          className="chat-fab-btn__icon"
+          width="22" height="22" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 import { features } from "@/features/registry";
 import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
 import { useLock } from "@/store/LockContext";
@@ -328,6 +424,14 @@ export function ChatLeftPanel({
         onChatMenuAction={onChatMenuAction}
         drafts={drafts}
       />
+
+      <div className="chat-left-panel__fab-zone">
+        <FabSpeedDial
+          onContact={() => navigate("/app/contacts")}
+          onGroup={onCreateGroup}
+          onChannel={() => navigate("/app/contacts?v=channel")}
+        />
+      </div>
 
       <nav className="chat-left-panel__app-nav" aria-label="App">
         {APP_NAV.map((item) => (
