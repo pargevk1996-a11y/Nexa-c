@@ -468,9 +468,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
     });
     setActiveId((prev) => {
+      // Never change active conversation during background refreshes/reconnects.
+      // Only auto-select on initial desktop load when nothing is open yet.
+      if (prev !== null) return prev;
       const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
       if (isMobile) return null;
-      return prev ?? base.find((c) => c.id !== SAVED_MESSAGES_ID)?.id ?? null;
+      return base.find((c) => c.id !== SAVED_MESSAGES_ID)?.id ?? null;
     });
   }, []);
 

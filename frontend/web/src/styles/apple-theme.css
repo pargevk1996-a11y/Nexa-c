@@ -1747,3 +1747,24 @@ body {
 /* Remove any remaining glass-border borders on glass panels */
 [class*="panel"]:not([class*="__"]) { border: none !important; }
 
+/* ── Login / auth page — restore proper card appearance ──────────────────── */
+/* The flat-design tokens are correct for the chat UI; the login modal needs
+   a distinct look so it feels like a floating form, not a flat slab. */
+.auth-card {
+  border-radius: 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  backdrop-filter: blur(28px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(140%) !important;
+  box-shadow:
+    0 28px 72px -20px rgba(0, 0, 0, 0.7),
+    0 0 80px -24px rgba(91, 110, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+}
+.home-modal__panel {
+  border-radius: 20px !important;
+  overflow: hidden;
+}
+.home-modal__close {
+  border-radius: 10px !important;
+}
+

@@ -397,8 +397,8 @@ html:has(.auth-layout) body {
   width: 100%;
   max-width: min(94vw, 440px);
   background: linear-gradient(180deg, rgba(14, 12, 36, 0.72), rgba(10, 8, 28, 0.82));
-  border: none;
-  border-radius: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
   padding: 2.5rem 2.25rem 2rem;
   overflow: hidden;
   -webkit-backdrop-filter: blur(28px) saturate(140%);
