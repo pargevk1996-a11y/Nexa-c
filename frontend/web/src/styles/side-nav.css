@@ -243,9 +243,14 @@ button.side-nav__item {
   text-align: center;
 }
 
-/* Red icon color for secondary views (Blocked / Missed Calls) */
-.side-nav__icon--red {
-  color: var(--danger, #f43f5e);
+/* Red icon for secondary views (Blocked / Missed Calls) */
+.side-nav__icon--red,
+.side-nav__icon--red svg {
+  color: var(--danger, #f43f5e) !important;
+  stroke: var(--danger, #f43f5e) !important;
+}
+.side-nav__item--secondary .side-nav__icon {
+  filter: none !important;
 }
 .side-nav__item--secondary .side-nav__label {
   color: var(--danger, #f43f5e);
