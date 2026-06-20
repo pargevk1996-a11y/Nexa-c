@@ -196,6 +196,12 @@ export function ChatSidebar({
   return (
     <aside className="chat-sidebar">
       <nav className="chat-conversations" aria-label="Chats">
+        {/* Category heading — always visible so mobile swipe has orientation */}
+        {!search.trim() ? (
+          <h2 className="chat-sidebar__cat-title">
+            {category === "groups" ? "Groups" : category === "channels" ? "Channels" : category === "private" ? "Direct Messages" : category === "secret" ? "Secret Chats" : "Chats"}
+          </h2>
+        ) : null}
         {loading ? (
           <ChatSidebarSkeleton />
         ) : empty ? (
@@ -214,9 +220,6 @@ export function ChatSidebar({
             ) : null}
             {regular.length > 0 ? (
               <section className="chat-sidebar__section">
-                <h3 className="chat-sidebar__section-title">
-                  {category === "groups" ? "Groups" : category === "channels" ? "Channels" : category === "private" ? "Direct Messages" : category === "secret" ? "Secret Chats" : "Chats"}
-                </h3>
                 <ConvList items={regular} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}

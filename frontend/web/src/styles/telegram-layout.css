@@ -281,6 +281,15 @@
   color: var(--text-faint);
 }
 
+.chat-sidebar__cat-title {
+  margin: 0;
+  padding: 0.6rem 0.85rem 0.15rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
 .chat-left-panel__archived-toggle {
   flex-shrink: 0;
   margin: 0 0.75rem 0.5rem;
