@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { getCachedSession } from "@/api/auth";
 import { clearMyAvatar, updatePresence } from "@/api/profile";
@@ -14,9 +14,6 @@ import { displayName, formatLastSeen } from "@/utils/presenceText";
 import type { AvatarKind, ProfilePrivacy } from "@/types/profile";
 import { DEFAULT_PROFILE_PRIVACY } from "@/types/profile";
 import {
-  IconChats,
-  IconPhone,
-  IconVideo,
   IconSettings,
   IconBell,
   IconShield,
@@ -28,9 +25,9 @@ import {
 export function ProfilePage() {
   const session = getCachedSession();
   const { profile, loading, save, refresh } = useProfile();
-  const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const animRef = useRef<HTMLInputElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const [username, setUsername] = useState("");
   const [nickname, setNickname] = useState("");
@@ -57,6 +54,38 @@ export function ProfilePage() {
     setPrivacy(p);
     setSecureMode(p.secure_mode ?? false);
   }, [profile]);
+
+  // Mobile: two-finger swipe → open edit mode
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    let startX = 0;
+    let lastX = 0;
+    let two = false;
+    const mid = (e: TouchEvent) => (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const onStart = (e: TouchEvent) => {
+      if (window.innerWidth > 768) { two = false; return; }
+      two = e.touches.length === 2;
+      if (two) startX = lastX = mid(e);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (two && e.touches.length === 2) lastX = mid(e);
+    };
+    const onEnd = () => {
+      if (!two) return;
+      two = false;
+      if (Math.abs(lastX - startX) < 50) return;
+      setEditing(true);
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, []);
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
@@ -169,7 +198,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="page-shell page-shell__inner glass-panel profile-page">
+    <div className="page-shell page-shell__inner glass-panel profile-page" ref={pageRef}>
       {loading && !profile ? <p className="auth-hint">Loading profile…</p> : null}
 
       {profile ? (
@@ -234,36 +263,6 @@ export function ProfilePage() {
             </p>
           </div>
 
-          {/* ── QUICK ACTIONS ────────────────────────────────────── */}
-          <div className="profile-qa">
-            <button type="button" className="profile-qa__btn" onClick={() => navigate("/app/chats")}>
-              <span className="profile-qa__icon"><IconChats size={22} /></span>
-              <span className="profile-qa__label">Message</span>
-            </button>
-            <button type="button" className="profile-qa__btn" onClick={() => navigate("/app/calls")}>
-              <span className="profile-qa__icon"><IconPhone size={22} /></span>
-              <span className="profile-qa__label">Call</span>
-            </button>
-            <button type="button" className="profile-qa__btn" onClick={() => navigate("/app/calls")}>
-              <span className="profile-qa__icon"><IconVideo size={22} /></span>
-              <span className="profile-qa__label">Video</span>
-            </button>
-            <button
-              type="button"
-              className={`profile-qa__btn${editing ? " profile-qa__btn--active" : ""}`}
-              onClick={() => setEditing((v) => !v)}
-              aria-pressed={editing}
-            >
-              <span className="profile-qa__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </span>
-              <span className="profile-qa__label">Edit</span>
-            </button>
-          </div>
-
           {/* ── ALERTS ───────────────────────────────────────────── */}
           {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
           {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
@@ -272,11 +271,6 @@ export function ProfilePage() {
           <form className="profile-card" onSubmit={handleSave}>
             <div className="profile-card__head">
               <span className="profile-card__title">Profile info</span>
-              {!editing && (
-                <button type="button" className="profile-card__edit-btn" onClick={() => setEditing(true)}>
-                  Edit
-                </button>
-              )}
             </div>
 
             {editing ? (
