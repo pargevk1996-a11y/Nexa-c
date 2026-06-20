@@ -243,18 +243,18 @@ button.side-nav__item {
   text-align: center;
 }
 
-/* Secondary nav state: Blocked / Missed Calls — red background, white icon */
+/* Secondary nav state: Blocked / Missed Calls — red glow */
 .side-nav__item--secondary {
-  background: rgba(244, 63, 94, 0.75);
-  color: #fff;
-  box-shadow: none;
+  background: rgba(244, 63, 94, 0.18);
+  color: var(--danger, #f43f5e);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.45);
 }
 .side-nav__item--secondary:hover {
-  background: rgba(244, 63, 94, 0.9);
+  background: rgba(244, 63, 94, 0.26);
 }
 .side-nav__item--secondary .side-nav__icon {
-  filter: none;
-  color: #fff;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.8));
+  color: var(--danger, #f43f5e);
 }
 .side-nav__item--secondary .side-nav__label {
   color: var(--danger, #f43f5e);
