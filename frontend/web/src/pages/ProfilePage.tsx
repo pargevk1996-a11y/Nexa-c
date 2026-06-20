@@ -265,6 +265,7 @@ export function ProfilePage() {
             </p>
           </div>
 
+          <div className="profile-page__main">
           {/* ── ALERTS ───────────────────────────────────────────── */}
           {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
           {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
@@ -273,6 +274,11 @@ export function ProfilePage() {
           <form className="profile-card" onSubmit={handleSave}>
             <div className="profile-card__head">
               <span className="profile-card__title">Profile info</span>
+              {!editing && (
+                <button type="button" className="profile-card__edit-btn" onClick={() => setEditing(true)}>
+                  Edit
+                </button>
+              )}
             </div>
 
             {editing ? (
@@ -524,6 +530,7 @@ export function ProfilePage() {
               </p>
             ) : null}
           </div>
+          </div>{/* profile-page__main */}
         </>
       ) : null}
     </div>

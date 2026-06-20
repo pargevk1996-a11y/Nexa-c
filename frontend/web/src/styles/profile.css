@@ -37,6 +37,41 @@
   gap: 0.75rem;
 }
 
+/* ── Desktop two-column layout ──────────────────────────────────────────── */
+@media (min-width: 769px) {
+  .profile-page {
+    max-width: 900px;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto;
+    gap: 1.5rem;
+    align-items: start;
+    padding: 1.5rem;
+  }
+
+  .profile-hero {
+    grid-column: 1;
+    grid-row: 1 / 99;
+    position: sticky;
+    top: 1.5rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 1.5rem 2rem;
+  }
+
+  .profile-page__main {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .profile-card__edit-btn {
+    display: inline-flex;
+  }
+}
+
 /* ── HERO ───────────────────────────────────────────────────────────────── */
 .profile-hero {
   display: flex;
@@ -549,7 +584,6 @@
 /* ── Mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .profile-hero { padding-top: 3.5rem; /* clear app-brand logo */ }
-  .profile-qa { gap: 0.5rem; }
-  .profile-qa__icon { width: 48px; height: 48px; }
   .profile-nav__item { min-height: 52px; }
+  .profile-card__edit-btn { display: none; }
 }
