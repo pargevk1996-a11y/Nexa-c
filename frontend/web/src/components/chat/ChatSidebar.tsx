@@ -1,5 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import type { ChatMenuAction } from "@/components/chat/ChatContextMenu";
+import { ChatContextMenu } from "@/components/chat/ChatContextMenu";
+import { ChatTypeBadge } from "@/components/chat/ChatTypeBadge";
 import type { Conversation } from "@/types";
 import { conversationMatchesSearch } from "@/utils/userSearch";
 import type { ChatCategory, ChatFolderId } from "@/utils/chatTypes";
@@ -10,12 +12,10 @@ import {
   SAVED_MESSAGES_ID,
   sortChatList,
 } from "@/utils/chatTypes";
+import { Avatar } from "@/components/ui/Avatar";
 import { ChatSidebarSkeleton } from "./ChatSidebarSkeleton";
-import { ChatConvItem } from "./ChatConvItem";
 
 export type { ChatCategory, ChatFolderId };
-
-// ── Props ────────────────────────────────────────────────────────────────────
 
 interface ChatSidebarProps {
   loading?: boolean;
@@ -31,84 +31,95 @@ interface ChatSidebarProps {
   onSelect: (id: string) => void;
   onChatMenuAction: (conversation: Conversation, action: ChatMenuAction) => void;
   drafts: Record<string, string>;
+  /** Category-aware create entry pinned at the top of the scrollable list. */
   createMeta?: { label: string; onClick: () => void };
 }
 
-// ── Undo snackbar ─────────────────────────────────────────────────────────────
-
-interface PendingDelete {
+interface MenuState {
   conversation: Conversation;
-  timerId: ReturnType<typeof setTimeout>;
+  x: number;
+  y: number;
 }
 
-function UndoSnackbar({ name, onUndo }: { name: string; onUndo: () => void }) {
-  return (
-    <div className="ci-snackbar" role="status" aria-live="polite">
-      <span>Deleted <strong>{name}</strong></span>
-      <button type="button" className="ci-snackbar__undo" onClick={onUndo}>
-        Undo
-      </button>
-    </div>
-  );
-}
-
-// ── Keyboard-navigable list ───────────────────────────────────────────────────
-
+// memo: the section item lists are useMemo-stable and the handlers are
+// useCallback-stable, so opening the context menu (sidebar `menu` state) no
+// longer re-renders every conversation button.
 const ConvList = memo(function ConvList({
   items,
   activeId,
   onSelect,
-  onAction,
+  onContextMenu,
   drafts,
-  focusIdx,
-  setFocusIdx,
-  baseIdx,
-  totalCount,
 }: {
   items: Conversation[];
   activeId: string | null;
   onSelect: (id: string) => void;
-  onAction: (c: Conversation, action: ChatMenuAction) => void;
+  onContextMenu: (c: Conversation, e: React.MouseEvent) => void;
   drafts: Record<string, string>;
-  focusIdx: number;
-  setFocusIdx: (i: number) => void;
-  baseIdx: number;
-  totalCount: number;
 }) {
   if (items.length === 0) return null;
-
   return (
     <>
-      {items.map((c, i) => {
-        const globalIdx = baseIdx + i;
+      {items.map((c) => {
+        const type = resolveChatType(c);
         return (
-          <ChatConvItem
+          <button
             key={c.id}
-            conversation={c}
-            isActive={activeId === c.id}
-            draft={drafts[c.id]}
-            onSelect={onSelect}
-            onAction={onAction}
-            tabIndex={focusIdx === globalIdx ? 0 : -1}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setFocusIdx(Math.min(focusIdx + 1, totalCount - 1));
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setFocusIdx(Math.max(focusIdx - 1, 0));
-              } else if (e.key === "Enter") {
-                onSelect(c.id);
-              }
-            }}
-          />
+            type="button"
+            className={`chat-conv-item ${activeId === c.id ? "chat-conv-item--active" : ""} ${type === "secret" ? "chat-conv-item--secret" : ""} ${type === "channel" ? "chat-conv-item--channel" : ""} ${c.archived ? "chat-conv-item--archived" : ""} ${c.hidden ? "chat-conv-item--hidden" : ""}`}
+            onClick={() => onSelect(c.id)}
+            onContextMenu={(e) => onContextMenu(c, e)}
+          >
+            <Avatar name={c.name} online={c.online && type !== "channel"} />
+            <div className="chat-conv-item__body">
+              <div className="chat-conv-item__name">
+                <ChatTypeBadge conversation={c} />
+                {c.pinned ? <span className="chat-conv-item__pin" aria-hidden>📌</span> : null}
+                {c.favorite ? <span className="chat-conv-item__fav" aria-hidden>★</span> : null}
+                <span className="privacy-no-copy">{c.name}</span>
+                {c.username ? (
+                  <span className="chat-conv-item__username">@{c.username}</span>
+                ) : null}
+                {c.memberCount && c.memberCount > 0 ? (
+                  <span className="chat-conv-item__members">{c.memberCount.toLocaleString()}</span>
+                ) : null}
+              </div>
+              <div
+                className={`chat-conv-item__preview ${c.typing ? "chat-conv-item__preview--typing" : ""}`}
+              >
+                {c.typing ? (
+                  <>
+                    typing
+                    <span className="chat-conv-item__typing-dots" aria-hidden>
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </>
+                ) : drafts[c.id] ? (
+                  <>
+                    <span className="chat-conv-item__draft">Draft:</span>
+                    {" "}{drafts[c.id]}
+                  </>
+                ) : (
+                  c.lastMessage
+                )}
+              </div>
+            </div>
+            <div className="chat-conv-item__meta">
+              <span className="chat-conv-item__time">{c.lastAt}</span>
+              {c.unread > 0 ? (
+                <span className="chat-unread" aria-label={`${c.unread} unread`}>
+                  {c.unread > 99 ? "99+" : c.unread}
+                </span>
+              ) : null}
+            </div>
+          </button>
         );
       })}
     </>
   );
 });
-
-// ── Filters ───────────────────────────────────────────────────────────────────
 
 function applyFilters(
   list: Conversation[],
@@ -127,35 +138,6 @@ function applyFilters(
   );
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-function EmptyState({ search, category }: { search: string; category: ChatCategory }) {
-  const isSearch = search.trim().length > 0;
-  return (
-    <div className="ci-empty" role="status">
-      <div className="ci-empty__icon" aria-hidden>
-        {isSearch ? (
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.35">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        ) : (
-          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        )}
-      </div>
-      <p className="ci-empty__title">
-        {isSearch ? "No matches" : category === "all" ? "No chats yet" : `No ${category} here`}
-      </p>
-      {!isSearch && category === "all" ? (
-        <p className="ci-empty__hint">Start a conversation to see it here</p>
-      ) : null}
-    </div>
-  );
-}
-
-// ── Main component ─────────────────────────────────────────────────────────────
-
 export function ChatSidebar({
   loading = false,
   savedConversation,
@@ -172,44 +154,7 @@ export function ChatSidebar({
   drafts,
   createMeta,
 }: ChatSidebarProps) {
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
-  const [focusIdx, setFocusIdx] = useState(0);
-  const listRef = useRef<HTMLElement>(null);
-
-  // Focus the right button when focusIdx changes
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const btns = el.querySelectorAll<HTMLButtonElement>(".chat-conv-item");
-    btns[focusIdx]?.focus();
-  }, [focusIdx]);
-
-  // Intercept delete to show undo snackbar
-  const handleAction = useCallback(
-    (c: Conversation, action: ChatMenuAction) => {
-      if (action.type === "delete") {
-        // Cancel any existing pending delete first
-        if (pendingDelete) {
-          clearTimeout(pendingDelete.timerId);
-          onChatMenuAction(pendingDelete.conversation, { type: "delete", scope: "me" });
-        }
-        const timerId = setTimeout(() => {
-          onChatMenuAction(c, action);
-          setPendingDelete(null);
-        }, 5000);
-        setPendingDelete({ conversation: c, timerId });
-      } else {
-        onChatMenuAction(c, action);
-      }
-    },
-    [pendingDelete, onChatMenuAction],
-  );
-
-  const handleUndo = useCallback(() => {
-    if (!pendingDelete) return;
-    clearTimeout(pendingDelete.timerId);
-    setPendingDelete(null);
-  }, [pendingDelete]);
+  const [menu, setMenu] = useState<MenuState | null>(null);
 
   const showSaved =
     savedConversation &&
@@ -233,90 +178,78 @@ export function ChatSidebar({
     [hiddenConversations, category, folder, search, drafts],
   );
 
-  // Filter out pending-delete item from rendered lists
-  const pendingId = pendingDelete?.conversation.id;
-  const filterPending = (list: Conversation[]) =>
-    pendingId ? list.filter((c) => c.id !== pendingId) : list;
+  const openMenu = useCallback((conversation: Conversation, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu({ conversation, x: e.clientX, y: e.clientY });
+  }, []);
 
-  const fp = filterPending(pinned);
-  const fr = filterPending(regular);
-  const fa = filterPending(archived);
-  const fh = filterPending(hidden);
-  const totalCount = fp.length + fr.length + fa.length + fh.length;
+  const closeMenu = useCallback(() => setMenu(null), []);
 
-  const empty = !loading && fp.length === 0 && fr.length === 0 && fa.length === 0 && fh.length === 0;
+  const empty =
+    !loading &&
+    pinned.length === 0 &&
+    regular.length === 0 &&
+    archived.length === 0 &&
+    hidden.length === 0;
 
   return (
     <aside className="chat-sidebar">
-      <nav
-        className="chat-conversations"
-        aria-label="Chats"
-        ref={listRef}
-        data-no-section-swipe
-        onKeyDown={(e) => {
-          if (e.key === "Escape") (document.activeElement as HTMLElement)?.blur();
-        }}
-      >
+      <nav className="chat-conversations" aria-label="Chats">
         {createMeta ? (
           <button type="button" className="chat-create-row" onClick={createMeta.onClick}>
-            <span className="chat-create-row__avatar" aria-hidden>+</span>
+            <span className="chat-create-row__avatar" aria-hidden>
+              +
+            </span>
             <span className="chat-create-row__label">{createMeta.label}</span>
           </button>
         ) : null}
-
         {loading ? (
           <ChatSidebarSkeleton />
         ) : empty ? (
-          <EmptyState search={search} category={category} />
+          <p className="chat-sidebar__empty">
+            {search.trim() ? "No matches" : "No chats in this category"}
+          </p>
         ) : (
           <>
-            {fp.length > 0 ? (
+            {/* Saved Messages no longer listed here — opened via the header
+                bookmark button next to search. */}
+            {pinned.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Pinned</h3>
-                <ConvList
-                  items={fp} activeId={activeId} onSelect={onSelect} onAction={handleAction}
-                  drafts={drafts} focusIdx={focusIdx} setFocusIdx={setFocusIdx}
-                  baseIdx={0} totalCount={totalCount}
-                />
+                <ConvList items={pinned} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
-            {fr.length > 0 ? (
+            {regular.length > 0 ? (
               <section className="chat-sidebar__section">
-                {fp.length > 0 || showSaved ? <h3 className="chat-sidebar__section-title">Chats</h3> : null}
-                <ConvList
-                  items={fr} activeId={activeId} onSelect={onSelect} onAction={handleAction}
-                  drafts={drafts} focusIdx={focusIdx} setFocusIdx={setFocusIdx}
-                  baseIdx={fp.length} totalCount={totalCount}
-                />
+                {pinned.length > 0 || showSaved ? (
+                  <h3 className="chat-sidebar__section-title">Chats</h3>
+                ) : null}
+                <ConvList items={regular} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
-            {fa.length > 0 ? (
+            {archived.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Archived</h3>
-                <ConvList
-                  items={fa} activeId={activeId} onSelect={onSelect} onAction={handleAction}
-                  drafts={drafts} focusIdx={focusIdx} setFocusIdx={setFocusIdx}
-                  baseIdx={fp.length + fr.length} totalCount={totalCount}
-                />
+                <ConvList items={archived} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
-            {fh.length > 0 ? (
+            {hidden.length > 0 ? (
               <section className="chat-sidebar__section">
                 <h3 className="chat-sidebar__section-title">Hidden</h3>
-                <ConvList
-                  items={fh} activeId={activeId} onSelect={onSelect} onAction={handleAction}
-                  drafts={drafts} focusIdx={focusIdx} setFocusIdx={setFocusIdx}
-                  baseIdx={fp.length + fr.length + fa.length} totalCount={totalCount}
-                />
+                <ConvList items={hidden} activeId={activeId} onSelect={onSelect} onContextMenu={openMenu} drafts={drafts} />
               </section>
             ) : null}
           </>
         )}
       </nav>
-
-      {/* Undo snackbar */}
-      {pendingDelete ? (
-        <UndoSnackbar name={pendingDelete.conversation.name} onUndo={handleUndo} />
+      {menu ? (
+        <ChatContextMenu
+          conversation={menu.conversation}
+          position={{ x: menu.x, y: menu.y }}
+          onClose={closeMenu}
+          onAction={(action) => onChatMenuAction(menu.conversation, action)}
+        />
       ) : null}
     </aside>
   );

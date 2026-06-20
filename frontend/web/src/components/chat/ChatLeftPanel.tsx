@@ -1,22 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-
-/* ── Network status dot ─────────────────────────────────────────────────── */
-function NetworkDot() {
-  const [online, setOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
-  useEffect(() => {
-    const set = () => setOnline(navigator.onLine);
-    window.addEventListener("online", set);
-    window.addEventListener("offline", set);
-    return () => { window.removeEventListener("online", set); window.removeEventListener("offline", set); };
-  }, []);
-  return (
-    <span
-      className={`chat-network-dot${online ? " chat-network-dot--online" : " chat-network-dot--offline"}`}
-      title={online ? "Connected" : "Offline"}
-      aria-label={online ? "Connected" : "No connection"}
-    />
-  );
-}
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   IconBell,
@@ -341,7 +323,6 @@ export function ChatLeftPanel({
           </label>
 
           <div className="chat-left-panel__head-actions">
-            <NetworkDot />
             {/* Category-aware create "+" — appears once the in-list create row
                 scrolls under the search. */}
             {showHeadAdd ? (
