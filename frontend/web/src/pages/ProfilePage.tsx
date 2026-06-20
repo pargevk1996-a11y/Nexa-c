@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { getCachedSession } from "@/api/auth";
-import { clearMyAvatar, updatePresence } from "@/api/profile";
+import { clearMyAvatar } from "@/api/profile";
 import { ProfileBadgeLegend } from "@/components/profile/ProfileBadgeLegend";
 import { VerificationBadge } from "@/components/profile/VerificationBadge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -33,7 +33,7 @@ export function ProfilePage() {
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [statusText, setStatusText] = useState("");
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
   const [privacy, setPrivacy] = useState<ProfilePrivacy>(DEFAULT_PROFILE_PRIVACY);
   const [saving, setSaving] = useState(false);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
@@ -163,17 +163,7 @@ export function ProfilePage() {
     }
   }
 
-  async function handleOnlineToggle(online: boolean) {
-    setIsOnline(online);
-    try {
-      const updated = await updatePresence(online, statusText.trim());
-      await refresh();
-      setMessage(online ? "You appear online" : "You appear offline");
-      setIsOnline(updated.is_online);
-    } catch {
-      setError("Could not update presence");
-    }
-  }
+
 
   function togglePrivacy(key: keyof ProfilePrivacy) {
     setPrivacy((p) => ({ ...p, [key]: !p[key] }));
@@ -351,30 +341,6 @@ export function ProfilePage() {
               </div>
             )}
           </form>
-
-          {/* ── PRESENCE CARD ────────────────────────────────────── */}
-          <div className="profile-card">
-            <div className="profile-card__head">
-              <span className="profile-card__title">Status</span>
-            </div>
-            <div className="profile-presence-toggle">
-              <button
-                type="button"
-                className={`profile-presence-toggle__btn${isOnline ? " profile-presence-toggle__btn--on" : ""}`}
-                onClick={() => void handleOnlineToggle(true)}
-              >
-                Online
-              </button>
-              <button
-                type="button"
-                className={`profile-presence-toggle__btn${!isOnline ? " profile-presence-toggle__btn--on" : ""}`}
-                onClick={() => void handleOnlineToggle(false)}
-              >
-                Away
-              </button>
-            </div>
-            <p className="profile-card__hint">Visible to contacts when privacy allows it.</p>
-          </div>
 
           {/* ── PRIVACY CARD ─────────────────────────────────────── */}
           <div className="profile-card">
