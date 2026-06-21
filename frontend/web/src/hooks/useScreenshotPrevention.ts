@@ -3,8 +3,8 @@ import { useEffect } from "react";
 // Secondary screenshot-prevention layer (primary: privacySeal.ts).
 // Users consented at registration to having all capture capabilities disabled.
 
-// Pre-created overlay — appended once, shown via opacity (compositor-only, ~0ms latency).
-// Dynamic createElement on keydown takes ~50ms+ (DOM + layout + paint), too slow.
+// Pre-created overlay — appended once on mount, shown via opacity (compositor-only,
+// ~0ms latency). Dynamic createElement on keydown is too slow (~50ms).
 let overlayEl: HTMLDivElement | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -13,33 +13,38 @@ function ensureOverlay(): HTMLDivElement {
   overlayEl = document.createElement("div");
   overlayEl.id = "nexa-screenshot-guard";
   overlayEl.setAttribute("aria-hidden", "true");
-  // Use opacity for show/hide — compositor-thread only, no layout/paint, ~0ms latency.
   overlayEl.style.cssText =
-    "position:fixed;inset:0;z-index:2147483647;background:#000;pointer-events:none;opacity:0;will-change:opacity;transform:translateZ(0)";
+    "position:fixed;inset:0;z-index:2147483647;background:#000;pointer-events:none;" +
+    "opacity:0;will-change:opacity;transform:translateZ(0)";
   document.documentElement.appendChild(overlayEl);
   return overlayEl;
 }
 
 function showOverlay() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  // Also blacken the root element directly — propagates through CSS cascade
+  // without waiting for compositor flush, covers the ~1 frame GPU lag window.
+  document.documentElement.style.setProperty("background", "#000", "important");
   ensureOverlay().style.opacity = "1";
 }
 
 function hideOverlay(delayMs = 0) {
   if (hideTimer) clearTimeout(hideTimer);
-  if (delayMs) {
-    hideTimer = setTimeout(() => {
-      if (overlayEl) overlayEl.style.opacity = "0";
-      hideTimer = null;
-    }, delayMs);
-  } else {
+  const doHide = () => {
     if (overlayEl) overlayEl.style.opacity = "0";
+    document.documentElement.style.removeProperty("background");
+    hideTimer = null;
+  };
+  if (delayMs) {
+    hideTimer = setTimeout(doHide, delayMs);
+  } else {
+    doHide();
   }
 }
 
 export function useScreenshotPrevention() {
   useEffect(() => {
-    // Pre-create overlay immediately so first show is pure opacity change.
+    // Pre-create overlay on mount so first showOverlay() is a pure opacity change.
     ensureOverlay();
 
     // ── 1. Keyboard shortcuts ─────────────────────────────────────────────────
@@ -50,7 +55,7 @@ export function useScreenshotPrevention() {
       const shift = e.shiftKey;
       const alt = e.altKey;
 
-      // PrintScreen / Snapshot / F13 (any modifier combo incl. Shift+PrtSc)
+      // PrintScreen / Snapshot / F13 — any modifier combo (plain, Shift, Alt, Ctrl)
       if (
         e.code === "PrintScreen" ||
         key === "PrintScreen" ||
@@ -61,17 +66,14 @@ export function useScreenshotPrevention() {
       ) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        // PrintScreen confirmed
         showOverlay();
         hideOverlay(700);
         return;
       }
 
-      // Shift key held — show overlay pre-emptively for Shift+PrintScreen.
-      // Linux/GNOME: OS eats Shift+PrintScreen before JS keydown fires, but our
-      // overlay is already on screen the moment Shift is held, so the OS captures
-      // the black frame. Hides on Shift keyup (see below) — brief ~50ms flash
-      // during normal typing, full blackout while Shift+PrtSc combo is held.
+      // Shift held alone → pre-emptive blackout for Shift+PrintScreen.
+      // On Linux/GNOME, OS eats Shift+PrtSc before keydown fires, but the overlay
+      // is already painted the moment Shift is pressed. Hides on Shift keyup.
       if ((key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") && !ctrl && !alt) {
         showOverlay();
         return;
@@ -83,16 +85,12 @@ export function useScreenshotPrevention() {
         showOverlay(); hideOverlay(700); return;
       }
 
-      // Win+Shift+S / Meta+Shift+S (Snipping Tool, KDE Spectacle) / macOS Cmd+Shift+S
-      if (ctrl && shift && lower === "s") {
-        e.preventDefault(); e.stopImmediatePropagation(); return;
-      }
+      // Win+Shift+S / Meta+Shift+S (Snipping Tool, KDE Spectacle) / Cmd+Shift+S
+      if (ctrl && shift && lower === "s") { e.preventDefault(); e.stopImmediatePropagation(); return; }
 
       // Windows Game Bar: Win+G, Win+Alt+R, Win+Alt+G
       if (e.metaKey && lower === "g") { e.preventDefault(); e.stopImmediatePropagation(); return; }
-      if (e.metaKey && alt && (lower === "r" || lower === "g")) {
-        e.preventDefault(); e.stopImmediatePropagation(); return;
-      }
+      if (e.metaKey && alt && (lower === "r" || lower === "g")) { e.preventDefault(); e.stopImmediatePropagation(); return; }
 
       // GNOME recorder: Ctrl+Alt+Shift+R  /  KDE: Meta+Shift+R
       if (ctrl && alt && shift && lower === "r") { e.preventDefault(); e.stopImmediatePropagation(); return; }
@@ -113,23 +111,22 @@ export function useScreenshotPrevention() {
       if (ctrl && lower === "u") { e.preventDefault(); e.stopImmediatePropagation(); return; }
 
       // Select-all outside compose fields
-      if (
-        ctrl && lower === "a" &&
+      if (ctrl && lower === "a" &&
         !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement)
-      ) {
+        !(e.target instanceof HTMLTextAreaElement)) {
         e.preventDefault(); e.stopImmediatePropagation(); return;
       }
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
-      // Shift released → hide the pre-emptive overlay after short delay
-      // (200ms ensures the OS screenshot capture is already done before we reveal)
+      // Shift released → hide pre-emptive overlay (200ms ensures OS capture is done)
       if (e.key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") {
         hideOverlay(200);
         return;
       }
-      // PrintScreen on keyup too (Windows: OS eats keydown, browser sees keyup)
+      // PrintScreen keyup: Windows Chrome only sees keyup (OS eats keydown).
+      // Screenshot already taken, but we black out immediately so any pending
+      // clipboard/file write captures the black frame.
       if (
         e.code === "PrintScreen" ||
         e.key === "PrintScreen" ||
@@ -144,7 +141,7 @@ export function useScreenshotPrevention() {
     };
 
     // ── 2. Window blur → overlay ──────────────────────────────────────────────
-    // Catches OS screenshot tools that steal focus:
+    // Catches OS screenshot tools that steal focus before capturing:
     // Win+Shift+S (Snipping Tool), Win+G (Game Bar), macOS Screenshot UI,
     // GNOME region selector, OBS, Greenshot, Snagit.
     const onBlur = () => showOverlay();
@@ -156,20 +153,27 @@ export function useScreenshotPrevention() {
       else hideOverlay(200);
     };
 
-    // ── 4. Right-click ────────────────────────────────────────────────────────
+    // ── 4. 3-finger touch → overlay ──────────────────────────────────────────
+    // iOS AssistiveTouch screenshot gesture and Android multi-touch screenshot
+    // tools use 3 simultaneous fingers. Show overlay on any 3+ finger contact.
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 3) showOverlay();
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 3) hideOverlay(400);
+    };
+
+    // ── 5. Right-click ────────────────────────────────────────────────────────
     const onContextMenu = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
-    // ── 5. Copy outside compose fields ────────────────────────────────────────
+    // ── 6. Copy outside compose fields ────────────────────────────────────────
     const onCopy = (e: ClipboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       e.preventDefault();
       e.stopImmediatePropagation();
     };
 
-    // ── 6. Block getDisplayMedia ──────────────────────────────────────────────
+    // ── 7. Block getDisplayMedia (screen-share API) ───────────────────────────
     const origGetDisplayMedia = navigator.mediaDevices?.getDisplayMedia?.bind(navigator.mediaDevices);
     if (navigator.mediaDevices?.getDisplayMedia) {
       navigator.mediaDevices.getDisplayMedia = () =>
@@ -178,11 +182,13 @@ export function useScreenshotPrevention() {
 
     document.documentElement.setAttribute("data-screenshot-guard", "1");
 
-    window.addEventListener("keydown", onKeyDown, { capture: true });
-    window.addEventListener("keyup", onKeyUp, { capture: true });
+    window.addEventListener("keydown", onKeyDown, { capture: true, passive: false });
+    window.addEventListener("keyup", onKeyUp, { capture: true, passive: false });
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
     document.addEventListener("contextmenu", onContextMenu, { capture: true });
     document.addEventListener("copy", onCopy, { capture: true });
 
@@ -192,6 +198,8 @@ export function useScreenshotPrevention() {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("touchstart", onTouchStart, { capture: true });
+      document.removeEventListener("touchend", onTouchEnd, { capture: true });
       document.removeEventListener("contextmenu", onContextMenu, { capture: true });
       document.removeEventListener("copy", onCopy, { capture: true });
       if (hideTimer) clearTimeout(hideTimer);

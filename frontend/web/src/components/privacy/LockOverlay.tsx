@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LogoAnimation } from "@/components/auth/LogoAnimation";
 import { getCachedSession } from "@/api/auth";
 import {
   hasStoredSignature,
@@ -138,7 +137,7 @@ export function LockOverlay() {
 
   if (lockState === "active") return null;
 
-  const { title, body, clickable } = STATE_CONTENT[lockState];
+  const { clickable } = STATE_CONTENT[lockState];
   const isPinRequired = lockState === "pin_required";
 
   function handleOverlayClick() {
@@ -155,16 +154,14 @@ export function LockOverlay() {
       onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") handleOverlayClick(); } : undefined}
       aria-label={clickable ? "Click to unlock" : undefined}
     >
-      {/* Stop propagation only for pin_required so clicks on content don't bubble up */}
-      <div
-        className="lock-overlay__inner"
-        onClick={isPinRequired ? (e) => e.stopPropagation() : undefined}
-      >
-        <LogoAnimation size={160} />
-        <p className="lock-overlay__title">{title}</p>
-        {body && <p className="lock-overlay__body">{body}</p>}
-        {isPinRequired && <PinForm onSuccess={unlock} />}
-      </div>
+      {isPinRequired && (
+        <div
+          className="lock-overlay__inner"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PinForm onSuccess={unlock} />
+        </div>
+      )}
     </div>,
     document.body,
   );

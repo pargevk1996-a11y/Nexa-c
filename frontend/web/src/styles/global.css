@@ -588,35 +588,16 @@ body.privacy-shield-active .privacy-shield--clickable {
   cursor: pointer;
 }
 
-body.privacy-shield-active .privacy-shield--clickable:hover .privacy-shield__inner {
-  opacity: 0.9;
+body.privacy-shield-active .privacy-shield--clickable {
+  cursor: pointer;
 }
 
-.privacy-shield__inner {
-  text-align: center;
-  padding: 2rem;
-}
-
-.privacy-shield__logo-img {
-  display: block;
-  margin: 0 auto 0.75rem;
-  width: 192px;
-  height: 192px;
-  object-fit: contain;
-}
-
-.privacy-shield__title {
-  margin: 0 0 0.35rem;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
+/* No content inside the shield — pure black screen */
+.privacy-shield__inner,
+.privacy-shield__logo-img,
+.privacy-shield__title,
 .privacy-shield__text {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--text-muted);
+  display: none !important;
 }
 
 
@@ -639,10 +620,7 @@ body.privacy-shield-active .privacy-shield--clickable:hover .privacy-shield__inn
   cursor: pointer;
 }
 
-.lock-overlay--clickable:hover .lock-overlay__inner {
-  opacity: 0.9;
-}
-
+/* PIN form only — no logo, no title, no body text */
 .lock-overlay__inner {
   display: flex;
   flex-direction: column;
@@ -654,29 +632,10 @@ body.privacy-shield-active .privacy-shield--clickable:hover .privacy-shield__inn
   width: 100%;
 }
 
-.lock-overlay__logo {
-  display: block;
-  width: 160px;
-  height: 160px;
-  object-fit: contain;
-  margin-bottom: 0.5rem;
-  pointer-events: none;
-}
-
-.lock-overlay__title {
-  margin: 0;
-  font-family: var(--font-display, system-ui, sans-serif);
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.35;
-  color: #f8f7fc;
-}
-
+.lock-overlay__logo,
+.lock-overlay__title,
 .lock-overlay__body {
-  margin: 0;
-  font-size: 0.95rem;
-  color: rgba(248, 247, 252, 0.7);
-  line-height: 1.5;
+  display: none !important;
 }
 
 .lock-overlay__pin-form {
