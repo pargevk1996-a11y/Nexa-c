@@ -244,9 +244,20 @@ async def oauth_provider_callback(
         )
 
     try:
-        user = await store.get_or_create_oauth_user(provider, subject, email, username)
+        user = await store.get_oauth_user(provider, subject, email, username)
+    except ValueError as exc:
+        if "account_not_found" in str(exc):
+            return RedirectResponse(
+                _frontend_callback_url({"error": "account_not_found", "provider": provider}),
+                status_code=302,
+            )
+        logger.exception("OAuth %s get_oauth_user failed", provider)
+        return RedirectResponse(
+            _frontend_callback_url({"error": "oauth_user_failed", "provider": provider}),
+            status_code=302,
+        )
     except Exception:
-        logger.exception("OAuth %s get_or_create_oauth_user failed", provider)
+        logger.exception("OAuth %s get_oauth_user failed", provider)
         return RedirectResponse(
             _frontend_callback_url({"error": "oauth_user_failed", "provider": provider}),
             status_code=302,
@@ -287,6 +298,7 @@ async def oauth_exchange(
         stored.email,
         device_label="OAuth",
         request=request,
+        revoke_others=True,
     )
     _set_refresh_cookie(response, raw_refresh)
     _set_access_cookie(response, access)

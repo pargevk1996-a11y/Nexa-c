@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import secrets
 from dataclasses import dataclass, field
 from uuid import uuid4
 
@@ -105,32 +104,22 @@ class UserStore:
         user.is_phone_verified = verified
         return True
 
-    async def get_or_create_oauth_user(
+    async def get_oauth_user(
         self,
         provider: str,
         subject: str,
         email: str,
         username: str,
     ) -> StoredUser:
+        """Return existing user for OAuth login. Never creates a new account."""
         key = email.lower().strip()
         existing = self._by_email.get(key)
-        if existing:
-            existing.is_email_verified = True
-            if username and existing.username != username:
-                existing.username = username.strip()[:64]
-            return existing
-        safe_name = (username or f"{provider}_user").strip()[:64]
-        user = StoredUser(
-            id=str(uuid4()),
-            email=key,
-            username=safe_name,
-            uid=generate_public_uid(),
-            password_hash=hash_password(secrets.token_urlsafe(48)),
-            is_email_verified=True,
-        )
-        self._by_email[key] = user
-        self._by_id[user.id] = user
-        return user
+        if not existing:
+            raise ValueError("account_not_found")
+        existing.is_email_verified = True
+        if username and existing.username != username:
+            existing.username = username.strip()[:64]
+        return existing
 
     async def delete_user(self, user_id: str) -> bool:
         user = self._by_id.pop(user_id, None)

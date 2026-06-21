@@ -20,7 +20,7 @@ export function SignaturePinModal({
   open,
   onClose,
   onSuccess,
-  title = "Enter signature",
+  title = "Enter PIN code",
 }: SignaturePinModalProps) {
   const session = getCachedSession();
   const [pin, setPin] = useState("");
@@ -74,7 +74,7 @@ export function SignaturePinModal({
     try {
       if (setupMode) {
         if (pin !== confirm) {
-          setError("Signatures do not match");
+          setError("PIN codes do not match");
           return;
         }
         await storeSignatureForUser(session.user.id, pin);
@@ -85,7 +85,7 @@ export function SignaturePinModal({
 
       const ok = await verifySignatureForUser(session.user.id, pin);
       if (!ok) {
-        setError("Incorrect signature");
+        setError("Incorrect PIN code");
         return;
       }
       onSuccess();
@@ -104,15 +104,15 @@ export function SignaturePinModal({
         aria-labelledby="signature-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="signature-modal-title">{setupMode ? "Create your signature" : title}</h3>
+        <h3 id="signature-modal-title">{setupMode ? "Create your PIN code" : title}</h3>
         <p className="signature-modal__hint">
           {setupMode
-            ? "Choose a 4–6 digit signature. You will need it to allow screenshots and other sensitive actions."
-            : "Enter the signature you set during registration to allow screenshots."}
+            ? "Choose a 4–6 digit PIN code. You will need it to unlock the app."
+            : "Enter your PIN code to continue."}
         </p>
         <form onSubmit={(e) => void handleSubmit(e)}>
           <PasswordInput
-            label="Signature"
+            label="PIN Code"
             name="signature"
             inputMode="numeric"
             autoComplete="off"
@@ -122,7 +122,7 @@ export function SignaturePinModal({
           />
           {setupMode ? (
             <PasswordInput
-              label="Confirm signature"
+              label="Confirm PIN code"
               name="signature_confirm"
               inputMode="numeric"
               autoComplete="off"

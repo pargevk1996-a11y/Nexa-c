@@ -151,34 +151,23 @@ class PostgresUserStore:
             await session.commit()
             return result.scalar_one_or_none() is not None
 
-    async def get_or_create_oauth_user(
+    async def get_oauth_user(
         self,
         provider: str,
         subject: str,
         email: str,
         username: str,
     ) -> StoredUser:
+        """Return existing user for OAuth login. Never creates a new account."""
         key = email.lower().strip()
         async with self._sm() as session:
             row = await session.scalar(select(UserRow).where(func.lower(UserRow.email) == key))
-            if row:
-                row.is_email_verified = True
-                safe = username.strip()[:64] if username else ""
-                if safe and row.username != safe:
-                    row.username = safe
-                await session.commit()
-                await session.refresh(row)
-                return self._to_stored(row)
-            safe_name = (username or f"{provider}_user").strip()[:64]
-            row = UserRow(
-                id=uuid.uuid4(),
-                email=key,
-                username=safe_name,
-                uid=generate_public_uid(),
-                password_hash=hash_password(secrets.token_urlsafe(48)),
-                is_email_verified=True,
-            )
-            session.add(row)
+            if not row:
+                raise ValueError("account_not_found")
+            row.is_email_verified = True
+            safe = username.strip()[:64] if username else ""
+            if safe and row.username != safe:
+                row.username = safe
             await session.commit()
             await session.refresh(row)
             return self._to_stored(row)

@@ -4,6 +4,7 @@ import { pollQrLogin, startQrLogin, storeSession } from "@/api/auth";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthAlert } from "@/components/auth/AuthAlert";
 import { QrCodeDisplay } from "@/components/auth/QrCodeDisplay";
+import { isDesktopApp } from "@/config/features";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function QrLoginPage() {
@@ -98,9 +99,11 @@ export function QrLoginPage() {
           </button>
         ) : null}
       </div>
-      <p className="auth-footer">
-        <Link to="/login">Sign in with password</Link>
-      </p>
+      {!isDesktopApp() && (
+        <p className="auth-footer">
+          <Link to="/login">Sign in with password</Link>
+        </p>
+      )}
     </AuthCard>
   );
 }

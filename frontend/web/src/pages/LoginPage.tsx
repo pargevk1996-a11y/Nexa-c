@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthAlert } from "@/components/auth/AuthAlert";
 import { BiometricLoginButton } from "@/components/auth/BiometricLoginButton";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { PasswordLoginForm } from "@/components/auth/PasswordLoginForm";
-import { isWebAuthnEnabled } from "@/config/features";
+import { isDesktopApp, isWebAuthnEnabled } from "@/config/features";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+
+  if (isDesktopApp()) {
+    return <Navigate to="/login/qr" replace />;
+  }
 
   return (
     <AuthCard title="Welcome back" subtitle="Sign in to continue to Nexa">

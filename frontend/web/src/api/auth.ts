@@ -184,6 +184,13 @@ export async function completeOAuthCallback(params: URLSearchParams): Promise<Lo
           "OAuth is not configured on the server. Add GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID to .env and restart auth-service.",
       };
     }
+    if (error === "account_not_found") {
+      return {
+        ok: false,
+        code: "ACCOUNT_NOT_FOUND",
+        message: "Account not found. Please complete registration before signing in.",
+      };
+    }
     const message =
       error === "access_denied"
         ? "Sign-in was cancelled."

@@ -1,0 +1,136 @@
+name: Build → ECR → Deploy to EKS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "infrastructure/terraform/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [prod, dev]
+        default: prod
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-1.amazonaws.com
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # ── 1. Lint & test (gate) ────────────────────────────────────────────────
+  lint:
+    uses: ./.github/workflows/ci.yml
+
+  # ── 2. Build + push all service images to ECR ───────────────────────────
+  build-push:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - chat-service
+          - user-service
+          - contact-service
+          - media-service
+          - notification-service
+          - ws-gateway
+          - presence-service
+          - call-service
+          - story-service
+          - emoji-service
+          - ai-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: backend/${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/nexa/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/nexa/${{ matrix.service }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # ── 3. Deploy to EKS ────────────────────────────────────────────────────
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || 'prod' }}
+      url: https://nexa-c.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name nexa-${{ inputs.environment || 'prod' }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Update image tags in kustomization
+        run: |
+          cd infrastructure/k8s/overlays/${{ inputs.environment || 'prod' }}
+          # Patch each deployment image tag using kustomize edit
+          SERVICES="api-gateway auth-service chat-service user-service contact-service \
+            media-service notification-service ws-gateway presence-service call-service \
+            story-service emoji-service ai-service"
+          for svc in $SERVICES; do
+            kubectl set image deployment/$svc \
+              $svc=${{ env.ECR_REGISTRY }}/nexa/$svc:${{ env.IMAGE_TAG }} \
+              --local -f /dev/null 2>/dev/null || true
+          done
+          # Use kustomize image override (preferred)
+          for svc in $SERVICES; do
+            kustomize edit set image \
+              "ghcr.io/example/nexa-$svc=${{ env.ECR_REGISTRY }}/nexa/$svc:${{ env.IMAGE_TAG }}" || true
+          done
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -k infrastructure/k8s/overlays/${{ inputs.environment || 'prod' }}
+
+      - name: Wait for rollout
+        run: |
+          DEPLOYMENTS="api-gateway auth-service chat-service ws-gateway"
+          for dep in $DEPLOYMENTS; do
+            kubectl rollout status deployment/$dep -n nexa --timeout=300s
+          done
+
+      - name: Verify health
+        run: |
+          kubectl get pods -n nexa
+          kubectl get svc -n nexa

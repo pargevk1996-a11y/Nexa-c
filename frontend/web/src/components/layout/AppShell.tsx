@@ -13,6 +13,7 @@ import { OfflineBanner } from "./OfflineBanner";
 import { BRAND_NAME } from "@/config/brand";
 import { useSectionSwipe } from "@/hooks/useSectionSwipe";
 import { useScreenshotPrevention } from "@/hooks/useScreenshotPrevention";
+import { useSettings } from "@/store/SettingsContext";
 
 // Warm the secondary route chunks once the shell is interactive so switching
 // sections never pays a cold network fetch.
@@ -38,6 +39,7 @@ function AppShellInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const isChats = location.pathname.startsWith("/app/chats");
+  const { settings } = useSettings();
 
   useSectionSwipe();
   useScreenshotPrevention();
@@ -94,8 +96,14 @@ function AppShellInner() {
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [navigate]);
 
+  const shellClass = [
+    "app-shell",
+    isChats ? "app-shell--nexa-chats" : "",
+    settings.showNavButtons ? "app-shell--show-nav" : "",
+  ].filter(Boolean).join(" ");
+
   return (
-    <div className={`app-shell${isChats ? " app-shell--nexa-chats" : ""}`}>
+    <div className={shellClass}>
       <GlobalCallUi />
       <AmbientBackground />
       <OfflineBanner />

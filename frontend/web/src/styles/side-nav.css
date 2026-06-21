@@ -121,8 +121,32 @@
    phones it collapses to a full-width bottom bar for non-chat sections (the
    Chats section keeps its own in-panel bottom nav and the rail is hidden). */
 @media (max-width: 768px) {
-/* Hide the unified left rail on Chats — ChatLeftPanel's app-nav handles it. */
+/* Hide the unified left rail on Chats — ChatLeftPanel's app-nav handles it.
+   Exception: when showNavButtons is enabled, show the bottom bar even in Chats. */
 .app-shell--nexa-chats .side-nav { display: none; }
+.app-shell--nexa-chats.app-shell--show-nav .side-nav { display: flex; }
+.app-shell--nexa-chats.app-shell--show-nav .app-shell__frame {
+  flex-direction: column; gap: 0; padding: 0;
+}
+.app-shell--nexa-chats.app-shell--show-nav .side-nav {
+  order: 2; flex-direction: row; align-self: stretch; justify-content: center;
+  gap: 0.25rem; padding: 0.4rem 0.5rem calc(0.4rem + var(--safe-bottom, 0px));
+  border: none; border-top: 1px solid var(--border); border-radius: 0;
+  background: var(--bg-elevated); -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.app-shell--nexa-chats.app-shell--show-nav .side-nav__item {
+  flex: 1 1 0; width: auto; max-width: 140px; gap: 0.2rem; padding: 0.4rem 0.25rem; font-size: 0.7rem;
+}
+.app-shell--nexa-chats.app-shell--show-nav .side-nav__label {
+  position: static; width: auto; height: auto; margin: 0; padding: 0;
+  overflow: visible; clip: auto; font-size: 0.7rem; font-weight: 600;
+}
+.app-shell--nexa-chats.app-shell--show-nav .side-nav__group--main {
+  flex-direction: row; width: auto; flex: 1; justify-content: center;
+}
+.app-shell--nexa-chats.app-shell--show-nav .side-nav__group--bottom {
+  flex-direction: row; width: auto; margin-top: 0; padding-top: 0; border-top: none;
+}
 
 .app-shell:not(.app-shell--nexa-chats) .app-shell__frame {
   flex-direction: column;

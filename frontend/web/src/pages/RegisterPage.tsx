@@ -226,7 +226,7 @@ export function RegisterPage() {
             disabled={loading}
           />
           <PasswordInput
-            label="Signature"
+            label="PIN Code"
             name="signature"
             inputMode="numeric"
             autoComplete="off"
@@ -234,7 +234,7 @@ export function RegisterPage() {
             value={signature}
             onChange={(e) => setSignature(e.target.value.replace(/\D/g, "").slice(0, 6))}
             error={fieldErrors.signature}
-            hint="4–6 digits. Required for sensitive actions (e.g. allowing screenshots)."
+            hint="4–6 digits. Used to unlock the app."
             disabled={loading}
           />
 

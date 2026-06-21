@@ -24,6 +24,11 @@ export function isQrLoginEnabled(): boolean {
   return features.auth.qrLogin;
 }
 
+/** True when running inside the Nexa desktop (Electron) app. */
+export function isDesktopApp(): boolean {
+  return typeof window !== "undefined" && (window as unknown as Record<string, unknown>).__NEXA_DESKTOP__ === true;
+}
+
 /** Standalone verify-email page and footer link — off on web (AUTO_VERIFY_EMAIL in dev). */
 export function isEmailVerificationUiEnabled(): boolean {
   const v = import.meta.env.VITE_EMAIL_VERIFICATION_UI_ENABLED;

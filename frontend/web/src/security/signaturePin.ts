@@ -10,7 +10,7 @@ export function normalizeSignatureInput(raw: string): string {
 export function validateSignatureFormat(pin: string): string | null {
   const p = normalizeSignatureInput(pin);
   if (!/^\d{4,6}$/.test(p)) {
-    return "Signature must be 4–6 digits";
+    return "PIN code must be 4–6 digits";
   }
   return null;
 }

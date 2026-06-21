@@ -30,6 +30,8 @@ export interface AppSettings {
   showOnlineStatus: boolean;
   /** Allow OS / browser screenshots (requires signature to enable) */
   allowScreenshots: boolean;
+  /** Show bottom navigation buttons on mobile */
+  showNavButtons: boolean;
   /** How long photo stories stay on screen before advancing */
   storyPhotoDurationSec: StoryPhotoDurationSec;
 }
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   macMenuBarIcon: true,
   showOnlineStatus: true,
   allowScreenshots: false,
+  showNavButtons: false,
   storyPhotoDurationSec: 15,
 };
 

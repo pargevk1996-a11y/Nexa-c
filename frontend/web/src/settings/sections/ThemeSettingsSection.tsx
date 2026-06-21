@@ -60,6 +60,13 @@ export function ThemeSettingsSection() {
               onChange={(v) => update("enterToSend", v)}
             />
           </SettingRow>
+          <SettingRow title="Navigation buttons" description="Show bottom navigation buttons on mobile.">
+            <Toggle
+              label="Navigation buttons"
+              checked={settings.showNavButtons}
+              onChange={(v) => update("showNavButtons", v)}
+            />
+          </SettingRow>
         </div>
       </section>
 
