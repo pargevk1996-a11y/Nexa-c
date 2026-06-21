@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from typing import Any
 
 from app.core.deps import get_current_user_id, verify_internal_secret
 from app.schemas.chat import (
@@ -507,3 +509,51 @@ async def set_conversation_hidden(
         )
     await chat_store.set_hidden(conversation_id, user_id, body.hidden)
     return {"ok": True, "hidden": body.hidden}
+
+
+# ── E2EE Key Packages ────────────────────────────────────────────────────────
+# Each package is { ephemeral_pub: str, ciphertext: str } — an ECIES-wrapped
+# group AES key. The server stores opaque ciphertext; it cannot derive the key.
+
+class KeyPackageItem(BaseModel):
+    user_id: str
+    package: dict[str, Any]
+
+class KeyPackagesBatch(BaseModel):
+    packages: list[KeyPackageItem]
+
+
+@router.get("/conversations/{conversation_id}/key-package")
+async def get_key_package(
+    conversation_id: str,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    conv = await chat_store.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
+    from app.core.redis import get_redis
+    import json
+    redis = await get_redis()
+    raw = await redis.get(f"kp:{conversation_id}:{user_id}")
+    if not raw:
+        return {"package": None}
+    return {"package": json.loads(raw)}
+
+
+@router.put("/conversations/{conversation_id}/key-packages")
+async def set_key_packages(
+    conversation_id: str,
+    body: KeyPackagesBatch,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    conv = await chat_store.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
+    from app.core.redis import get_redis
+    import json
+    redis = await get_redis()
+    # TTL = 90 days; refreshed whenever the group key rotates
+    ttl = 60 * 60 * 24 * 90
+    for item in body.packages:
+        await redis.set(f"kp:{conversation_id}:{item.user_id}", json.dumps(item.package), ex=ttl)
+    return {"ok": True}

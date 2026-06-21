@@ -128,7 +128,13 @@ export class RealtimeWsClient {
     }
   }
 
-  sendMessage(conversationId: string, body: string, existingClientMsgId?: string, replyToId?: string): string {
+  sendMessage(
+    conversationId: string,
+    body: string,
+    existingClientMsgId?: string,
+    replyToId?: string,
+    e2eeEnvelope?: Record<string, unknown>,
+  ): string {
     const clientMsgId = existingClientMsgId ?? newClientMsgId();
     const pending: PendingOutbound = {
       clientMsgId,
@@ -140,6 +146,7 @@ export class RealtimeWsClient {
     if (this.ws?.readyState === WebSocket.OPEN) {
       const payload: Record<string, unknown> = { conversation_id: conversationId, client_msg_id: clientMsgId, body };
       if (replyToId) payload.reply_to_id = replyToId;
+      if (e2eeEnvelope) payload.e2ee_envelope = e2eeEnvelope;
       this.send({
         type: "event",
         id: clientMsgId,

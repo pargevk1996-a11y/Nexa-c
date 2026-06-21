@@ -312,6 +312,7 @@ class WsHandler:
             client_msg_id = str(frame.payload.get("client_msg_id") or frame.id)
             body = str(frame.payload.get("body", ""))
             reply_to_id = frame.payload.get("reply_to_id") or None
+            e2ee_envelope = frame.payload.get("e2ee_envelope") or None
             if not conv_id or not body:
                 await _send_error(ws, corr_id=frame.id, code="INVALID_PAYLOAD", message="conversation_id and body required")
                 return
@@ -322,6 +323,7 @@ class WsHandler:
                     client_msg_id=client_msg_id,
                     body=body,
                     reply_to_id=reply_to_id,
+                    e2ee_envelope=e2ee_envelope,
                 )
                 await _send_frame(
                     ws,

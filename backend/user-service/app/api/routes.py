@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.deps import get_current_user_id
 from app.schemas.profile import (
@@ -19,6 +19,10 @@ router = APIRouter(prefix="/api/v1", tags=["users"])
 
 class ScreenLockState(BaseModel):
     locked: bool
+
+
+class PublicKeyRequest(BaseModel):
+    ecdh_public_key: str = Field(min_length=10, max_length=256)
 
 
 def _privacy_to_schema(p: ProfilePrivacy) -> ProfilePrivacySettings:
@@ -47,6 +51,7 @@ def _to_profile(p) -> ProfileResponse:
         last_seen_at=p.last_seen_at.isoformat() if p.last_seen_at else None,
         verification_badge=p.verification_badge,
         privacy=_privacy_to_schema(p.privacy),
+        ecdh_public_key=p.ecdh_public_key,
     )
 
 
@@ -65,6 +70,7 @@ def _to_public(p, viewer_id: str) -> PublicProfileResponse:
         is_online=visible.is_online,
         last_seen_at=visible.last_seen_at.isoformat() if visible.last_seen_at else None,
         verification_badge=visible.verification_badge,
+        ecdh_public_key=visible.ecdh_public_key,
     )
 
 
@@ -156,6 +162,20 @@ async def update_me(
             ) from e
         raise
     return _to_profile(updated or p)
+
+
+@router.put("/me/public-key", response_model=ProfileResponse)
+async def set_public_key(
+    body: PublicKeyRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> ProfileResponse:
+    p = await profile_store.update_public_key(user_id, body.ecdh_public_key)
+    if not p:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
+        )
+    return _to_profile(p)
 
 
 @router.get("/me/screen-lock", response_model=ScreenLockState)

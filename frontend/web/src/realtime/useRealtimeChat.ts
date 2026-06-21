@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
+import { getConversationKey, encryptMessage, decryptMessage } from "@/security/e2ee";
+import type { E2eeEnvelope } from "@/security/e2ee";
 import {
   listConversations,
   listMessages,
@@ -68,6 +70,8 @@ export interface UseRealtimeChatOptions {
   readReceiptsEnabled?: boolean;
   appSettings?: AppSettings;
   currentUserId?: string;
+  /** Lookup a conversation by ID — used to resolve E2EE context (peer/members). */
+  getConversation?: (id: string) => Conversation | undefined;
 }
 
 export function useRealtimeChat({
@@ -85,6 +89,7 @@ export function useRealtimeChat({
   readReceiptsEnabled = true,
   appSettings,
   currentUserId,
+  getConversation,
 }: UseRealtimeChatOptions) {
   const wsRef = useRef<RealtimeWsClient | null>(null);
   const pendingRef = useRef<Map<string, string>>(new Map());
@@ -107,27 +112,45 @@ export function useRealtimeChat({
         if (!msg) return;
         setLastSeq(msg.conversation_id, Math.max(getLastSeq(msg.conversation_id), msg.seq));
         seqByMessageId.current.set(msg.id, msg.seq);
-        const ui = apiMessageToUi(msg, session.user.id);
-        onAppendMessage(msg.conversation_id, ui);
-        onConversationActivity?.(msg.conversation_id, {
-          lastMessage: ui.text.slice(0, 80),
-          lastAt: ui.sentAt,
-          unread: msg.conversation_id === activeIdRef.current ? 0 : 1,
-        });
-        if (!ui.outgoing && msg.conversation_id !== activeIdRef.current) {
-          const convName =
-            frame.payload.conversation_title as string | undefined;
-          notifyNewMessage(
-            {
-              title: convName ?? "New message",
-              body: ui.text,
-              conversationId: msg.conversation_id,
-              silent: ui.silent,
-              currentUserId,
-            },
-            appSettings,
-          );
-        }
+        // Async decrypt then render — fire-and-forget with immediate optimistic render.
+        void (async () => {
+          let decryptedMsg = msg;
+          if (msg.e2ee_envelope && typeof msg.e2ee_envelope === "object" && "ciphertext" in msg.e2ee_envelope) {
+            const conv = getConversation?.(msg.conversation_id);
+            if (conv) {
+              const key = await getConversationKey(
+                conv.id,
+                conv.isGroup ? (conv.memberIds ?? []) : (conv.peerUserId ?? ""),
+                Boolean(conv.isGroup),
+                session.user.id,
+              ).catch(() => null);
+              if (key) {
+                const plain = await decryptMessage(msg.e2ee_envelope as unknown as E2eeEnvelope, key);
+                decryptedMsg = { ...msg, body: plain };
+              }
+            }
+          }
+          const ui = apiMessageToUi(decryptedMsg, session.user.id);
+          onAppendMessage(msg.conversation_id, ui);
+          onConversationActivity?.(msg.conversation_id, {
+            lastMessage: ui.text.slice(0, 80),
+            lastAt: ui.sentAt,
+            unread: msg.conversation_id === activeIdRef.current ? 0 : 1,
+          });
+          if (!ui.outgoing && msg.conversation_id !== activeIdRef.current) {
+            const convName = frame.payload.conversation_title as string | undefined;
+            notifyNewMessage(
+              {
+                title: convName ?? "New message",
+                body: ui.text,
+                conversationId: msg.conversation_id,
+                silent: ui.silent,
+                currentUserId,
+              },
+              appSettings,
+            );
+          }
+        })();
         return;
       }
 
@@ -411,53 +434,73 @@ export function useRealtimeChat({
     [onMessageStatus],
   );
 
+  const getConversationRef = useRef(getConversation);
+  useEffect(() => { getConversationRef.current = getConversation; }, [getConversation]);
+
   const sendText = useCallback(
     (conversationId: string, text: string, replyToId?: string): string => {
       const session = getCachedSession();
       const clientMsgId = crypto.randomUUID().replace(/-/g, "");
       pendingRef.current.set(clientMsgId, conversationId);
 
-      const wsOpen = wsRef.current?.isOpen;
-      if (wsOpen) {
-        wsRef.current?.sendMessage(conversationId, text, clientMsgId, replyToId);
-      } else {
-        enqueueOutboundMessage({
-          clientMsgId,
-          conversationId,
-          body: text,
-          attempts: 0,
-          createdAt: Date.now(),
-        });
-      }
-
+      // Optimistic message shown immediately (plaintext locally).
       if (session?.user.id) {
         const optimistic: Message = {
           id: `pending-${clientMsgId}`,
           conversationId,
           kind: "text",
           text,
-          sentAt: new Date().toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-          }),
+          sentAt: new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
           outgoing: true,
           status: "sending",
         };
         onAppendMessage(conversationId, optimistic);
       }
 
-      if (!wsOpen && navigator.onLine) {
-        void sendMessageRest(conversationId, { client_msg_id: clientMsgId, body: text, reply_to_id: replyToId })
-          .then((apiMsg) => {
-            if (!session?.user.id) return;
-            removeOutbound(clientMsgId);
-            onPatchMessage(conversationId, clientMsgId, apiMessageToUi(apiMsg, session.user.id));
-          })
-          .catch(() => {
-            onMessageStatus?.(`pending-${clientMsgId}`, "failed");
-          });
-      }
-      // When WS is open, the ws-gateway handles persistence; no REST call needed.
+      // Encrypt then send (async, fire-and-forget for the encrypt step).
+      void (async () => {
+        const conv = getConversationRef.current?.(conversationId);
+        let body = text;
+        let e2eeEnvelope: Record<string, unknown> | undefined;
+
+        if (conv && session?.user.id) {
+          const key = await getConversationKey(
+            conv.id,
+            conv.isGroup ? (conv.memberIds ?? []) : (conv.peerUserId ?? ""),
+            Boolean(conv.isGroup),
+            session.user.id,
+          ).catch(() => null);
+          if (key) {
+            const envelope = await encryptMessage(text, key);
+            // Ciphertext goes as `body` (server stores it), envelope as metadata.
+            body = envelope.ciphertext;
+            e2eeEnvelope = envelope as unknown as Record<string, unknown>;
+          }
+        }
+
+        const wsOpen = wsRef.current?.isOpen;
+        if (wsOpen) {
+          wsRef.current?.sendMessage(conversationId, body, clientMsgId, replyToId, e2eeEnvelope);
+        } else {
+          enqueueOutboundMessage({ clientMsgId, conversationId, body, attempts: 0, createdAt: Date.now() });
+          if (navigator.onLine) {
+            void sendMessageRest(conversationId, {
+              client_msg_id: clientMsgId,
+              body,
+              reply_to_id: replyToId,
+              ...(e2eeEnvelope ? { e2ee_envelope: e2eeEnvelope } : {}),
+            })
+              .then((apiMsg) => {
+                if (!session?.user.id) return;
+                removeOutbound(clientMsgId);
+                onPatchMessage(conversationId, clientMsgId, apiMessageToUi(apiMsg, session.user.id));
+              })
+              .catch(() => {
+                onMessageStatus?.(`pending-${clientMsgId}`, "failed");
+              });
+          }
+        }
+      })();
 
       return clientMsgId;
     },

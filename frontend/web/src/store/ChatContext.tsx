@@ -564,6 +564,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     readReceiptsEnabled: settings.readReceipts,
     appSettings: settings,
     currentUserId: userId,
+    getConversation: useCallback((id: string) => conversations.find((c) => c.id === id), [conversations]),
   });
 
   // Resolve DM peer display names. DM conversations carry no title, so the API

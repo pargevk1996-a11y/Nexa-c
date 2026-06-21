@@ -24,6 +24,7 @@ class ChatClient:
         body: str,
         content_type: str = "text",
         reply_to_id: str | None = None,
+        e2ee_envelope: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "client_msg_id": client_msg_id,
@@ -32,6 +33,8 @@ class ChatClient:
         }
         if reply_to_id:
             payload["reply_to_id"] = reply_to_id
+        if e2ee_envelope:
+            payload["e2ee_envelope"] = e2ee_envelope
         r = await self._client.post(
             f"/api/v1/conversations/{conversation_id}/messages",
             headers={"Authorization": f"Bearer {access_token}"},

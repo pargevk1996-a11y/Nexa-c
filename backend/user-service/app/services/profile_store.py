@@ -46,6 +46,7 @@ class Profile:
     last_seen_at: datetime | None = None
     verification_badge: VerificationBadge = "none"
     privacy: ProfilePrivacy = field(default_factory=ProfilePrivacy)
+    ecdh_public_key: str | None = None
 
 
 @dataclass
@@ -146,6 +147,13 @@ class ProfileStore:
                 p.privacy = priv
             else:
                 p.privacy = ProfilePrivacy(**priv) if isinstance(priv, dict) else priv
+        return p
+
+    async def update_public_key(self, user_id: str, ecdh_public_key: str) -> Profile | None:
+        p = self._by_id.get(user_id)
+        if not p:
+            return None
+        p.ecdh_public_key = ecdh_public_key
         return p
 
     async def set_presence(self, user_id: str, *, is_online: bool, status_text: str | None = None) -> Profile | None:

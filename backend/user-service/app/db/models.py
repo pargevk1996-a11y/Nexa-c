@@ -33,6 +33,7 @@ class ProfileRow(Base):
     show_status_text: Mapped[bool] = mapped_column(Boolean, default=True)
     show_avatar: Mapped[bool] = mapped_column(Boolean, default=True)
     allow_search_by_username: Mapped[bool] = mapped_column(Boolean, default=True)
+    ecdh_public_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -97,6 +97,7 @@ export async function sendMessageRest(
     thread_root_id?: string;
     media_id?: string;
     reply_to_id?: string;
+    e2ee_envelope?: Record<string, unknown>;
   },
 ): Promise<ApiMessage> {
   return apiFetch<ApiMessage>(`/chat/conversations/${conversationId}/messages`, {
