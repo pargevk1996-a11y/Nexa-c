@@ -1,6 +1,7 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from typing import Any
 
 from app.core.deps import get_current_user_id, verify_internal_secret
 from app.schemas.chat import (
@@ -531,8 +532,9 @@ async def get_key_package(
     conv = await chat_store.get_conversation(conversation_id, user_id)
     if not conv:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
-    from app.core.redis import get_redis
     import json
+
+    from app.core.redis import get_redis
     redis = await get_redis()
     raw = await redis.get(f"kp:{conversation_id}:{user_id}")
     if not raw:
@@ -549,8 +551,9 @@ async def set_key_packages(
     conv = await chat_store.get_conversation(conversation_id, user_id)
     if not conv:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
-    from app.core.redis import get_redis
     import json
+
+    from app.core.redis import get_redis
     redis = await get_redis()
     # TTL = 90 days; refreshed whenever the group key rotates
     ttl = 60 * 60 * 24 * 90
