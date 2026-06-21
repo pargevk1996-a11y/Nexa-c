@@ -149,7 +149,7 @@ export function LandingPage() {
             <aside className="home-modal__aside" aria-hidden="true">
               <p className="home-modal__aside-brand">Nexa</p>
               <ul className="home-modal__aside-features">
-                <li><span>🔐</span><span>End-to-end encryption — coming soon</span></li>
+                <li><span>🔐</span><span>End-to-end encryption</span></li>
                 <li><span>⚡</span><span>Real-time messaging &amp; presence</span></li>
                 <li><span>📹</span><span>Encrypted video &amp; voice calls</span></li>
                 <li><span>🔥</span><span>Ephemeral messages &amp; media</span></li>
