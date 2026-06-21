@@ -3,16 +3,20 @@ import { useEffect } from "react";
 // Secondary screenshot-prevention layer (primary: privacySeal.ts).
 // Users consented at registration to having all capture capabilities disabled.
 
-// Pre-created overlay — appended once on mount, shown via opacity (compositor-only,
-// ~0ms latency). Dynamic createElement on keydown is too slow (~50ms).
 let overlayEl: HTMLDivElement | null = null;
+let clipSvgEl: SVGSVGElement | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const CLIP_ID = "nexa-guard-clip";
+const PATH_ID = "nexa-guard-path";
 
 function ensureOverlay(): HTMLDivElement {
   if (overlayEl && overlayEl.isConnected) return overlayEl;
   overlayEl = document.createElement("div");
   overlayEl.id = "nexa-screenshot-guard";
   overlayEl.setAttribute("aria-hidden", "true");
+  // opacity-based show/hide: compositor-thread only, ~0ms latency.
   overlayEl.style.cssText =
     "position:fixed;inset:0;z-index:2147483647;background:#000;pointer-events:none;" +
     "opacity:0;will-change:opacity;transform:translateZ(0)";
@@ -20,18 +24,76 @@ function ensureOverlay(): HTMLDivElement {
   return overlayEl;
 }
 
+function ensureClipSvg(): SVGPathElement {
+  if (!clipSvgEl || !clipSvgEl.isConnected) {
+    clipSvgEl = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
+    clipSvgEl.setAttribute("style",
+      "position:fixed;width:0;height:0;overflow:hidden;pointer-events:none;z-index:0");
+    clipSvgEl.innerHTML =
+      `<defs><clipPath id="${CLIP_ID}" clipPathUnits="userSpaceOnUse">` +
+      `<path id="${PATH_ID}" clip-rule="evenodd"/></clipPath></defs>`;
+    document.body.appendChild(clipSvgEl);
+  }
+  return document.getElementById(PATH_ID) as unknown as SVGPathElement;
+}
+
+function getActiveInputEl(): HTMLElement | null {
+  const a = document.activeElement;
+  if (!a || !(a instanceof HTMLElement)) return null;
+  if (
+    a instanceof HTMLInputElement ||
+    a instanceof HTMLTextAreaElement ||
+    a.isContentEditable
+  ) return a;
+  return null;
+}
+
+// Full black overlay — used for PrintScreen, blur, visibility events.
 function showOverlay() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-  // Also blacken the root element directly — propagates through CSS cascade
-  // without waiting for compositor flush, covers the ~1 frame GPU lag window.
+  const el = ensureOverlay();
+  el.style.clipPath = "";
+  // Also blacken root directly — covers the ~1 GPU-frame lag window.
   document.documentElement.style.setProperty("background", "#000", "important");
-  ensureOverlay().style.opacity = "1";
+  el.style.opacity = "1";
+}
+
+// Black overlay with a transparent window over the currently focused input.
+// Used when Shift is held so the user can still see what they're typing.
+function showOverlayWithInputHole() {
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  const el = ensureOverlay();
+  const active = getActiveInputEl();
+
+  if (active) {
+    const r = active.getBoundingClientRect();
+    const pad = 6;
+    const x1 = Math.max(0, r.left - pad);
+    const y1 = Math.max(0, r.top - pad);
+    const x2 = Math.min(window.innerWidth, r.right + pad);
+    const y2 = Math.min(window.innerHeight, r.bottom + pad);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // SVG even-odd fill: outer rect + inner rect (both clockwise) → hole at inner rect.
+    const pathEl = ensureClipSvg();
+    pathEl.setAttribute("d",
+      `M0,0 H${w} V${h} H0 Z M${x1},${y1} H${x2} V${y2} H${x1} Z`);
+    el.style.clipPath = `url(#${CLIP_ID})`;
+  } else {
+    el.style.clipPath = "";
+  }
+
+  document.documentElement.style.setProperty("background", "#000", "important");
+  el.style.opacity = "1";
 }
 
 function hideOverlay(delayMs = 0) {
   if (hideTimer) clearTimeout(hideTimer);
   const doHide = () => {
-    if (overlayEl) overlayEl.style.opacity = "0";
+    if (overlayEl) {
+      overlayEl.style.opacity = "0";
+      overlayEl.style.clipPath = "";
+    }
     document.documentElement.style.removeProperty("background");
     hideTimer = null;
   };
@@ -44,7 +106,6 @@ function hideOverlay(delayMs = 0) {
 
 export function useScreenshotPrevention() {
   useEffect(() => {
-    // Pre-create overlay on mount so first showOverlay() is a pure opacity change.
     ensureOverlay();
 
     // ── 1. Keyboard shortcuts ─────────────────────────────────────────────────
@@ -55,7 +116,7 @@ export function useScreenshotPrevention() {
       const shift = e.shiftKey;
       const alt = e.altKey;
 
-      // PrintScreen / Snapshot / F13 — any modifier combo (plain, Shift, Alt, Ctrl)
+      // PrintScreen / Snapshot / F13 — any modifier combo incl. Shift+PrtSc
       if (
         e.code === "PrintScreen" ||
         key === "PrintScreen" ||
@@ -71,11 +132,11 @@ export function useScreenshotPrevention() {
         return;
       }
 
-      // Shift held alone → pre-emptive blackout for Shift+PrintScreen.
-      // On Linux/GNOME, OS eats Shift+PrtSc before keydown fires, but the overlay
-      // is already painted the moment Shift is pressed. Hides on Shift keyup.
+      // Shift held → black screen with hole over active input.
+      // When Shift+PrtSc is pressed, the overlay (with or without hole) is already
+      // on screen before the OS captures, so the screenshot sees only black.
       if ((key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") && !ctrl && !alt) {
-        showOverlay();
+        showOverlayWithInputHole();
         return;
       }
 
@@ -85,7 +146,7 @@ export function useScreenshotPrevention() {
         showOverlay(); hideOverlay(700); return;
       }
 
-      // Win+Shift+S / Meta+Shift+S (Snipping Tool, KDE Spectacle) / Cmd+Shift+S
+      // Win+Shift+S / Meta+Shift+S / Cmd+Shift+S (Snipping Tool, KDE Spectacle)
       if (ctrl && shift && lower === "s") { e.preventDefault(); e.stopImmediatePropagation(); return; }
 
       // Windows Game Bar: Win+G, Win+Alt+R, Win+Alt+G
@@ -119,14 +180,12 @@ export function useScreenshotPrevention() {
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
-      // Shift released → hide pre-emptive overlay (200ms ensures OS capture is done)
+      // Shift released → hide overlay (200ms delay: OS screenshot must be done)
       if (e.key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") {
         hideOverlay(200);
         return;
       }
-      // PrintScreen keyup: Windows Chrome only sees keyup (OS eats keydown).
-      // Screenshot already taken, but we black out immediately so any pending
-      // clipboard/file write captures the black frame.
+      // PrintScreen keyup: Windows Chrome sees only keyup (OS eats keydown).
       if (
         e.code === "PrintScreen" ||
         e.key === "PrintScreen" ||
@@ -141,9 +200,6 @@ export function useScreenshotPrevention() {
     };
 
     // ── 2. Window blur → overlay ──────────────────────────────────────────────
-    // Catches OS screenshot tools that steal focus before capturing:
-    // Win+Shift+S (Snipping Tool), Win+G (Game Bar), macOS Screenshot UI,
-    // GNOME region selector, OBS, Greenshot, Snagit.
     const onBlur = () => showOverlay();
     const onFocus = () => hideOverlay(300);
 
@@ -154,8 +210,8 @@ export function useScreenshotPrevention() {
     };
 
     // ── 4. 3-finger touch → overlay ──────────────────────────────────────────
-    // iOS AssistiveTouch screenshot gesture and Android multi-touch screenshot
-    // tools use 3 simultaneous fingers. Show overlay on any 3+ finger contact.
+    // iOS AssistiveTouch screenshot and Android multi-touch capture tools
+    // register 3+ simultaneous touch points.
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length >= 3) showOverlay();
     };
@@ -173,7 +229,7 @@ export function useScreenshotPrevention() {
       e.stopImmediatePropagation();
     };
 
-    // ── 7. Block getDisplayMedia (screen-share API) ───────────────────────────
+    // ── 7. Block getDisplayMedia ──────────────────────────────────────────────
     const origGetDisplayMedia = navigator.mediaDevices?.getDisplayMedia?.bind(navigator.mediaDevices);
     if (navigator.mediaDevices?.getDisplayMedia) {
       navigator.mediaDevices.getDisplayMedia = () =>
@@ -204,6 +260,7 @@ export function useScreenshotPrevention() {
       document.removeEventListener("copy", onCopy, { capture: true });
       if (hideTimer) clearTimeout(hideTimer);
       if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+      if (clipSvgEl) { clipSvgEl.remove(); clipSvgEl = null; }
       document.documentElement.removeAttribute("data-screenshot-guard");
       if (origGetDisplayMedia && navigator.mediaDevices) {
         navigator.mediaDevices.getDisplayMedia = origGetDisplayMedia;
