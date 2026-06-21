@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { SignaturePinModal } from "@/components/settings/SignaturePinModal";
 import { SettingRow, Toggle } from "@/components/settings/SettingRow";
-import { setScreenshotAllowed } from "@/security/screenshotPolicy";
 import { useSettings } from "@/store/SettingsContext";
 import { useProfile } from "@/store/ProfileContext";
 import { DEFAULT_PROFILE_PRIVACY, type ProfilePrivacy } from "@/types/profile";
@@ -12,17 +10,6 @@ export function PrivacySettingsSection() {
   const { profile, save } = useProfile();
   const [privacy, setPrivacy] = useState<ProfilePrivacy>(DEFAULT_PROFILE_PRIVACY);
   const [message, setMessage] = useState<string | null>(null);
-  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
-
-  // Native wrappers (Tauri desktop / Electron) enforce real OS-level capture
-  // blocking; a plain browser can only run best-effort deterrents. Keep the
-  // description honest per platform — the OS-level guarantee does not exist on web.
-  const isNativeApp =
-    typeof window !== "undefined" &&
-    ("__TAURI__" in window || /electron/i.test(navigator.userAgent));
-  const screenshotDescription = isNativeApp
-    ? "Off by default. This app enforces screen-capture blocking at the OS level. Enter your signature (4–6 digits) to allow screenshots."
-    : "Off by default. In a browser this is a best-effort deterrent — your operating system can still capture the screen. Enter your signature (4–6 digits) to allow screenshots.";
 
   useEffect(() => {
     if (profile?.privacy) setPrivacy(profile.privacy);
@@ -41,37 +28,11 @@ export function PrivacySettingsSection() {
     setPrivacy((p) => ({ ...p, [key]: value }));
   }
 
-  function handleScreenshotsToggle(enabled: boolean) {
-    if (!enabled) {
-      update("allowScreenshots", false);
-      setScreenshotAllowed(false);
-      return;
-    }
-    setSignatureModalOpen(true);
-  }
-
   return (
     <section className="settings-group">
       <h2>Privacy</h2>
       <p className="settings-section__lead">Control who can see your activity and profile details.</p>
-      <SignaturePinModal
-        open={signatureModalOpen}
-        onClose={() => setSignatureModalOpen(false)}
-        onSuccess={() => {
-          update("allowScreenshots", true);
-          setScreenshotAllowed(true);
-          setMessage("Screenshots are now allowed on this device");
-        }}
-        title="Allow screenshots"
-      />
       <div className="settings-card">
-        <SettingRow title="Allow screenshots" description={screenshotDescription}>
-          <Toggle
-            label="Allow screenshots"
-            checked={settings.allowScreenshots}
-            onChange={handleScreenshotsToggle}
-          />
-        </SettingRow>
         <SettingRow title="Read receipts" description="Let others know when you read their messages.">
           <Toggle
             label="Read receipts"

@@ -1,25 +1,27 @@
-import { tryUnsealContent } from "./privacySeal";
-
-/** Runtime screenshot / capture policy (default: blocked). */
-
-let allowScreenshots = false;
+/**
+ * Runtime screenshot / capture policy.
+ *
+ * Users consent during registration to having all screenshot capabilities
+ * disabled. This policy is permanently blocked — setScreenshotAllowed(true)
+ * is a no-op; no UI path can lift protection after consent is given.
+ */
 
 export function isScreenshotAllowed(): boolean {
-  return allowScreenshots;
+  return false;
 }
 
-export function setScreenshotAllowed(allowed: boolean): void {
-  allowScreenshots = allowed;
-  applyScreenCaptureMeta(allowed);
-  if (allowed) tryUnsealContent();
+// No-op: consent is irrevocable.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function setScreenshotAllowed(_allowed: boolean): void {
+  applyScreenCaptureMeta();
 }
 
-function applyScreenCaptureMeta(allowed: boolean): void {
+function applyScreenCaptureMeta(): void {
   let meta = document.querySelector<HTMLMetaElement>('meta[http-equiv="ScreenCapture"]');
   if (!meta) {
     meta = document.createElement("meta");
     meta.httpEquiv = "ScreenCapture";
     document.head.appendChild(meta);
   }
-  meta.content = allowed ? "allow" : "deny";
+  meta.content = "deny";
 }
