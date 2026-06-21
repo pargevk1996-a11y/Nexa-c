@@ -161,9 +161,7 @@ export function RegisterPage() {
               including intercepting screenshot keyboard shortcuts in the browser and enabling
               OS-level screen-capture restrictions in native apps, to protect private communications.
             </span>
-            {consentGiven && (
-              <span className="consent-block__accepted-hint">Agreed</span>
-            )}
+            <span className="consent-block__accepted-hint" aria-hidden={!consentGiven}>Agreed</span>
           </label>
           {consentError && (
             <p className="consent-block__error" role="alert">
