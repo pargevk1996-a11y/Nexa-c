@@ -581,16 +581,13 @@ html:has(.auth-layout) body {
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-elevated, #1a1d24));
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  /* all animatable props listed — enables smooth two-way transition */
   transition:
-    padding     0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    border-radius 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    background  0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding       0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    background    0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color  0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-bottom 0.42s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-/* Accepted: collapses to a pill — NO display change so transition works both ways */
 .consent-block--accepted {
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
@@ -598,43 +595,45 @@ html:has(.auth-layout) body {
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   margin-bottom: 0.8rem;
 }
-.consent-block--accepted .consent-block__label {
-  gap: 0.45rem;
-  align-items: center;
-}
 
 .consent-block__label {
   display: flex;
   gap: 0.65rem;
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
-  transition: gap 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-              align-items 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .consent-block__checkbox {
   flex-shrink: 0;
-  margin-top: 0.15rem;
   width: 18px;
   height: 18px;
   accent-color: var(--accent, #4f8cff);
   cursor: pointer;
 }
 
-/* Text: always uses max-height so it animates smoothly open AND closed */
+/*
+ * Grid trick — the only reliable way to animate real content height in both
+ * directions without knowing the actual pixel value.
+ * grid-template-rows: 1fr → 0fr collapses the inner span smoothly.
+ * The inner span must have overflow:hidden to clip during the animation.
+ */
+.consent-block__text-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.consent-block--accepted .consent-block__text-wrap {
+  grid-template-rows: 0fr;
+}
 .consent-block__text {
+  overflow: hidden;
   font-size: 0.82rem;
   line-height: 1.5;
   color: var(--text-muted);
-  overflow: hidden;
-  max-height: 300px;
   opacity: 1;
-  transition:
-    max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity    0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .consent-block--accepted .consent-block__text {
-  max-height: 0;
   opacity: 0;
   pointer-events: none;
 }
@@ -643,27 +642,7 @@ html:has(.auth-layout) body {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.consent-block__text a:hover {
-  opacity: 0.85;
-}
-
-/* "Agreed" hint: always in DOM, animates via max-height + opacity both ways */
-.consent-block__accepted-hint {
-  font-size: 0.78rem;
-  color: var(--accent);
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition:
-    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity    0.3s  cubic-bezier(0.4, 0, 0.2, 1);
-}
-.consent-block--accepted .consent-block__accepted-hint {
-  max-height: 2rem;
-  opacity: 1;
-}
+.consent-block__text a:hover { opacity: 0.85; }
 
 .consent-block--error {
   border-color: var(--error, #f43f5e);
@@ -677,7 +656,6 @@ html:has(.auth-layout) body {
   60%       { transform: translateX(-3px); }
   80%       { transform: translateX(3px); }
 }
-
 .consent-block__error {
   margin: 0.5rem 0 0;
   padding: 0;

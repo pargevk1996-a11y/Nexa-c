@@ -152,16 +152,17 @@ export function RegisterPage() {
                 if (e.target.checked) setConsentError(false);
               }}
             />
-            <span className="consent-block__text">
-              I have read and agree to {BRAND_NAME}'s{" "}
-              <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>
-              {" "}and{" "}
-              <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.
-              {" "}I consent to {BRAND_NAME} activating screenshot and screen-recording protection on my device,
-              including intercepting screenshot keyboard shortcuts in the browser and enabling
-              OS-level screen-capture restrictions in native apps, to protect private communications.
-            </span>
-            <span className="consent-block__accepted-hint" aria-hidden={!consentGiven}>Agreed</span>
+            <div className="consent-block__text-wrap">
+              <span className="consent-block__text">
+                I have read and agree to {BRAND_NAME}'s{" "}
+                <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>
+                {" "}and{" "}
+                <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>.
+                {" "}I consent to {BRAND_NAME} activating screenshot and screen-recording protection on my device,
+                including intercepting screenshot keyboard shortcuts in the browser and enabling
+                OS-level screen-capture restrictions in native apps, to protect private communications.
+              </span>
+            </div>
           </label>
           {consentError && (
             <p className="consent-block__error" role="alert">
