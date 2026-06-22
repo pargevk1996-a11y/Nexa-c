@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   macMenuBarIcon: true,
   showOnlineStatus: true,
   allowScreenshots: false,
-  showNavButtons: false,
+  showNavButtons: true,
   storyPhotoDurationSec: 15,
 };
 
