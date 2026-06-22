@@ -20,12 +20,12 @@ const ORDER = [
 const SWIPE_MIN_X = 70; // px horizontal distance to count as a swipe
 const HORIZONTAL_RATIO = 1.6; // |dx| must dominate |dy| by this factor
 
-export function useSectionSwipe(): void {
+export function useSectionSwipe(enabled = true): void {
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
 
     let startX = 0;
     let startY = 0;

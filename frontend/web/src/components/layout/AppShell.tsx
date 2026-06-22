@@ -41,7 +41,7 @@ function AppShellInner() {
   const isChats = location.pathname.startsWith("/app/chats");
   const { settings } = useSettings();
 
-  useSectionSwipe();
+  useSectionSwipe(!settings.showNavButtons);
   useScreenshotPrevention();
 
   useEffect(() => {
