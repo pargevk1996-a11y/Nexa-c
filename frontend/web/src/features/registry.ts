@@ -9,11 +9,10 @@ export const features = {
     logout: true,
     refresh: true,
     sessions: true,
-    qrLogin: false,
+    qrLogin: true,
     emailVerification: false,
-    oauth: false,
-    /** Web: password / 2FA — QR and verify-email UI off; biometrics for native apps */
-    webauthn: false,
+    oauth: true,
+    webauthn: true,
   },
   profile: {
     username: true,
@@ -46,7 +45,7 @@ export const features = {
     linkPreview: true,
     mentions: true,
     hashtags: true,
-    scheduled: false,
+    scheduled: true,
     silent: true,
     spoilers: true,
     quizzes: false,

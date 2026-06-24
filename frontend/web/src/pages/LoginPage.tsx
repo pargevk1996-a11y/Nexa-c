@@ -26,7 +26,7 @@ export function LoginPage() {
         onSuccess={() => navigate("/app/chats", { replace: true })}
         onError={(msg) => setError(msg || null)}
       />
-      {isWebAuthnEnabled() ? (
+      {isWebAuthnEnabled() && (
         <>
           <p className="auth-divider" role="separator">
             <span>or</span>
@@ -36,10 +36,6 @@ export function LoginPage() {
             onError={(msg) => setError(msg)}
           />
         </>
-      ) : (
-        <p className="auth-divider" role="separator" style={{ opacity: 0.45, pointerEvents: "none" }}>
-          <span>Use passkey — coming soon</span>
-        </p>
       )}
       <p className="auth-footer auth-footer--row">
         <Link to="/forgot-password">Forgot password</Link>

@@ -650,6 +650,22 @@ export function MessageComposer({
                       <IconPaperclip size={20} />
                     </FileAttachButton>
                   ) : null}
+                  {!isSecret && features.chat.scheduled && onScheduleRequest ? (
+                    <button
+                      type="button"
+                      className="icon-btn icon-btn--ghost"
+                      disabled={disabled || isEditing}
+                      aria-label="Schedule message"
+                      title="Schedule message"
+                      onClick={() => {
+                        const t = text.trim();
+                        onScheduleRequest(t);
+                        setText("");
+                      }}
+                    >
+                      <IconTimer size={20} />
+                    </button>
+                  ) : null}
                   <button
                     ref={emojiBtnRef}
                     type="button"

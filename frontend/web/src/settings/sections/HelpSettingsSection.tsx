@@ -46,22 +46,20 @@ export function HelpSettingsSection() {
             <span>Contact support</span>
             <span className="settings-nav-link__chevron">›</span>
           </a>
-          <button
-            type="button"
+          <a
+            href="mailto:support@nexa-c.com?subject=Bug%20report"
             className="settings-nav-link"
-            onClick={() => alert("Bug report — coming soon")}
           >
             <span>Report a bug</span>
             <span className="settings-nav-link__chevron">›</span>
-          </button>
-          <button
-            type="button"
+          </a>
+          <a
+            href="mailto:support@nexa-c.com?subject=Feature%20request"
             className="settings-nav-link"
-            onClick={() => alert("Feature request — coming soon")}
           >
             <span>Suggest a feature</span>
             <span className="settings-nav-link__chevron">›</span>
-          </button>
+          </a>
         </div>
       </div>
 
