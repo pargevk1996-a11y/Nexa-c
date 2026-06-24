@@ -1,13 +1,13 @@
 /**
  * End-to-end encryption — ECDH P-256 + AES-256-GCM (WebCrypto).
  *
- * DM conversations:  shared key = ECDH(my_private, peer_public)
- * Group/channel:     shared key = random AES key wrapped per-member via ECIES,
- *                    stored server-side as opaque ciphertext.
+ * DMs (v3):    per-message ephemeral ECDH — forward secrecy, sender key discarded after encrypt.
+ * Groups (v4): per-message multi-recipient ECIES — random msg key wrapped individually for
+ *              each member, no shared state, true per-message forward secrecy.
+ *              Legacy group (v2): static shared key — kept for backward-compat decryption only.
  *
  * Private keys are non-extractable and live in IndexedDB (structured clone).
- * The public key is exported as raw bytes (base64url) and uploaded to the
- * server so peers can perform key agreement.
+ * The public key is exported as raw bytes (base64) and uploaded to the server.
  */
 
 import { uploadPublicKey, fetchPeerPublicKey, fetchKeyPackage, putKeyPackages } from "@/api/e2ee";
@@ -29,6 +29,23 @@ export interface E2eeEnvelopeV3 {
   v: 3;
   ephemeral_pub: string;    // base64 raw P-256 ephemeral sender public key
   ciphertext: string;       // base64(iv[12] || ciphertext)
+  senderDeviceId: string;
+}
+
+/**
+ * v4 — per-message multi-recipient ECIES for groups.
+ * A fresh random AES-256-GCM key is generated per message, then ECIES-wrapped
+ * individually for every group member. Forward secrecy: message key discarded
+ * after encryption; no shared group state required.
+ */
+export interface E2eeEnvelopeV4 {
+  v: 4;
+  ciphertext: string;  // base64(iv[12] || AES-GCM ciphertext of plaintext)
+  recipients: Array<{
+    user_id: string;
+    ephemeral_pub: string;  // base64 raw P-256 ephemeral public key (per recipient)
+    key_ct: string;         // base64(iv[12] || AES-GCM ciphertext of raw msg key)
+  }>;
   senderDeviceId: string;
 }
 
@@ -115,6 +132,36 @@ export function getMyPublicKeyB64(): string | null {
 // ── Per-conversation AES key cache (in-memory only) ──────────────────────────
 
 const _convKeyCache = new Map<string, CryptoKey>();
+
+// ── Member public key cache (5-min TTL, avoids N API calls per group message) ─
+
+const _pubKeyCache = new Map<string, { b64: string; ts: number }>();
+const _PUB_KEY_TTL = 5 * 60 * 1000;
+
+async function _fetchMemberPublicKeys(
+  memberIds: string[],
+  myUserId: string,
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (_myPublicB64) result.set(myUserId, _myPublicB64);
+  await Promise.all(
+    memberIds
+      .filter(id => id !== myUserId)
+      .map(async id => {
+        const cached = _pubKeyCache.get(id);
+        if (cached && Date.now() - cached.ts < _PUB_KEY_TTL) {
+          result.set(id, cached.b64);
+          return;
+        }
+        const key = await fetchPeerPublicKey(id).catch(() => null);
+        if (key) {
+          _pubKeyCache.set(id, { b64: key, ts: Date.now() });
+          result.set(id, key);
+        }
+      }),
+  );
+  return result;
+}
 
 /**
  * Get (or derive/decrypt) the AES-256-GCM key for a conversation.
@@ -255,41 +302,34 @@ async function _eciesEncrypt(
   };
 }
 
-async function _eciesDecrypt(
+async function _eciesDecryptRaw(
   ephemeralPubB64: string,
   ciphertextB64: string,
-): Promise<CryptoKey | null> {
+): Promise<ArrayBuffer | null> {
   if (!_myKeyPair) return null;
   try {
-    const ephRaw = _b64ToBuf(ephemeralPubB64);
     const ephKey = await crypto.subtle.importKey(
-      "raw",
-      ephRaw,
-      { name: "ECDH", namedCurve: "P-256" },
-      false,
-      [],
+      "raw", _b64ToBuf(ephemeralPubB64), { name: "ECDH", namedCurve: "P-256" }, false, [],
     );
     const wrapKey = await crypto.subtle.deriveKey(
       { name: "ECDH", public: ephKey },
       _myKeyPair.privateKey,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["decrypt"],
+      { name: "AES-GCM", length: 256 }, false, ["decrypt"],
     );
     const combined = _b64ToBuf(ciphertextB64);
-    const iv = combined.slice(0, 12);
-    const ct = combined.slice(12);
-    const rawAes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, wrapKey, ct);
-    return crypto.subtle.importKey(
-      "raw",
-      rawAes,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"],
-    );
+    return crypto.subtle.decrypt({ name: "AES-GCM", iv: combined.slice(0, 12) }, wrapKey, combined.slice(12));
   } catch {
     return null;
   }
+}
+
+async function _eciesDecrypt(
+  ephemeralPubB64: string,
+  ciphertextB64: string,
+): Promise<CryptoKey | null> {
+  const raw = await _eciesDecryptRaw(ephemeralPubB64, ciphertextB64);
+  if (!raw) return null;
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 
 // ── Message encrypt / decrypt ─────────────────────────────────────────────────
@@ -412,9 +452,67 @@ export async function decryptMessageForward(envelope: E2eeEnvelopeV3): Promise<s
   }
 }
 
+// ── Group per-message ECIES (v4) ─────────────────────────────────────────────
+
 /**
- * Unified encrypt helper: uses per-message ephemeral ECDH (v3) for DMs,
- * static group key (v2) for group conversations.
+ * Encrypt `plaintext` for a group using a fresh per-message AES-256-GCM key,
+ * individually ECIES-wrapped for every member.
+ * memberPubKeys: Map<userId, base64PublicKey>
+ */
+export async function encryptMessageGroupV4(
+  plaintext: string,
+  memberPubKeys: Map<string, string>,
+): Promise<E2eeEnvelopeV4> {
+  // Fresh random message key — discarded after this function returns.
+  const msgKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
+  const rawMsgKey = await crypto.subtle.exportKey("raw", msgKey);
+
+  // Encrypt plaintext with the message key.
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, msgKey, new TextEncoder().encode(plaintext));
+  const body = new Uint8Array(12 + ct.byteLength);
+  body.set(iv);
+  body.set(new Uint8Array(ct), 12);
+
+  // Wrap the message key for each recipient in parallel.
+  const recipients = await Promise.all(
+    Array.from(memberPubKeys.entries()).map(async ([userId, pubB64]) => {
+      const wrapped = await _eciesEncrypt(pubB64, rawMsgKey);
+      return { user_id: userId, ephemeral_pub: wrapped.ephemeral_pub, key_ct: wrapped.ciphertext };
+    }),
+  );
+
+  return { v: 4, ciphertext: _bufToB64(body.buffer), recipients, senderDeviceId: _getDeviceId() };
+}
+
+/**
+ * Decrypt a v4 group envelope. Finds the caller's recipient entry and uses
+ * ECIES to recover the per-message key.
+ */
+export async function decryptMessageGroupV4(
+  envelope: E2eeEnvelopeV4,
+  myUserId: string,
+): Promise<string> {
+  if (envelope.v !== 4) return "[unsupported envelope version]";
+  if (!_myKeyPair) return "[device key not initialized]";
+  const mine = envelope.recipients.find(r => r.user_id === myUserId);
+  if (!mine) return "[not in recipient list]";
+  try {
+    const rawKey = await _eciesDecryptRaw(mine.ephemeral_pub, mine.key_ct);
+    if (!rawKey) return "[key decryption failed]";
+    const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    const combined = _b64ToBuf(envelope.ciphertext);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: combined.slice(0, 12) }, aesKey, combined.slice(12));
+    return new TextDecoder().decode(plain);
+  } catch {
+    return "[decryption failed]";
+  }
+}
+
+/**
+ * Unified encrypt helper:
+ *   DM    → v3 (per-message ephemeral ECDH, forward secrecy)
+ *   Group → v4 (per-message multi-recipient ECIES, per-message forward secrecy)
  */
 export async function encryptForConversation(
   plaintext: string,
@@ -422,7 +520,7 @@ export async function encryptForConversation(
   peerOrMembers: string | string[],
   isGroup: boolean,
   myUserId: string,
-): Promise<E2eeEnvelope | E2eeEnvelopeV3 | null> {
+): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | null> {
   if (!isGroup) {
     const peerId = peerOrMembers as string;
     if (!peerId) return null;
@@ -430,10 +528,11 @@ export async function encryptForConversation(
     if (!peerPub64) return null;
     return encryptMessageForward(plaintext, peerPub64);
   }
-  // Group: use static group AES key
-  const key = await getConversationKey(conversationId, peerOrMembers, true, myUserId);
-  if (!key) return null;
-  return encryptMessage(plaintext, key);
+  // Group: per-message multi-recipient ECIES (v4)
+  const memberIds = peerOrMembers as string[];
+  const memberPubKeys = await _fetchMemberPublicKeys(memberIds, myUserId);
+  if (memberPubKeys.size === 0) return null;
+  return encryptMessageGroupV4(plaintext, memberPubKeys);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

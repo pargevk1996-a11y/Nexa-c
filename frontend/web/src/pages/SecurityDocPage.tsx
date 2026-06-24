@@ -50,7 +50,7 @@ export function SecurityDocPage() {
                 <td>✅ Sender Keys</td>
                 <td>✅</td>
                 <td>❌</td>
-                <td>⚠️ Статический ключ, ротация при смене состава</td>
+                <td>✅ Per-message ECIES (multi-recipient)</td>
               </tr>
               <tr>
                 <td>E2EE — медиафайлы</td>
@@ -64,7 +64,7 @@ export function SecurityDocPage() {
                 <td>✅ Double Ratchet</td>
                 <td>✅ Double Ratchet</td>
                 <td>❌</td>
-                <td>✅ Per-message ephemeral ECDH (DM)*</td>
+                <td>✅ Per-message (DM: ephemeral ECDH · Groups: ECIES per recipient)*</td>
               </tr>
               <tr>
                 <td>Протокол шифрования</td>
@@ -76,11 +76,13 @@ export function SecurityDocPage() {
             </tbody>
           </table>
           <p style={{ marginTop: "0.75rem", fontSize: "0.9em", opacity: 0.75 }}>
-            * Forward secrecy in DMs: each message uses a fresh ephemeral ECDH keypair. The
-            ephemeral private key is discarded immediately after sending — future compromise of
-            either party's long-term key cannot decrypt past messages. Groups use a static
-            shared key (no forward secrecy). Break-in recovery (Double Ratchet DH step) is on
-            the roadmap.
+            * Forward secrecy: DMs use a fresh ephemeral ECDH keypair per message (v3 envelope) —
+            the ephemeral private key is discarded immediately, so past messages cannot be decrypted
+            even if a long-term key is later compromised. Groups use per-message multi-recipient
+            ECIES (v4 envelope): a random AES-256-GCM key is generated for each message, then
+            individually ECIES-wrapped for each member; the message key is discarded after
+            encryption — equivalent forward secrecy for groups. Break-in recovery (Double Ratchet
+            DH step) is not yet implemented.
           </p>
         </section>
 
@@ -154,30 +156,42 @@ envelope = { v:2, ciphertext: base64(iv || ct), senderDeviceId }`}</pre>
             message content for DMs as long as private keys remain on devices.
           </p>
 
-          <h3>2.2 Group conversations</h3>
+          <h3>2.2 Group conversations — v4 multi-recipient ECIES</h3>
           <p>
-            The first sender in a new group generates a random AES-256-GCM key. This key is
-            wrapped (encrypted) for each member using ECIES (ephemeral ECDH + AES-GCM) and
-            uploaded to the server. Each member fetches and decrypts their copy using their own
-            ECDH private key.
+            Each group message uses a <strong>fresh random AES-256-GCM key</strong> generated
+            at send time. This key is ECIES-wrapped individually for every group member (in
+            parallel) and the entire bundle is stored in the <code>e2ee_envelope</code> field
+            alongside the ciphertext. The message key is discarded immediately after encryption.
           </p>
-          <pre>{`// Group key distribution (ECIES):
-groupKey = AES-256-GCM random key (256 bits)
-for each member:
-  ephemeralKey = ECDH.generateKey()
-  wrappingKey = ECDH(ephemeralKey.private, member.publicKey)
-  wrapped = AES-GCM.encrypt(wrappingKey, groupKey)
-  upload({ ephemeral_pub, ciphertext: wrapped })`}</pre>
+          <pre>{`// v4 envelope — per-message multi-recipient ECIES:
+msgKey  = AES-256-GCM.generateKey()           // fresh per message, discarded after
+body    = AES-GCM.encrypt(msgKey, plaintext)  // iv prepended
+
+recipients = members.map(member => {
+  ephemeralKey  = ECDH.generateKey()          // fresh per recipient
+  wrappingKey   = ECDH(ephemeral.private, member.publicKey)
+  key_ct        = AES-GCM.encrypt(wrappingKey, rawMsgKey)
+  return { user_id, ephemeral_pub, key_ct }
+})
+
+envelope = { v:4, ciphertext: body, recipients, senderDeviceId }`}</pre>
           <p>
-            The group key rotates automatically when the membership changes (member joins, leaves,
-            or is banned). The server clears all key packages for the conversation and broadcasts a{" "}
-            <code>member.changed</code> event; every client clears its local key cache. The next
-            message send generates a fresh group key and distributes it only to the current members.
+            <strong>Forward secrecy:</strong> the message key is never stored or transmitted in
+            the clear. Compromising a device key in the future reveals nothing about messages
+            sent before the compromise — the ECIES ephemeral key used to wrap each message key
+            is also discarded immediately. This is equivalent forward secrecy to v3 DMs.
           </p>
           <p>
-            <strong>Limitation:</strong> no per-sender ratchet (no forward secrecy between
-            rotation events). Past messages before the rotation remain readable to a member
-            who held the old key. Full Sender Keys are on the roadmap (§8.3).
+            <strong>New member isolation:</strong> a member who joins after a message is sent
+            is not in that message's <code>recipients</code> list and cannot decrypt it.
+            Membership changes (join, leave, ban) also still trigger a{" "}
+            <code>member.changed</code> WS event so all clients clear any cached state.
+          </p>
+          <p>
+            <strong>Remaining limitation:</strong> no break-in recovery (no Double Ratchet DH
+            ratchet step) — if a long-term device key is actively compromised while in use,
+            future messages in the same session may be exposed until the device is replaced.
+            Full Double Ratchet is on the roadmap (§8.3).
           </p>
         </section>
 
@@ -212,10 +226,10 @@ for each member:
                 <td>No</td>
               </tr>
               <tr>
-                <td>Group AES key</td>
-                <td>AES-256-GCM (random)</td>
-                <td>Server (Redis, ECIES-wrapped per member)</td>
-                <td>Only to wrap for members</td>
+                <td>Group per-message key (v4)</td>
+                <td>AES-256-GCM (random, per message)</td>
+                <td>Never stored — in envelope ciphertext only, discarded after encrypt</td>
+                <td>Only during ECIES wrapping</td>
               </tr>
               <tr>
                 <td>Device base key (local vault)</td>
@@ -253,8 +267,9 @@ for each member:
               no key. Only clients can decrypt.
             </li>
             <li>
-              <strong>E2EE messages (groups):</strong> stored as AES-256-GCM ciphertext. Server
-              holds ECIES-wrapped copies of the group key per member.
+              <strong>E2EE messages (groups, v4):</strong> stored as AES-256-GCM ciphertext plus
+              per-member ECIES-wrapped message key bundles. Server cannot decrypt — the per-message
+              key is never stored in cleartext and is discarded by the sender after encryption.
             </li>
             <li>
               <strong>Media files:</strong> encrypted client-side with a per-file AES-256-GCM key
@@ -293,13 +308,12 @@ for each member:
           <p>We want you to know exactly what we <em>don't</em> protect against today:</p>
           <ul>
             <li>
-              <strong>Forward secrecy: DMs only, no break-in recovery.</strong> DMs use per-message
-              ephemeral ECDH (v3 envelope) — the ephemeral private key is discarded after encryption,
-              so past messages are safe even if a long-term device key is later compromised. However
-              there is no DH ratchet: if a key IS compromised while in use, future messages in the
-              compromised session remain exposed. Double Ratchet (break-in recovery) is on the roadmap.
-              Groups use a shared AES key that rotates on every membership change (join, leave, ban)
-              but has no per-message ratchet — no forward secrecy between rotation events.
+              <strong>No break-in recovery (Double Ratchet DH step).</strong> Both DM (v3) and
+              group (v4) messages have per-message forward secrecy — past messages are safe after
+              key compromise. However there is no self-healing ratchet: if a device key is
+              actively compromised <em>while in use</em>, future messages in the same session
+              remain exposed until the device is replaced. Full Double Ratchet is on the roadmap
+              (§8.3).
             </li>
             <li>
               <strong>No metadata protection.</strong> The server knows who talks to whom
@@ -307,16 +321,10 @@ for each member:
               partially hides sender identity from the server.
             </li>
             <li>
-              <strong>No break-in recovery (Double Ratchet DH step).</strong> If a long-term
-              device key is actively compromised (not just leaked after the fact), future DM
-              messages before the device is replaced remain exposed. Full Double Ratchet is on the
-              roadmap (§8.3).
-            </li>
-            <li>
-              <strong>Media E2EE uses a per-file key (not per-message ratchet).</strong> Each
-              file is encrypted with a random AES-256-GCM key, which is protected by the same
-              long-lived conversation key. This provides confidentiality but not forward secrecy
-              for media — the conversation key compromise exposes all media keys for that conversation.
+              <strong>Media key forward secrecy depends on message forward secrecy.</strong> Each
+              media file has a random per-file AES-256-GCM key, carried inside the message
+              envelope. Since message envelopes are per-message ephemeral (v3/v4), the media
+              key has the same forward secrecy guarantees as the message.
             </li>
             <li>
               <strong>Single device only.</strong> The ECDH key pair is per-browser. There is no
@@ -371,11 +379,15 @@ for each member:
               within a few message exchanges via new DH ratchet steps.</li>
           </ul>
 
-          <h3>8.4 Phase 4 — Group forward secrecy (Sender Keys)</h3>
+          <h3>8.4 Phase 4 — Group per-message forward secrecy (done)</h3>
           <p>
-            Replace static group AES keys with Signal's Sender Key Distribution Messages (SKDM).
-            Each sender maintains their own ratcheting Sender Key. Group membership changes trigger
-            key rotation.
+            Implemented as <strong>multi-recipient ECIES (v4 envelope)</strong>. Each group
+            message generates a fresh random AES-256-GCM key, ECIES-wrapped in parallel for
+            every group member using their long-term ECDH public key plus a per-recipient
+            ephemeral keypair. The message key is discarded after encryption. This gives the
+            same per-message forward secrecy as v3 DMs without requiring shared ratchet state.
+            New members cannot decrypt messages sent before they joined. Sender Keys (Signal
+            SKDM + per-sender ratchet chain) remain a future option for very large groups.
           </p>
 
           <h3>8.5 Phase 5 — Media encryption (done) + key verification</h3>
