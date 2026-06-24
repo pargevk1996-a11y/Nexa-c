@@ -1,6 +1,6 @@
 # NEXA — Terms of Service
 
-**Effective date:** 2026-06-24 · **Version:** 1.3
+**Effective date:** 2026-06-24 · **Version:** 1.4
 
 > ⚠️ **LEGAL REVIEW REQUIRED before publishing.** Fields in `[[double brackets]]` MUST be
 > filled with real legal information by the operator. This draft reflects the current technical
@@ -157,10 +157,10 @@ We are committed to transparency about our security capabilities and limitations
 |---------|--------|
 | TLS 1.3 (in transit) | ✅ Enabled, HSTS preload |
 | AES-GCM field encryption (at rest) | ✅ Enabled |
-| E2EE — DMs | ✅ Active — per-message ephemeral ECDH P-256 + AES-256-GCM (forward secrecy) |
-| E2EE — groups | ✅ Active — AES-256-GCM, key rotates on every membership change |
+| E2EE — DMs | ✅ Active — per-message ephemeral ECDH P-256 + AES-256-GCM (v3 envelope, forward secrecy) |
+| E2EE — groups | ✅ Active — per-message multi-recipient ECIES (v4 envelope, per-message forward secrecy) |
 | E2EE — media files | ✅ Active — per-file AES-256-GCM, key in encrypted message envelope |
-| Forward secrecy | ✅ DMs: per-message ephemeral ECDH · Groups: rotation on membership change · Break-in recovery (Double Ratchet) planned |
+| Forward secrecy | ✅ DMs + Groups: per-message; break-in recovery (Double Ratchet) planned |
 | Screenshot blocking — native (Android, Tauri) | ✅ OS-level via FLAG\_SECURE / content protection |
 | Screenshot blocking — web | 🔶 Best-effort deterrent (OS-level capture cannot be blocked by web apps) |
 | TOTP 2FA | ✅ Available in Settings |
