@@ -4,6 +4,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { IconPause, IconPlay } from "@/components/icons/Icons";
 import { getCachedPreviewUrl, getCachedSignedUrl, cachePreviewUrl, cacheSignedUrl } from "@/media/mediaCache";
 import { formatVoiceDuration } from "@/voice/audioUtils";
+import { fetchAndDecryptMedia } from "@/security/mediaEncryption";
 import type { Message } from "@/types";
 
 interface VideoMessageProps {
@@ -25,28 +26,42 @@ export function VideoMessage({ message }: VideoMessageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const resolveStream = useCallback(async (): Promise<string | null> => {
-    if (streamUrl) return streamUrl;
-    if (message.mediaId) {
+    // Local blob (sender before page reload) — already decrypted, use directly.
+    if (streamUrl && !streamUrl.startsWith("http")) return streamUrl;
+
+    let signedUrl = streamUrl;
+    if (message.mediaId && !signedUrl) {
       const cached = getCachedSignedUrl(message.mediaId);
       if (cached) {
-        setStreamUrl(cached);
-        return cached;
-      }
-      try {
-        const urls = await getMediaUrls(message.mediaId);
-        cacheSignedUrl(message.mediaId, urls.stream_url, urls.expires_in);
-        if (urls.preview_url) {
-          cachePreviewUrl(message.mediaId, urls.preview_url, urls.expires_in);
-          setPosterUrl(urls.preview_url);
+        signedUrl = cached;
+      } else {
+        try {
+          const urls = await getMediaUrls(message.mediaId);
+          cacheSignedUrl(message.mediaId, urls.stream_url, urls.expires_in);
+          if (urls.preview_url && !message.mediaKey) {
+            cachePreviewUrl(message.mediaId, urls.preview_url, urls.expires_in);
+            setPosterUrl(urls.preview_url);
+          }
+          signedUrl = urls.stream_url;
+        } catch {
+          return message.fileUrl ?? null;
         }
-        setStreamUrl(urls.stream_url);
-        return urls.stream_url;
-      } catch {
-        return null;
       }
     }
-    return message.fileUrl ?? null;
-  }, [message.fileUrl, message.mediaId, streamUrl]);
+    if (!signedUrl) return message.fileUrl ?? null;
+
+    if (message.mediaKey) {
+      try {
+        const blobUrl = await fetchAndDecryptMedia(signedUrl, message.mediaKey, message.fileMimeType ?? "video/mp4");
+        setStreamUrl(blobUrl);
+        return blobUrl;
+      } catch {
+        /* fall through to encrypted URL */
+      }
+    }
+    setStreamUrl(signedUrl);
+    return signedUrl;
+  }, [message.fileUrl, message.mediaId, message.mediaKey, message.fileMimeType, streamUrl]);
 
   useEffect(() => {
     if (message.previewUrl) setPosterUrl(message.previewUrl);

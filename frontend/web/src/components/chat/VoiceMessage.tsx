@@ -4,6 +4,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { IconPause, IconPlay } from "@/components/icons/Icons";
 import { cacheSignedUrl, getCachedSignedUrl, resolveBlobUrl } from "@/media/mediaCache";
 import { getMediaUrls } from "@/api/media";
+import { fetchAndDecryptMedia } from "@/security/mediaEncryption";
 import { useBackgroundPlayback } from "@/media/useBackgroundPlayback";
 import {
   extractWaveformPeaks,
@@ -37,35 +38,40 @@ export function VoiceMessage({ message }: VoiceMessageProps) {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (message.voiceUrl) {
+      // Sender's local blob is unencrypted and playable directly.
+      if (message.voiceUrl && !message.voiceUrl.startsWith("http")) {
         if (!cancelled) setResolvedUrl(message.voiceUrl);
         return;
       }
+      // Need a signed URL — try cache first, then fetch.
+      let signedUrl: string | null = null;
       if (message.mediaId) {
-        const cached = getCachedSignedUrl(message.mediaId);
-        if (cached) {
-          if (!cancelled) setResolvedUrl(cached);
-          return;
-        }
+        signedUrl = getCachedSignedUrl(message.mediaId) ?? null;
       }
-      if (message.streamUrl) {
-        if (!cancelled) setResolvedUrl(message.streamUrl);
-        return;
+      if (!signedUrl && message.streamUrl) {
+        signedUrl = message.streamUrl;
       }
-      // Recipient (and the sender after a reload) only has the media id — fetch
-      // a fresh signed URL so the clip is actually playable. Without this the
-      // voice message stays silent.
-      if (message.mediaId) {
+      if (!signedUrl && message.mediaId) {
         try {
           const urls = await getMediaUrls(message.mediaId);
           cacheSignedUrl(message.mediaId, urls.stream_url, urls.expires_in);
-          if (!cancelled) {
-            setResolvedUrl(urls.stream_url);
-            return;
-          }
+          signedUrl = urls.stream_url;
         } catch {
-          /* fall through to any locally cached blob */
+          /* fall through */
         }
+      }
+      if (signedUrl && message.mediaKey) {
+        try {
+          const blobUrl = await fetchAndDecryptMedia(signedUrl, message.mediaKey, "audio/webm");
+          if (!cancelled) setResolvedUrl(blobUrl);
+          return;
+        } catch {
+          /* decryption failed — try playing as-is */
+        }
+      }
+      if (signedUrl) {
+        if (!cancelled) setResolvedUrl(signedUrl);
+        return;
       }
       const fromStore = await resolveBlobUrl(`msg:${message.id}`);
       if (!cancelled) setResolvedUrl(fromStore);
@@ -74,7 +80,7 @@ export function VoiceMessage({ message }: VoiceMessageProps) {
     return () => {
       cancelled = true;
     };
-  }, [message.id, message.mediaId, message.streamUrl, message.voiceUrl]);
+  }, [message.id, message.mediaId, message.streamUrl, message.voiceUrl, message.mediaKey]);
 
   function stopPlayback() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);

@@ -26,6 +26,9 @@ from app.services.realtime_publisher import publish_message_event
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 
+# Fixed UUID for the NEXA system broadcast channel (seeded in DB at deploy time).
+NEXA_BROADCAST_CHANNEL_ID = "00000000-0000-0000-0000-000000000001"
+
 
 async def _conv_response(c, user_id: str) -> ConversationResponse:
     last = await chat_store.get_last_message_preview(c.id)
@@ -90,6 +93,8 @@ async def _msg_response(m) -> MessageResponse:
 
 @router.get("/conversations", response_model=list[ConversationResponse])
 async def list_conversations(user_id: str = Depends(get_current_user_id)) -> list[ConversationResponse]:
+    # Auto-join the NEXA broadcast channel on every load (idempotent).
+    await chat_store.ensure_member(NEXA_BROADCAST_CHANNEL_ID, user_id, role="member")
     convs = await chat_store.list_for_user(user_id)
     return [await _conv_response(c, user_id) for c in convs]
 
@@ -335,7 +340,14 @@ async def edit_message(
     body: EditMessageRequest,
     user_id: str = Depends(get_current_user_id),
 ) -> MessageResponse:
-    m = await chat_store.edit_message(message_id, user_id, body.body)
+    # Broadcast channel owner edits silently (no "edited" marker shown to readers).
+    msg_preview = await chat_store.get_message(message_id, user_id)
+    silent = bool(
+        msg_preview
+        and str(msg_preview.conversation_id) == NEXA_BROADCAST_CHANNEL_ID
+        and msg_preview.sender_id == user_id
+    )
+    m = await chat_store.edit_message(message_id, user_id, body.body, silent=silent)
     if not m:
         raise HTTPException(status_code=403, detail={"error": {"code": "FORBIDDEN", "message": "Cannot edit message"}})
     response = await _msg_response(m)
@@ -360,7 +372,14 @@ async def delete_message(
     conv = await chat_store.get_conversation_member(m.conversation_id, user_id)
     if not conv:
         raise HTTPException(status_code=403, detail={"error": {"code": "FORBIDDEN", "message": "Forbidden"}})
-    moderator = group_service.assert_can_delete(conv, user_id, m) and m.sender_id != user_id
+    # Broadcast channel owner can always delete for everyone without moderator flag overhead.
+    is_broadcast_owner = (
+        str(conv.id) == NEXA_BROADCAST_CHANNEL_ID
+        and group_service.get_member_role(conv, user_id) in ("owner", "admin")
+    )
+    moderator = is_broadcast_owner or (group_service.assert_can_delete(conv, user_id, m) and m.sender_id != user_id)
+    if is_broadcast_owner:
+        for_everyone = True
     if not await chat_store.delete_message(message_id, user_id, for_everyone=for_everyone, moderator=moderator):
         raise HTTPException(status_code=403, detail={"error": {"code": "FORBIDDEN", "message": "Cannot delete message"}})
     if for_everyone and moderator:
@@ -369,6 +388,16 @@ async def delete_message(
             actor_id=user_id,
             action="delete_message",
             target_message_id=message_id,
+        )
+    if for_everyone:
+        # Notify ALL conversation members (including sender for multi-device sync)
+        await publish_message_event(
+            name="message.deleted",
+            conversation_id=m.conversation_id,
+            payload={
+                "message_id": message_id,
+                "conversation_id": m.conversation_id,
+            },
         )
     return {"message": "Deleted"}
 
@@ -559,4 +588,26 @@ async def set_key_packages(
     ttl = 60 * 60 * 24 * 90
     for item in body.packages:
         await redis.set(f"kp:{conversation_id}:{item.user_id}", json.dumps(item.package), ex=ttl)
+    return {"ok": True}
+
+
+@router.delete("/conversations/{conversation_id}/key-packages")
+async def clear_key_packages(
+    conversation_id: str,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    """Delete all group key packages for this conversation, forcing re-key on next message send."""
+    conv = await chat_store.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
+    from app.core.redis import get_redis
+    redis = await get_redis()
+    pattern = f"kp:{conversation_id}:*"
+    cursor = 0
+    while True:
+        cursor, keys = await redis.scan(cursor, match=pattern, count=100)
+        if keys:
+            await redis.delete(*keys)
+        if cursor == 0:
+            break
     return {"ok": True}

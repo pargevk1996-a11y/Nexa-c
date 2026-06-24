@@ -1,6 +1,6 @@
 # NEXA — Terms of Service
 
-**Effective date:** 2026-06-14 · **Version:** 1.0 (draft)
+**Effective date:** 2026-06-24 · **Version:** 1.3
 
 > ⚠️ **LEGAL REVIEW REQUIRED before publishing.** Fields in `[[double brackets]]` MUST be
 > filled with real legal information by the operator. This draft reflects the current technical
@@ -155,12 +155,16 @@ We are committed to transparency about our security capabilities and limitations
 
 | Feature | Status |
 |---------|--------|
-| TLS 1.2/1.3 (in transit) | ✅ Enabled, HSTS preload |
+| TLS 1.3 (in transit) | ✅ Enabled, HSTS preload |
 | AES-GCM field encryption (at rest) | ✅ Enabled |
-| End-to-end encryption (E2EE) | 🔶 In development (Phase 2) |
+| E2EE — DMs | ✅ Active — per-message ephemeral ECDH P-256 + AES-256-GCM (forward secrecy) |
+| E2EE — groups | ✅ Active — AES-256-GCM, key rotates on every membership change |
+| E2EE — media files | ✅ Active — per-file AES-256-GCM, key in encrypted message envelope |
+| Forward secrecy | ✅ DMs: per-message ephemeral ECDH · Groups: rotation on membership change · Break-in recovery (Double Ratchet) planned |
 | Screenshot blocking — native (Android, Tauri) | ✅ OS-level via FLAG\_SECURE / content protection |
 | Screenshot blocking — web | 🔶 Best-effort deterrent (OS-level capture cannot be blocked by web apps) |
-| WebAuthn hardware key support | 🔶 Rolling out |
+| TOTP 2FA | ✅ Available in Settings |
+| WebAuthn hardware key | 🔶 Implemented, not yet enabled for all users |
 
 We will never silently downgrade any security measure. Material changes to our encryption
 capabilities will be communicated in-app and in our public changelog.

@@ -13,17 +13,19 @@ import { useSessionStore } from "@/store/zustand/sessionStore";
 import { fetchPublicProfile, updatePresence } from "@/api/profile";
 import { primePublicProfile } from "@/api/publicProfileCache";
 import { resolvePeer } from "@/utils/peerResolve";
-import { verifySignatureForUser } from "@/security/signaturePin";
 import {
   listConversations,
   listMessages,
   sendMessageRest,
   setConversationHidden,
+  apiDeleteMessage,
 } from "@/api/chat";
 import { mapApiConversation } from "@/realtime/useRealtimeChat";
 import { apiMessageToUi } from "@/realtime/mapMessage";
 import type { DemoGif, DemoSticker } from "@/data/mockMedia";
 import { uploadFileResumable } from "@/media/resumableUpload";
+import { encryptFile } from "@/security/mediaEncryption";
+import { encryptForConversation } from "@/security/e2ee";
 import { cacheBlobPersistent, cachePreviewUrl, cacheSignedUrl } from "@/media/mediaCache";
 import { prepareMediaFile } from "@/media/compressMedia";
 import type { SendOptions } from "@/components/chat/MessageComposer";
@@ -78,6 +80,7 @@ interface MessageMutations {
   reactionOverrides: Record<string, { reactions: Record<string, number>; myReaction?: string }>;
   pinnedByConversation: Record<string, string | null>;
   statusOverrides: Record<string, NonNullable<Message["status"]>>;
+  clearedConversations: Set<string>;
 }
 
 interface ChatContextValue {
@@ -152,7 +155,6 @@ interface ChatContextValue {
   offlineQueueCount: number;
   offlineMode: boolean;
   syncing: boolean;
-  pinUnlocked: boolean;
   refreshConversations: () => Promise<Conversation[]>;
   refreshMessagesForConversation: (conversationId: string) => Promise<void>;
   loadOlderMessages: () => Promise<void>;
@@ -202,6 +204,7 @@ function emptyMutations(): MessageMutations {
     reactionOverrides: {},
     pinnedByConversation: { ...DEMO_PINNED_BY_CONV },
     statusOverrides: {},
+    clearedConversations: new Set(),
   };
 }
 
@@ -226,6 +229,7 @@ function serializeMutations(mut: MessageMutations): SerializedMessageMutations {
     reactionOverrides: { ...mut.reactionOverrides },
     pinnedByConversation: { ...mut.pinnedByConversation },
     statusOverrides: { ...mut.statusOverrides },
+    clearedConversations: [...mut.clearedConversations],
   };
 }
 
@@ -240,6 +244,7 @@ function deserializeMutations(data: SerializedMessageMutations): MessageMutation
     reactionOverrides: { ...(data.reactionOverrides ?? {}) },
     pinnedByConversation: { ...(data.pinnedByConversation ?? {}) },
     statusOverrides: { ...(data.statusOverrides ?? {}) },
+    clearedConversations: new Set(data.clearedConversations ?? []),
   };
 }
 
@@ -270,29 +275,17 @@ function applyMutations(
   mut: MessageMutations,
   conversationId: string,
 ): Message[] {
+  if (mut.clearedConversations.has(conversationId)) return [];
   const pinnedId = mut.pinnedByConversation[conversationId];
   return messages
     .filter(
       (m) =>
-        !mut.hiddenForMe.has(m.id) && !mut.ephemeralConsumed.has(m.id),
+        !mut.hiddenForMe.has(m.id) &&
+        !mut.ephemeralConsumed.has(m.id) &&
+        !mut.deletedForAll.has(m.id),
     )
     .map((m) => {
       let next = { ...m };
-      if (mut.deletedForAll.has(m.id)) {
-        return {
-          ...next,
-          kind: "text" as const,
-          text: "This message was deleted",
-          deleted: true,
-          reactions: undefined,
-          myReaction: undefined,
-          linkPreview: undefined,
-          poll: undefined,
-          quiz: undefined,
-          replyTo: undefined,
-          forwardFrom: undefined,
-        };
-      }
       if (mut.recalled.has(m.id)) {
         return {
           ...next,
@@ -333,7 +326,7 @@ function applyMutations(
 }
 
 function nowTime() {
-  return new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return new Date().toLocaleTimeString("default", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
@@ -383,7 +376,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     () => useRealtimeStore.getState().connectionState,
   );
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
-  const [pinUnlocked, setPinUnlocked] = useState(false);
 
   const patchMessageStatus = useCallback(
     (messageId: string, status: NonNullable<Message["status"]>) => {
@@ -448,6 +440,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const onLiveConversations = useCallback((convs: Conversation[]) => {
     setLiveMode(true);
     const base = ensureSavedInList(convs.length ? convs.map((c) => ({ ...c })) : cloneConversations());
+    let mutedIds: Set<string>;
+    try {
+      mutedIds = new Set(JSON.parse(localStorage.getItem("nexa-muted-chats") ?? "[]") as string[]);
+    } catch {
+      mutedIds = new Set();
+    }
     setConversations((prev) => {
       // Preserve locally-cleared unread counts so opening a chat doesn't re-show badge
       // when the server sends stale counts before read receipts are processed.
@@ -464,6 +462,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           archived: local?.archived ?? c.archived,
           hidden: local?.hidden ?? c.hidden,
           folderId: local?.folderId ?? c.folderId,
+          muted: mutedIds.has(c.id) ? true : (local?.muted ?? false),
         };
       });
     });
@@ -516,6 +515,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const onLiveDelete = useCallback((conversationId: string, messageId: string) => {
+    setMutations((prev) => {
+      const deletedForAll = new Set(prev.deletedForAll);
+      deletedForAll.add(messageId);
+      return { ...prev, deletedForAll };
+    });
+  }, []);
+
   const onConversationActivity = useCallback(
     (
       conversationId: string,
@@ -556,6 +563,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     onMessages: onLiveMessages,
     onAppendMessage: onLiveAppend,
     onPatchMessage: onLivePatch,
+    onDeleteMessage: onLiveDelete,
     onMessageStatus: patchMessageStatus,
     onTyping: onLiveTyping,
     onPresence: onLivePresence,
@@ -730,7 +738,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         );
       },
       onNotify: (convId, title, body, silent) => {
-        const name = conversations.find((c) => c.id === convId)?.name ?? title;
+        const conv = conversations.find((c) => c.id === convId);
+        if (conv?.muted) return; // user has muted this conversation
+        const name = conv?.name ?? title;
         notifyNewMessage(
           { title: name, body, conversationId: convId, silent, currentUserId: userId },
           settings,
@@ -838,30 +848,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     activeId,
   ]);
 
-  useEffect(() => {
-    if (!search.startsWith("#")) {
-      if (pinUnlocked) setPinUnlocked(false);
-      return;
-    }
-    const candidate = search.slice(1);
-    if (!/^\d{4,6}$/.test(candidate)) return;
-    // Use the resolved context userId (not a fresh getCachedSession()) so the
-    // reveal verifies as soon as auth is ready — it no longer silently no-ops
-    // when the session cache isn't warm yet, which is why typing the signature
-    // used to only work AFTER opening the lock overlay (which warmed it).
-    if (!userId) return;
-    let cancelled = false;
-    void verifySignatureForUser(userId, candidate)
-      .then((ok) => {
-        if (!cancelled) setPinUnlocked(ok);
-      })
-      .catch(() => {
-        if (!cancelled) setPinUnlocked(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [search, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const savedConversation = useMemo(() => {
     const found = conversations.find((c) => c.id === SAVED_MESSAGES_ID);
@@ -1107,9 +1093,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const reply = options?.replyTo;
       const url = extractFirstUrl(trimmed);
       const sentAt = options?.scheduledAt
-        ? new Date(options.scheduledAt).toLocaleTimeString("en-US", {
-            hour: "numeric",
+        ? new Date(options.scheduledAt).toLocaleTimeString("default", {
+            hour: "2-digit",
             minute: "2-digit",
+            hour12: false,
           })
         : nowTime();
       const msgId = `local-${Date.now()}`;
@@ -1290,25 +1277,57 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!useApi || !blob.size) return;
 
       try {
-        const file = new File([blob], `voice-${pendingId}.webm`, {
+        const plainFile = new File([blob], `voice-${pendingId}.webm`, {
           type: blob.type || "audio/webm",
         });
-        const uploaded = await uploadFileResumable(file);
+        const voiceBodyText = `Voice ${durationSeconds}s`;
+        const myUserId = getCachedSession()?.user?.id ?? "";
+        const convPeerOrMembers = activeConversation.isGroup
+          ? (activeConversation.memberIds ?? [])
+          : (activeConversation.peerUserId ?? "");
+
+        // Try to determine if we can encrypt (peer public key available) by running
+        // a quick encryption dry-run; if it fails we upload plaintext.
+        let fileToUpload: File = plainFile;
+        let mediaKey: string | undefined;
+        let e2eeEnvelope: Record<string, unknown> | undefined;
+        try {
+          const encrypted = await encryptFile(plainFile);
+          fileToUpload = encrypted.encryptedFile;
+          mediaKey = encrypted.keyB64;
+          const payload = JSON.stringify({ body: voiceBodyText, media_key: mediaKey });
+          const env = await encryptForConversation(
+            payload,
+            activeId,
+            convPeerOrMembers,
+            Boolean(activeConversation.isGroup),
+            myUserId,
+          );
+          if (env) e2eeEnvelope = env as unknown as Record<string, unknown>;
+          else { fileToUpload = plainFile; mediaKey = undefined; } // no peer key → upload plain
+        } catch {
+          fileToUpload = plainFile; mediaKey = undefined;
+        }
+
+        const uploaded = await uploadFileResumable(fileToUpload);
         cacheSignedUrl(uploaded.media_id, uploaded.stream_url, 300);
+
         const clientMsgId = crypto.randomUUID().replace(/-/g, "");
         const sent = await sendMessageRest(activeId, {
           client_msg_id: clientMsgId,
-          body: `Voice ${durationSeconds}s`,
+          body: voiceBodyText,
           content_type: "voice",
           media_id: uploaded.media_id,
+          ...(e2eeEnvelope ? { e2ee_envelope: e2eeEnvelope } : {}),
         });
         patchOptimisticMessage(pendingId, {
           id: sent.id,
           status: "sent",
-          voiceUrl: uploaded.stream_url,
+          // Keep local blobUrl (unencrypted) for immediate playback; streamUrl is the encrypted server copy
           streamUrl: uploaded.stream_url,
           mediaId: uploaded.media_id,
           voiceWaveform: peaks,
+          mediaKey,
         });
       } catch {
         patchMessageStatus(pendingId, "sent");
@@ -1368,26 +1387,59 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           preview,
         );
         try {
-          const uploaded = await uploadFileResumable(prepared);
+          const fileBodyText = filePreviewLabel(file.name, file.size);
+          const myUserId2 = getCachedSession()?.user?.id ?? "";
+          const convPeerOrMembers2 = activeConversation.isGroup
+            ? (activeConversation.memberIds ?? [])
+            : (activeConversation.peerUserId ?? "");
+
+          let fileToUpload: File = prepared;
+          let mediaKey2: string | undefined;
+          let e2eeEnvelope2: Record<string, unknown> | undefined;
+          try {
+            const encrypted = await encryptFile(prepared);
+            fileToUpload = encrypted.encryptedFile;
+            mediaKey2 = encrypted.keyB64;
+            const payload2 = JSON.stringify({ body: fileBodyText, media_key: mediaKey2 });
+            const env2 = await encryptForConversation(
+              payload2,
+              activeId,
+              convPeerOrMembers2,
+              Boolean(activeConversation.isGroup),
+              myUserId2,
+            );
+            if (env2) e2eeEnvelope2 = env2 as unknown as Record<string, unknown>;
+            else { fileToUpload = prepared; mediaKey2 = undefined; }
+          } catch {
+            fileToUpload = prepared; mediaKey2 = undefined;
+          }
+
+          const uploaded = await uploadFileResumable(fileToUpload);
           cacheSignedUrl(uploaded.media_id, uploaded.stream_url, 300);
-          if (uploaded.preview_url) {
+          // Server can't generate previews for encrypted content — skip caching
+          if (uploaded.preview_url && !mediaKey2) {
             cachePreviewUrl(uploaded.media_id, uploaded.preview_url, 300);
           }
+
           const clientMsgId = crypto.randomUUID().replace(/-/g, "");
           const sent = await sendMessageRest(activeId, {
             client_msg_id: clientMsgId,
-            body: filePreviewLabel(file.name, file.size),
+            body: fileBodyText,
             content_type: category === "image" ? "image" : category === "video" ? "video" : "file",
             media_id: uploaded.media_id,
+            ...(e2eeEnvelope2 ? { e2ee_envelope: e2eeEnvelope2 } : {}),
           });
           if (objectPreview) URL.revokeObjectURL(objectPreview);
           patchOptimisticMessage(pendingId, {
             id: sent.id,
             status: "sent",
             mediaId: uploaded.media_id,
-            previewUrl: uploaded.preview_url ?? undefined,
+            // For encrypted uploads, server preview is meaningless — keep local objectPreview
+            previewUrl: mediaKey2 ? undefined : (uploaded.preview_url ?? undefined),
             streamUrl: uploaded.stream_url,
-            fileMimeType: uploaded.mime_type || mimeType,
+            // Keep original mimeType — encrypted upload returns application/octet-stream
+            fileMimeType: mediaKey2 ? mimeType : (uploaded.mime_type || mimeType),
+            mediaKey: mediaKey2,
           });
         } catch {
           patchMessageStatus(pendingId, "sent");
@@ -1485,7 +1537,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       else deletedForAll.add(messageId);
       return { ...prev, hiddenForMe, deletedForAll };
     });
-  }, []);
+    if (scope === "everyone") {
+      void apiDeleteMessage(messageId, true).catch(() => {});
+      // Optimistically clear the conversation's lastMessage (the WS event will confirm)
+      if (activeId) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === activeId ? { ...c, lastMessage: "" } : c)),
+        );
+      }
+    }
+  }, [activeId]);
 
   const toggleSuperSecret = useCallback((conversationId: string) => {
     setConversations((prev) =>
@@ -1518,17 +1579,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           });
           if (liveChatEnabled) void setConversationHidden(conversation.id, false).catch(() => {});
           break;
+        case "clear_chat":
+          // Clears all message history but keeps the chat in the list.
+          setExtraMessages((prev) => {
+            const next = { ...prev };
+            delete next[conversation.id];
+            return next;
+          });
+          setMutations((prev) => ({
+            ...prev,
+            clearedConversations: new Set(prev.clearedConversations).add(conversation.id),
+          }));
+          break;
         case "delete":
           setConversations((prev) =>
             prev.map((c) => (c.id === conversation.id ? { ...c, hidden: true } : c)),
           );
-          if (action.scope === "both") {
-            setExtraMessages((prev) => {
-              const next = { ...prev };
-              delete next[conversation.id];
-              return next;
-            });
-          }
+          // Also clear all messages when deleting
+          setExtraMessages((prev) => {
+            const next = { ...prev };
+            delete next[conversation.id];
+            return next;
+          });
+          setMutations((prev) => ({
+            ...prev,
+            clearedConversations: new Set(prev.clearedConversations).add(conversation.id),
+          }));
           if (activeId === conversation.id) setActiveId(null);
           break;
         case "pin":
@@ -1572,6 +1648,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             prev.map((c) => (c.id === conversation.id ? { ...c, blocked: true } : c)),
           );
           if (activeId === conversation.id) setActiveId(null);
+          break;
+        case "mute":
+          setConversations((prev) =>
+            prev.map((c) => (c.id === conversation.id ? { ...c, muted: true } : c)),
+          );
+          try {
+            const muted = JSON.parse(localStorage.getItem("nexa-muted-chats") ?? "[]") as string[];
+            if (!muted.includes(conversation.id)) {
+              localStorage.setItem("nexa-muted-chats", JSON.stringify([...muted, conversation.id]));
+            }
+          } catch { /* ignore */ }
+          break;
+        case "unmute":
+          setConversations((prev) =>
+            prev.map((c) => (c.id === conversation.id ? { ...c, muted: false } : c)),
+          );
+          try {
+            const muted = JSON.parse(localStorage.getItem("nexa-muted-chats") ?? "[]") as string[];
+            localStorage.setItem("nexa-muted-chats", JSON.stringify(muted.filter((id) => id !== conversation.id)));
+          } catch { /* ignore */ }
           break;
       }
     },
@@ -1824,6 +1920,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", refreshNow);
     document.addEventListener("visibilitychange", onVis);
     const interval = window.setInterval(refreshNow, 25_000);
+    // Immediate fetch on mount so the list is never blank on first login
+    // (WS may be slow to connect; REST fills the gap instantly)
+    refreshNow();
     return () => {
       window.removeEventListener("focus", refreshNow);
       window.removeEventListener("online", refreshNow);
@@ -1935,7 +2034,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       offlineQueueCount,
       offlineMode,
       syncing,
-      pinUnlocked,
       refreshConversations,
       refreshMessagesForConversation,
       loadOlderMessages,
@@ -2001,7 +2099,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       offlineQueueCount,
       offlineMode,
       syncing,
-      pinUnlocked,
       refreshConversations,
       refreshMessagesForConversation,
       loadOlderMessages,

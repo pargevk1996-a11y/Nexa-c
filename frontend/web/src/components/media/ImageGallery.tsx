@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getMediaUrls } from "@/api/media";
 import { cacheSignedUrl, getCachedSignedUrl } from "@/media/mediaCache";
+import { fetchAndDecryptMedia } from "@/security/mediaEncryption";
 import type { Message } from "@/types";
 
 export interface GalleryImage {
@@ -13,6 +14,8 @@ export interface GalleryImage {
   /** Media id used to fetch a fresh signed full-res URL on demand. */
   mediaId: string | null;
   alt: string;
+  /** base64 AES-256-GCM key — set when image is E2EE-encrypted. */
+  mediaKey?: string | null;
 }
 
 interface ImageGalleryProps {
@@ -41,6 +44,7 @@ export function collectGalleryImages(messages: Message[]): GalleryImage[] {
       previewUrl: preview,
       mediaId: m.mediaId ?? null,
       alt: m.fileName ?? "Photo",
+      mediaKey: m.mediaKey ?? null,
     });
   }
   return out;
@@ -85,31 +89,40 @@ export function ImageGallery({ images, index, onClose, onIndexChange }: ImageGal
     let cancelled = false;
     setStatus("loading");
 
-    const known = current.url ?? (current.mediaId ? getCachedSignedUrl(current.mediaId) : null);
-    if (known) {
-      setFullUrl(known);
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (current.mediaId) {
-      setFullUrl(null);
-      void getMediaUrls(current.mediaId)
-        .then((urls) => {
+    async function resolve() {
+      let signedUrl = current.url ?? (current.mediaId ? getCachedSignedUrl(current.mediaId) : null);
+      if (!signedUrl && current.mediaId) {
+        try {
+          const urls = await getMediaUrls(current.mediaId);
           if (cancelled) return;
-          cacheSignedUrl(current.mediaId as string, urls.stream_url, urls.expires_in);
-          setFullUrl(urls.stream_url);
-        })
-        .catch(() => {
+          cacheSignedUrl(current.mediaId, urls.stream_url, urls.expires_in);
+          signedUrl = urls.stream_url;
+        } catch {
           if (!cancelled) {
             setFullUrl(current.previewUrl ?? null);
             setStatus(current.previewUrl ? "ready" : "error");
           }
-        });
-    } else {
-      setFullUrl(current.previewUrl ?? null);
-      setStatus(current.previewUrl ? "ready" : "error");
+          return;
+        }
+      }
+      if (!signedUrl) {
+        setFullUrl(current.previewUrl ?? null);
+        setStatus(current.previewUrl ? "ready" : "error");
+        return;
+      }
+      if (current.mediaKey) {
+        try {
+          const blobUrl = await fetchAndDecryptMedia(signedUrl, current.mediaKey, "image/jpeg");
+          if (!cancelled) setFullUrl(blobUrl);
+        } catch {
+          if (!cancelled) setFullUrl(signedUrl);
+        }
+      } else {
+        if (!cancelled) setFullUrl(signedUrl);
+      }
     }
+
+    void resolve();
     return () => {
       cancelled = true;
     };
@@ -119,8 +132,15 @@ export function ImageGallery({ images, index, onClose, onIndexChange }: ImageGal
     if (!current?.mediaId) return;
     setStatus("loading");
     void getMediaUrls(current.mediaId)
-      .then((urls) => {
+      .then(async (urls) => {
         cacheSignedUrl(current.mediaId as string, urls.stream_url, urls.expires_in);
+        if (current.mediaKey) {
+          try {
+            const blobUrl = await fetchAndDecryptMedia(urls.stream_url, current.mediaKey, "image/jpeg");
+            setFullUrl(blobUrl);
+            return;
+          } catch { /* fall through */ }
+        }
         setFullUrl(urls.stream_url);
       })
       .catch(() => setStatus("error"));

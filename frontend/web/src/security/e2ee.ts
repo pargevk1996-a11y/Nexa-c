@@ -20,6 +20,18 @@ export interface E2eeEnvelope {
   senderDeviceId: string;
 }
 
+/**
+ * v3 — per-message ephemeral ECDH for DMs.
+ * Forward secrecy: sender discards ephemeral private key immediately.
+ * Recipient decrypts via ECDH(own_private, ephemeral_pub).
+ */
+export interface E2eeEnvelopeV3 {
+  v: 3;
+  ephemeral_pub: string;    // base64 raw P-256 ephemeral sender public key
+  ciphertext: string;       // base64(iv[12] || ciphertext)
+  senderDeviceId: string;
+}
+
 // ── IndexedDB key storage ─────────────────────────────────────────────────────
 
 const IDB_NAME = "nexa-e2ee";
@@ -311,6 +323,117 @@ export async function decryptMessage(envelope: E2eeEnvelope, key: CryptoKey): Pr
   } catch {
     return "[decryption failed]";
   }
+}
+
+// ── Forward-secret DM encryption (v3) ─────────────────────────────────────────
+
+/**
+ * Encrypt `plaintext` for a specific DM recipient using a fresh ephemeral key.
+ * The ephemeral private key is discarded immediately after encryption, giving
+ * forward secrecy: future compromise of the recipient's long-term key cannot
+ * decrypt past messages.
+ *
+ * NOTE: The SENDER cannot decrypt their own sent messages after a page reload
+ * (the ephemeral key is gone). Outgoing messages show plaintext in the current
+ * session via the optimistic state; after reload they show a locked placeholder.
+ */
+export async function encryptMessageForward(
+  plaintext: string,
+  recipientPubB64: string,
+): Promise<E2eeEnvelopeV3> {
+  const ephemeral = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true,       // must be extractable to export the public key into the envelope
+    ["deriveKey"],
+  );
+  const ephPubRaw = await crypto.subtle.exportKey("raw", ephemeral.publicKey);
+
+  const recipRaw = _b64ToBuf(recipientPubB64);
+  const recipKey = await crypto.subtle.importKey(
+    "raw",
+    recipRaw,
+    { name: "ECDH", namedCurve: "P-256" },
+    false,
+    [],
+  );
+  const aesKey = await crypto.subtle.deriveKey(
+    { name: "ECDH", public: recipKey },
+    ephemeral.privateKey,   // ephemeral private key — discarded when this function returns
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(plaintext);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, data);
+  const combined = new Uint8Array(iv.byteLength + ct.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(ct), iv.byteLength);
+
+  return {
+    v: 3,
+    ephemeral_pub: _bufToB64(ephPubRaw),
+    ciphertext: _bufToB64(combined.buffer),
+    senderDeviceId: _getDeviceId(),
+  };
+}
+
+/**
+ * Decrypt a v3 envelope using the receiver's own long-term private key.
+ * The sender's ephemeral public key is in the envelope.
+ */
+export async function decryptMessageForward(envelope: E2eeEnvelopeV3): Promise<string> {
+  if (envelope.v !== 3) return "[unsupported envelope version]";
+  if (!_myKeyPair) return "[device key not initialized]";
+  try {
+    const ephRaw = _b64ToBuf(envelope.ephemeral_pub);
+    const ephKey = await crypto.subtle.importKey(
+      "raw",
+      ephRaw,
+      { name: "ECDH", namedCurve: "P-256" },
+      false,
+      [],
+    );
+    const aesKey = await crypto.subtle.deriveKey(
+      { name: "ECDH", public: ephKey },
+      _myKeyPair.privateKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["decrypt"],
+    );
+    const combined = _b64ToBuf(envelope.ciphertext);
+    const iv = combined.slice(0, 12);
+    const ct = combined.slice(12);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, ct);
+    return new TextDecoder().decode(plain);
+  } catch {
+    return "[decryption failed]";
+  }
+}
+
+/**
+ * Unified encrypt helper: uses per-message ephemeral ECDH (v3) for DMs,
+ * static group key (v2) for group conversations.
+ */
+export async function encryptForConversation(
+  plaintext: string,
+  conversationId: string,
+  peerOrMembers: string | string[],
+  isGroup: boolean,
+  myUserId: string,
+): Promise<E2eeEnvelope | E2eeEnvelopeV3 | null> {
+  if (!isGroup) {
+    const peerId = peerOrMembers as string;
+    if (!peerId) return null;
+    const peerPub64 = await fetchPeerPublicKey(peerId);
+    if (!peerPub64) return null;
+    return encryptMessageForward(plaintext, peerPub64);
+  }
+  // Group: use static group AES key
+  const key = await getConversationKey(conversationId, peerOrMembers, true, myUserId);
+  if (!key) return null;
+  return encryptMessage(plaintext, key);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

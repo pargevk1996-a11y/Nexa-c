@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
-import { getConversationKey, encryptMessage, decryptMessage } from "@/security/e2ee";
-import type { E2eeEnvelope } from "@/security/e2ee";
+import {
+  getConversationKey,
+  encryptMessage,
+  encryptForConversation,
+  decryptMessage,
+  decryptMessageForward,
+  clearConversationKey,
+} from "@/security/e2ee";
+import type { E2eeEnvelope, E2eeEnvelopeV3 } from "@/security/e2ee";
 import {
   listConversations,
   listMessages,
@@ -34,6 +41,9 @@ export function mapApiConversation(c: ApiConversation): Conversation {
   // DMs carry no title — resolve the peer's display name (synchronously from the
   // process cache when already fetched; ChatContext fills the rest async).
   const cachedPeer = getCachedPeer(c.peer_user_id);
+  const isBroadcast = c.type === "broadcast" || c.type === "channel";
+  const myRole = (c as any).my_role as string | undefined;
+  const isAdmin = myRole === "owner" || myRole === "admin" || myRole === "moderator";
   return {
     id: c.id,
     uid: c.id.slice(0, 8),
@@ -43,7 +53,11 @@ export function mapApiConversation(c: ApiConversation): Conversation {
     lastAt: "",
     unread: c.unread_count,
     online: cachedPeer?.online ?? false,
-    isGroup: c.type !== "dm" && c.type !== "channel" && c.type !== "broadcast",
+    isGroup: !isBroadcast && c.type !== "dm",
+    isChannel: isBroadcast,
+    chatType: isBroadcast ? "channel" : undefined,
+    canPost: isBroadcast ? isAdmin : undefined,
+    isChannelAdmin: isBroadcast ? isAdmin : undefined,
     peerUserId: c.peer_user_id ?? undefined,
     memberIds: c.member_ids?.length ? c.member_ids : undefined,
     isLocked: (c as any).is_locked ?? false,
@@ -58,6 +72,7 @@ export interface UseRealtimeChatOptions {
   onMessages: (conversationId: string, messages: Message[]) => void;
   onAppendMessage: (conversationId: string, message: Message) => void;
   onPatchMessage: (conversationId: string, clientMsgId: string, message: Message) => void;
+  onDeleteMessage?: (conversationId: string, messageId: string) => void;
   onMessageStatus?: (messageId: string, status: NonNullable<Message["status"]>) => void;
   onTyping?: (conversationId: string, userId: string, isTyping: boolean) => void;
   onPresence?: (userId: string, isOnline: boolean) => void;
@@ -81,6 +96,7 @@ export function useRealtimeChat({
   onMessages,
   onAppendMessage,
   onPatchMessage,
+  onDeleteMessage,
   onMessageStatus,
   onTyping,
   onPresence,
@@ -116,18 +132,37 @@ export function useRealtimeChat({
         void (async () => {
           let decryptedMsg = msg;
           if (msg.e2ee_envelope && typeof msg.e2ee_envelope === "object" && "ciphertext" in msg.e2ee_envelope) {
-            const conv = getConversation?.(msg.conversation_id);
-            if (conv) {
-              const key = await getConversationKey(
-                conv.id,
-                conv.isGroup ? (conv.memberIds ?? []) : (conv.peerUserId ?? ""),
-                Boolean(conv.isGroup),
-                session.user.id,
-              ).catch(() => null);
-              if (key) {
-                const plain = await decryptMessage(msg.e2ee_envelope as unknown as E2eeEnvelope, key);
-                decryptedMsg = { ...msg, body: plain };
+            const env = msg.e2ee_envelope as Record<string, unknown>;
+            let plain: string | null = null;
+
+            if (env.v === 3 && "ephemeral_pub" in env) {
+              // v3: per-message ephemeral ECDH (DMs, forward-secret)
+              plain = await decryptMessageForward(env as unknown as E2eeEnvelopeV3).catch(() => null);
+            } else if (env.v === 2) {
+              // v2: static shared key (DMs legacy + groups)
+              const conv = getConversation?.(msg.conversation_id);
+              if (conv) {
+                const key = await getConversationKey(
+                  conv.id,
+                  conv.isGroup ? (conv.memberIds ?? []) : (conv.peerUserId ?? ""),
+                  Boolean(conv.isGroup),
+                  session.user.id,
+                ).catch(() => null);
+                if (key) plain = await decryptMessage(env as unknown as E2eeEnvelope, key).catch(() => null);
               }
+            }
+
+            if (plain !== null) {
+              let body = plain;
+              let media_key: string | undefined;
+              try {
+                const parsed = JSON.parse(plain) as { body?: string; media_key?: string };
+                if (parsed && typeof parsed.body === "string") {
+                  body = parsed.body;
+                  if (typeof parsed.media_key === "string") media_key = parsed.media_key;
+                }
+              } catch { /* plain string body */ }
+              decryptedMsg = { ...msg, body, ...(media_key ? { media_key } : {}) };
             }
           }
           const ui = apiMessageToUi(decryptedMsg, session.user.id);
@@ -184,6 +219,16 @@ export function useRealtimeChat({
         }
       }
 
+      if (frame.name === "message.deleted") {
+        const messageId = String(frame.payload.message_id ?? "");
+        const convId = String(frame.payload.conversation_id ?? "");
+        if (messageId && convId) {
+          onDeleteMessage?.(convId, messageId);
+          onConversationActivity?.(convId, { lastMessage: "" });
+        }
+        return;
+      }
+
       if (frame.name === "typing.start" || frame.name === "typing.stop") {
         const convId = String(frame.payload.conversation_id ?? "");
         const userId = String(frame.payload.user_id ?? "");
@@ -215,6 +260,17 @@ export function useRealtimeChat({
       if (frame.name === "receipt.delivered") {
         const messageId = String(frame.payload.message_id ?? "");
         if (messageId) onMessageStatus?.(messageId, "delivered");
+        return;
+      }
+
+      if (frame.name === "session.lock") {
+        window.dispatchEvent(new CustomEvent("nexa:session_lock"));
+        return;
+      }
+
+      if (frame.name === "member.changed") {
+        const convId = String(frame.payload.conversation_id ?? "");
+        if (convId) clearConversationKey(convId);
         return;
       }
 
@@ -464,14 +520,14 @@ export function useRealtimeChat({
         let e2eeEnvelope: Record<string, unknown> | undefined;
 
         if (conv && session?.user.id) {
-          const key = await getConversationKey(
+          const envelope = await encryptForConversation(
+            text,
             conv.id,
             conv.isGroup ? (conv.memberIds ?? []) : (conv.peerUserId ?? ""),
             Boolean(conv.isGroup),
             session.user.id,
           ).catch(() => null);
-          if (key) {
-            const envelope = await encryptMessage(text, key);
+          if (envelope) {
             // Ciphertext goes as `body` (server stores it), envelope as metadata.
             body = envelope.ciphertext;
             e2eeEnvelope = envelope as unknown as Record<string, unknown>;

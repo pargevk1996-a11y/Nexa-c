@@ -32,6 +32,8 @@ export interface ApiMessage {
   forward_blocked: boolean;
   media_id: string | null;
   e2ee_envelope: Record<string, unknown> | null;
+  /** Populated client-side after decrypting e2ee_envelope — never sent by server. */
+  media_key?: string;
   expires_at: string | null;
   edited_at: string | null;
   deleted_for_everyone_at: string | null;
@@ -104,6 +106,10 @@ export async function sendMessageRest(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function apiDeleteMessage(messageId: string, forEveryone: boolean): Promise<void> {
+  await apiFetch(`/chat/messages/${messageId}?for_everyone=${forEveryone}`, { method: "DELETE" });
 }
 
 export async function markMessageDelivered(messageId: string): Promise<void> {

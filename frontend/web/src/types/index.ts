@@ -61,6 +61,8 @@ export interface Conversation {
   pinned?: boolean;
   /** User folder / category label */
   folderId?: ChatFolderId;
+  /** Notifications muted for this conversation (stored locally) */
+  muted?: boolean;
   /** Message content is locked for this user (pending contact request) */
   isLocked?: boolean;
   /** Pending contact request id (incoming — to show accept/decline) */
@@ -149,6 +151,8 @@ export interface Message {
   quiz?: QuizData;
   /** Sent while SecureChat mode was active — no copy, no download, delete-for-both only */
   secureMode?: boolean;
+  /** base64 AES-256-GCM key for decrypting the attached media file. */
+  mediaKey?: string;
 }
 
 export interface StorySlide {

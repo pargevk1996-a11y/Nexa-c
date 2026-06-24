@@ -3,6 +3,7 @@ import { MediaViewer } from "@/components/chat/MediaViewer";
 import { LazyMediaImage } from "@/components/media/LazyMediaImage";
 import { getMediaUrls } from "@/api/media";
 import { cacheSignedUrl } from "@/media/mediaCache";
+import { fetchAndDecryptMedia } from "@/security/mediaEncryption";
 import type { Message } from "@/types";
 import { formatFileSize, getFileCategory } from "@/utils/files";
 
@@ -35,9 +36,15 @@ export function FileMessage({ message, onOpen, onImageClick, isSuperSecret = fal
     try {
       const urls = await getMediaUrls(message.mediaId);
       cacheSignedUrl(message.mediaId, urls.stream_url, urls.expires_in);
-      setViewerUrl(urls.stream_url);
-      setDownloadUrl(urls.download_url);
-      return { stream: urls.stream_url, dl: urls.download_url };
+      let streamUrl = urls.stream_url;
+      if (message.mediaKey) {
+        try {
+          streamUrl = await fetchAndDecryptMedia(urls.stream_url, message.mediaKey, mimeType || "application/octet-stream");
+        } catch { /* use signed URL as-is */ }
+      }
+      setViewerUrl(streamUrl);
+      setDownloadUrl(message.mediaKey ? streamUrl : urls.download_url);
+      return { stream: streamUrl, dl: message.mediaKey ? streamUrl : urls.download_url };
     } catch {
       return null;
     } finally {

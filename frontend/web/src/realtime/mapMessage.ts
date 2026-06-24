@@ -57,7 +57,7 @@ export function apiMessageToUi(m: ApiMessage, currentUserId: string): Message {
     conversationId: m.conversation_id,
     kind,
     text: m.body,
-    sentAt: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    sentAt: d.toLocaleTimeString("default", { hour: "2-digit", minute: "2-digit", hour12: false }),
     outgoing: m.sender_id === currentUserId,
     status: m.read_by.length > 1 ? "read" : m.delivered_to.length ? "delivered" : "sent",
     ephemeral: Boolean(m.expires_at),
@@ -73,5 +73,6 @@ export function apiMessageToUi(m: ApiMessage, currentUserId: string): Message {
     silent: Boolean(m.silent),
     seq: m.seq,
     replyToId: m.reply_to_id ?? undefined,
+    mediaKey: m.media_key ?? undefined,
   };
 }

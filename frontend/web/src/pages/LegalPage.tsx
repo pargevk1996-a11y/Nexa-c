@@ -21,8 +21,8 @@ interface LegalDoc {
 const COPY: Record<LegalKind, LegalDoc> = {
   privacy: {
     title: "Privacy Policy",
-    effective: "2026-06-21",
-    version: "1.2",
+    effective: "2026-06-24",
+    version: "1.4",
     intro: `${BRAND_NAME} is built privacy-first. This policy explains in full detail what personal data we collect, why we collect it, how we protect it, and what rights you have over it. We operate under EU GDPR and California CCPA/CPRA.`,
     sections: [
       {
@@ -67,7 +67,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "5. Message encryption and server access",
-        p: `Messages are protected by TLS 1.2/1.3 in transit and AES-GCM field encryption at rest. ${BRAND_NAME} is actively developing end-to-end encryption (Signal Protocol, E2EE Phase 2). Until E2EE is fully deployed across all message types, our servers are technically capable of decrypting stored message content. We commit to: (a) never accessing message content except under lawful legal compulsion; (b) publishing a transparency report for any such requests; (c) notifying users and updating this policy promptly when default E2EE ships; and (d) never silently downgrading encryption. The current encryption architecture is detailed in docs/security/.`,
+        p: `All message content and media files in both direct and group conversations are end-to-end encrypted (E2EE). Direct messages use per-message ephemeral ECDH P-256 + AES-256-GCM: a fresh keypair is generated for every message and immediately discarded, providing forward secrecy — past messages remain safe even if a device key is later compromised. Group messages use AES-256-GCM with a shared key that rotates automatically whenever the group membership changes (member joins, leaves, or is banned). Media files (images, video, voice messages, documents) are encrypted client-side with a separate per-file random AES-256-GCM key before upload; the file key is carried inside the encrypted message envelope and can only be recovered by conversation participants. Encryption and decryption happen exclusively on your device; ${BRAND_NAME} servers store only ciphertext and cannot read your messages or media. We commit to: (a) never accessing message or media content except under lawful legal compulsion; (b) publishing a transparency report for any such requests; and (c) never silently downgrading encryption. Current limitations: private keys are per-device and per-browser (clearing browser storage loses access to encrypted history); no break-in recovery (Double Ratchet DH step) for DMs; no per-message ratchet for groups; no multi-device key synchronisation. The full technical architecture, threat model, and upgrade roadmap are published at /docs/security.`,
       },
       {
         h: "6. How we use your data",
@@ -117,7 +117,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
           "Right to rectification: correct inaccurate or incomplete data.",
           "Right to erasure ('right to be forgotten'): request deletion of your account and all associated data. Self-service: Settings → Account → Delete my account.",
           "Right to restriction: ask us to restrict processing while a dispute is resolved.",
-          "Right to data portability: receive your data in a structured, machine-readable format. Self-service: Settings → Account → Export my data.",
+          "Right to data portability: receive your data in a structured, machine-readable format. To request a data export, email nexa@nexa-c.com.",
           "Right to object: object to processing based on legitimate interest.",
           "Right to withdraw consent: for processing based on consent (e.g., push tokens, optional phone number), withdraw at any time in Settings without affecting prior lawful processing.",
           "Right not to be subject to solely automated decision-making: we do not use automated profiling for consequential decisions.",
@@ -142,7 +142,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "13. General security measures",
-        p: "Our technical and organisational security measures include: TLS 1.2/1.3 with HSTS preload, strict Content Security Policy (no unsafe-inline or eval for scripts), HttpOnly + Secure + SameSite=Strict cookies, AES-GCM encrypted access-token cookies, Argon2id password hashing, truncated-and-hashed (not raw) IP storage, per-service database isolation, brute-force rate limiting on authentication endpoints, CSRF protection, optional TOTP 2FA, WebAuthn hardware key support (rolling out), screenshot and screen-recording deterrents on web and native clients, and single-session enforcement with reuse-detection token rotation. See docs/security/ for technical details.",
+        p: "Our technical and organisational security measures include: TLS 1.3 (TLS 1.2 fallback) with HSTS preload, strict Content Security Policy (no unsafe-inline or eval for scripts), HttpOnly + Secure + SameSite=Strict cookies, AES-GCM encrypted access-token cookies, Argon2id password hashing (memory 64 MB, 3 iterations), truncated-and-hashed (not raw) IP storage, per-service database isolation, brute-force rate limiting on all authentication endpoints, CSRF protection, optional TOTP 2FA, end-to-end encryption of all messages and media files (ECDH P-256 + AES-256-GCM for text; per-file AES-256-GCM for media; per-message ephemeral ECDH for DM forward secrecy; group key rotation on membership change), screenshot and screen-recording deterrents on web and native clients, and single-session enforcement with reuse-detection token rotation. See /docs/security for the full technical architecture.",
       },
       {
         h: "15. Children's privacy",
@@ -161,8 +161,8 @@ const COPY: Record<LegalKind, LegalDoc> = {
 
   terms: {
     title: "Terms of Service",
-    effective: "2026-06-14",
-    version: "1.0",
+    effective: "2026-06-24",
+    version: "1.2",
     intro: `By accessing or using ${BRAND_NAME} messenger you agree to be bound by these Terms of Service and our Privacy Policy. Please read them carefully before using the service. If you do not agree, do not create an account or use the service.`,
     sections: [
       {
@@ -243,9 +243,11 @@ const COPY: Record<LegalKind, LegalDoc> = {
         h: "9. Encryption and security disclosures",
         p: "We are committed to transparency about our security capabilities:",
         items: [
-          "All data is encrypted in transit using TLS 1.2/1.3 with HSTS preload.",
-          "Message content and sensitive fields are encrypted at rest using AES-GCM.",
-          "End-to-end encryption (E2EE) is under active development. Until fully deployed, our servers are technically capable of accessing message content. We will never silently downgrade this.",
+          "All data is encrypted in transit using TLS 1.3 (TLS 1.2 fallback) with HSTS preload.",
+          "Text messages in direct and group conversations are end-to-end encrypted (E2EE) using ECDH P-256 + AES-256-GCM. Encryption and decryption happen exclusively on your device; our servers store ciphertext only and cannot read text message content.",
+          "Media files (images, video, voice messages, documents) are end-to-end encrypted. Each file is encrypted client-side with a per-file random AES-256-GCM key before upload; the key is wrapped inside the message envelope, encrypted with the conversation key. Our servers store and transmit only ciphertext and cannot access media content.",
+          "E2EE private keys are stored per-device in your browser. Clearing browser storage or switching devices will result in loss of access to your encrypted message history. There is no key backup or multi-device sync at this time.",
+          "DM messages use per-message ephemeral ECDH (v3 envelope): a fresh ephemeral keypair is generated for each message and discarded immediately, giving forward secrecy — future compromise of a device key cannot decrypt past messages. Break-in recovery (Double Ratchet DH step) is on the roadmap. Group chats use a shared AES-256-GCM key that rotates automatically on every membership change (join, leave, ban); removed members cannot decrypt messages sent after rotation. There is no per-message ratchet for groups; full Sender Keys are on the roadmap.",
           "Screenshot and screen-recording deterrents on the web client are best-effort technical measures. Operating system-level screen capture cannot be blocked by a web application; users should be aware of this limitation.",
           "Native mobile and desktop applications provide stronger OS-level screen-capture protection.",
         ],
