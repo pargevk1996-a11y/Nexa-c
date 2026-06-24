@@ -20,7 +20,7 @@ jobs:
       name: staging
       url: https://staging.example.com
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set image tag
         id: tag
         run: echo "tag=${{ inputs.image_tag || github.sha }}" >> "$GITHUB_OUTPUT"
