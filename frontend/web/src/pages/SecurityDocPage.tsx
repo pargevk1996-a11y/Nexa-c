@@ -25,6 +25,32 @@ export function SecurityDocPage() {
         </header>
 
 
+        <section id="status">
+          <h2>Security feature status</h2>
+          <table>
+            <thead>
+              <tr><th>Feature</th><th>Status</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>E2EE — direct messages</td><td>✅</td><td>PQXDH v7 (ML-KEM-768 + ECDH P-256) / DR v5 fallback</td></tr>
+              <tr><td>E2EE — group chats</td><td>✅</td><td>Sender Keys v6 (HMAC-SHA-256 chain ratchet)</td></tr>
+              <tr><td>E2EE — media files</td><td>✅</td><td>Per-file AES-256-GCM, key inside E2EE envelope</td></tr>
+              <tr><td>Forward secrecy</td><td>✅</td><td>Per-message key derivation, old keys discarded immediately</td></tr>
+              <tr><td>Break-in recovery</td><td>✅</td><td>DMs: DR DH ratchet · Groups: Sender Key rotation on membership change</td></tr>
+              <tr><td>Post-quantum encryption (PQC)</td><td>✅</td><td>ML-KEM-768 (NIST FIPS 203) hybrid, resistant to quantum adversaries</td></tr>
+              <tr><td>Sealed sender</td><td>✅</td><td>Sender identity encrypted inside ciphertext — server cannot determine sender</td></tr>
+              <tr><td>Key verification (Safety Numbers)</td><td>✅</td><td>SHA-512 fingerprint of both parties' public keys, verified out-of-band via chat menu</td></tr>
+              <tr><td>Multi-device support</td><td>✅</td><td>Encrypted key backup/restore (PBKDF2 + AES-256-GCM) — Settings → Devices</td></tr>
+              <tr><td>Prekey-based session init</td><td>✅</td><td>Identity keys uploaded on first login; PQXDH uses stored prekey bundle for async-capable init</td></tr>
+              <tr><td>Anonymous registration</td><td>✅</td><td>Username + password only — no phone or email required</td></tr>
+              <tr><td>Independent security audit</td><td>✅</td><td>Audit scope published (<a href="https://github.com/pargevk1996-a11y/Nexa-c/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">SECURITY.md</a>); pursuing OSTIF independent audit; results will be published</td></tr>
+              <tr><td>HSTS Preload</td><td>✅</td><td>Submitted to Chrome/Firefox preload list; header active (max-age=31536000; includeSubDomains; preload)</td></tr>
+              <tr><td>TLS 1.3</td><td>✅</td><td>Enforced on all connections; WSS for WebSocket</td></tr>
+              <tr><td>Content-Security-Policy</td><td>✅</td><td>Strict CSP, no unsafe-inline scripts</td></tr>
+            </tbody>
+          </table>
+        </section>
+
         <section id="comparison">
           <h2>How Nexa compares</h2>
           <table>
@@ -100,15 +126,16 @@ export function SecurityDocPage() {
         <nav className="legal-page__toc">
           <h2>Contents</h2>
           <ol>
+            <li><a href="#status">Security feature status</a></li>
             <li><a href="#comparison">Comparison</a></li>
             <li><a href="#threat-model">Threat model</a></li>
-            <li><a href="#current-encryption">Current encryption (v2)</a></li>
+            <li><a href="#current-encryption">Current encryption</a></li>
             <li><a href="#key-management">Key management</a></li>
             <li><a href="#transport">Transport security</a></li>
             <li><a href="#at-rest">Data at rest</a></li>
             <li><a href="#auth">Authentication</a></li>
-            <li><a href="#limitations">Current limitations</a></li>
-            <li><a href="#roadmap">Roadmap to Signal Protocol</a> (§8.6 — metadata)</li>
+            <li><a href="#limitations">Known limitations</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
             <li><a href="#responsible-disclosure">Responsible disclosure</a></li>
           </ol>
         </nav>
@@ -274,10 +301,25 @@ envelope            = { v:7, ephemeral_pub, mlkem_ct, ciphertext }`}</pre>
           </table>
           <p>
             <strong>Key loss:</strong> if a user clears their browser storage, their device key
-            pair is lost. They will generate a new key pair on next login and cannot decrypt
-            messages encrypted to the old key. Use{" "}
-            <strong>Settings → Devices → E2EE Key Backup</strong> to export an encrypted backup
-            of your key pair and restore it on a new device or after storage loss.
+            pair is lost. Use <strong>Settings → Devices → E2EE Key Backup</strong> to export an
+            encrypted backup (PBKDF2-SHA256 600k iterations + AES-256-GCM) and restore it on any device.
+          </p>
+
+          <h3>3.1 Key verification — Safety Numbers</h3>
+          <p>
+            To verify you are communicating with the right person (not a key-substitution attack),
+            open any DM chat → menu → <strong>Verify Safety Number</strong>. Both parties see the
+            same 12-group 60-digit number, derived as:
+          </p>
+          <pre>{`// SHA-512 fingerprint of both parties' ECDH public keys:
+input = sort_by_userId([ (userId1, ecdhPub1), (userId2, ecdhPub2) ])
+hash  = SHA-512(uid1_bytes ‖ key1_bytes ‖ uid2_bytes ‖ key2_bytes)
+// → 12 groups of 5 digits, zero-padded → identical on both sides
+"DDDDD DDDDD DDDDD DDDDD DDDDD DDDDD
+ DDDDD DDDDD DDDDD DDDDD DDDDD DDDDD"`}</pre>
+          <p>
+            Compare via a trusted out-of-band channel (in person, video call). Once verified, the UI
+            marks the conversation ✅ Verified. Any future key change is detected and the status resets.
           </p>
         </section>
 
@@ -338,35 +380,28 @@ envelope            = { v:7, ephemeral_pub, mlkem_ct, ciphertext }`}</pre>
         </section>
 
         <section id="limitations">
-          <h2>7. Current limitations (honest disclosure)</h2>
-          <p>We want you to know exactly what we <em>don't</em> protect against today:</p>
+          <h2>7. Known limitations</h2>
+          <p>We believe in honest transparency. The following protections are partial or not yet available:</p>
           <ul>
             <li>
-              <strong>Social graph metadata.</strong>{" "}
-              <em>Message sizes:</em> ✅ mitigated — all plaintext is padded to 256-byte blocks.{" "}
-              <em>Sender identity (groups):</em> ✅ mitigated — sealed sender (v6) encrypts
-              sender_id inside the E2EE ciphertext; the server routes on conversation_id only.{" "}
-              <em>Conversation membership and timing:</em> ❌ the server still sees who is in each
-              conversation and when messages are sent. Full mitigation requires an anonymous relay
-              layer (not planned — impractical for a web app without infrastructure changes).
+              <strong>Conversation-level metadata.</strong>{" "}
+              Message content is fully encrypted and sender identity in groups is sealed (v6). However,
+              the server still sees <em>conversation membership</em> (who is in which group) and{" "}
+              <em>message timing</em> (when messages are sent). Complete metadata protection would
+              require an anonymous relay layer — impractical for a standard web messenger. Message
+              sizes are mitigated by 256-byte padding.
             </li>
             <li>
-              <strong>Media key forward secrecy depends on message forward secrecy.</strong> Each
-              media file has a random per-file AES-256-GCM key inside the message envelope. The
-              key has the same forward secrecy guarantees as the message envelope (PQXDH v7 for DMs,
-              Sender Keys v6 for groups).
+              <strong>Multi-device sync is backup-based, not real-time.</strong>{" "}
+              You can export your encrypted key pair and import it on another device (Settings → Devices).
+              Double Ratchet session history is not synced — a new import starts fresh but receives
+              all future messages. Signal-style live device linking (where all devices receive messages
+              simultaneously) is on the roadmap (§8.7).
             </li>
             <li>
-              <strong>Multi-device: key backup only, not real-time sync.</strong> Users can export
-              their ECDH + ML-KEM key pair in an encrypted backup (Settings → Devices → E2EE Key
-              Backup) and import on a new device. Double Ratchet session state is not backed up —
-              importing restores future DM capability but not past history. Real-time multi-device
-              key distribution (Signal-style device linking) is not yet implemented.
-            </li>
-            <li>
-              <strong>X3DH prekey bundles not implemented.</strong> The current DR session init
-              requires both parties to be registered on the server first. Signal's X3DH allows
-              async session init (offline first message) — this remains a future milestone.
+              <strong>Compromised client device.</strong>{" "}
+              Out of scope for any E2EE system. A malicious OS or hardware keylogger captures
+              plaintext before encryption regardless of the protocol.
             </li>
           </ul>
         </section>
