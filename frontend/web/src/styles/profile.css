@@ -585,5 +585,4 @@
 @media (max-width: 768px) {
   .profile-hero { padding-top: 3.5rem; /* clear app-brand logo */ }
   .profile-nav__item { min-height: 52px; }
-  .profile-card__edit-btn { display: none; }
 }

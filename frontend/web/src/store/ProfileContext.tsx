@@ -21,6 +21,18 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
+function deriveNickname(email?: string | null, username?: string | null): string {
+  if (email) {
+    const local = email.split("@")[0];
+    return local
+      .split(/[._\-+]/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+  return username ?? "";
+}
+
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const session = getCachedSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -33,19 +45,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
-      let p = await fetchMyProfile();
-      if (session.user.username) {
-        try {
-          p = await bootstrapProfile(session.user.username, session.user.username);
-        } catch {
-          /* keep fetched profile */
-        }
-      }
+      const p = await fetchMyProfile();
       setProfile({ ...p, privacy: p.privacy ?? DEFAULT_PROFILE_PRIVACY });
     } catch {
+      // Profile doesn't exist yet — bootstrap it (first login only)
       if (session.user.username) {
         try {
-          const p = await bootstrapProfile(session.user.username, session.user.username);
+          const nickname = deriveNickname(session.user.email, session.user.username);
+          const p = await bootstrapProfile(session.user.username, nickname || session.user.username);
           setProfile({ ...p, privacy: p.privacy ?? DEFAULT_PROFILE_PRIVACY });
         } catch {
           setProfile(null);

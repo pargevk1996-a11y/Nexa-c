@@ -108,7 +108,7 @@ export function ContactsPage() {
 
   // Search with debounce + fetch contact statuses
   useEffect(() => {
-    const q = query.trim().replace(/^\$/, "");
+    const q = query.trim().replace(/^[$@]/, "");
     if (q.length < 2 || session?.demoMode || !session?.user?.id) {
       setRemote([]);
       return;

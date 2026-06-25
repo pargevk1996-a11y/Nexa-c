@@ -469,8 +469,10 @@ export function useRealtimeChat({
         // reconcile against the network below and repaint with the merged result.
         if (!cancelled && cached.length) onMessages(activeId, cached);
 
-        const synced = await catchUpConversation(activeId);
-        const newest = await listMessages(activeId, { limit: PAGE });
+        const [newest, synced] = await Promise.all([
+          listMessages(activeId, { limit: PAGE }),
+          catchUpConversation(activeId),
+        ]);
         const merged = new Map<string, ApiMessage>();
         for (const m of newest) merged.set(m.id, m);
         for (const m of synced) merged.set(m.id, m);
