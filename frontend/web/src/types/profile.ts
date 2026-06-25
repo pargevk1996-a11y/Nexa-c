@@ -27,6 +27,8 @@ export interface UserProfile {
   verification_badge: VerificationBadge;
   /** Phone number in E.164 format, e.g. +14155552671 */
   phone_number?: string | null;
+  /** ISO-8601 account/profile creation timestamp. */
+  created_at?: string | null;
   privacy?: ProfilePrivacy;
 }
 

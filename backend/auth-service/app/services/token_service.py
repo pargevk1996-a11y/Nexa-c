@@ -67,16 +67,18 @@ async def issue_tokens_for_user(
         ip_hint=ip_hint,
         device_fingerprint=fp,
     )
-    # MULTI-SESSION POLICY: allow up to 2 active sessions (current device + 1 other).
-    # On new login: lock all existing sessions (require PIN re-entry) and notify them
-    # via WebSocket. If there are already 2+ sessions, revoke the oldest to stay at 2.
+    # MULTI-SESSION POLICY: allow up to settings.max_active_sessions concurrent
+    # sessions (phone + desktop + native app, etc.) so normal multi-device use
+    # never logs a device out. On a new login, lock OTHER sessions (PIN re-entry)
+    # and notify them via WebSocket; only revoke the oldest surplus beyond the cap.
     # QR pairing (revoke_others=False) manages its own session count.
     if revoke_others:
+        cap = max(1, settings.max_active_sessions)
         existing = await session_store.list_user_sessions(user_id)
-        # Keep newest 2 (including this new session); revoke older surplus sessions.
-        if len(existing) > 2:
+        # Keep newest `cap` (including this new session); revoke older surplus.
+        if len(existing) > cap:
             by_age = sorted(existing, key=lambda s: s.last_used_at)
-            for old in by_age[: len(existing) - 2]:
+            for old in by_age[: len(existing) - cap]:
                 await session_store.revoke_session(old.id)
         # Lock all OTHER active sessions — they must re-enter PIN.
         await session_store.clear_pin_verified_all(user_id)

@@ -41,6 +41,7 @@ class PostgresProfileStore:
             ),
             ecdh_public_key=getattr(row, "ecdh_public_key", None),
             mlkem_public_key=getattr(row, "mlkem_public_key", None),
+            created_at=getattr(row, "created_at", None),
         )
 
     async def bootstrap(self, user_id: str, username: str, *, nickname: str | None = None) -> Profile:

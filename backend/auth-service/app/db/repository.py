@@ -185,6 +185,13 @@ class PostgresUserStore:
                 if row:
                     raise ValueError("account_exists")
                 safe_name = (username.strip()[:64] if username else "") or key.split("@")[0][:64]
+                # Usernames are unique across the whole system — refuse if another
+                # account already holds this handle.
+                dup = await session.scalar(
+                    select(UserRow).where(func.lower(UserRow.username) == safe_name.lower())
+                )
+                if dup is not None:
+                    raise ValueError("username_taken")
                 row = UserRow(
                     id=uuid.uuid4(),
                     email=key,
@@ -203,8 +210,18 @@ class PostgresUserStore:
                 raise ValueError("account_not_found")
             row.is_email_verified = True
             safe = username.strip()[:64] if username else ""
+            # Heal legacy accounts whose username was the display name: switch to
+            # the provider handle (email / login), but only if it's still free so
+            # we never violate the unique-username invariant.
             if safe and row.username != safe:
-                row.username = safe
+                taken = await session.scalar(
+                    select(UserRow).where(
+                        func.lower(UserRow.username) == safe.lower(),
+                        UserRow.id != row.id,
+                    )
+                )
+                if taken is None:
+                    row.username = safe
             await session.commit()
             await session.refresh(row)
             return self._to_stored(row)

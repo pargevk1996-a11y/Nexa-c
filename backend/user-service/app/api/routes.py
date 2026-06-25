@@ -56,6 +56,7 @@ def _to_profile(p) -> ProfileResponse:
         privacy=_privacy_to_schema(p.privacy),
         ecdh_public_key=p.ecdh_public_key,
         mlkem_public_key=p.mlkem_public_key,
+        created_at=p.created_at.isoformat() if getattr(p, "created_at", None) else None,
     )
 
 

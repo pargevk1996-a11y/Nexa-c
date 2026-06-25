@@ -48,6 +48,7 @@ class Profile:
     privacy: ProfilePrivacy = field(default_factory=ProfilePrivacy)
     ecdh_public_key: str | None = None
     mlkem_public_key: str | None = None
+    created_at: datetime | None = None
 
 
 @dataclass

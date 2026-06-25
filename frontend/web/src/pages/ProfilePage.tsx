@@ -32,7 +32,8 @@ export function ProfilePage() {
   const pageRef = useRef<HTMLDivElement>(null);
 
   const [username, setUsername] = useState("");
-  const [nickname, setNickname] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [bio, setBio] = useState("");
   const [statusText, setStatusText] = useState("");
   const [isOnline, setIsOnline] = useState(false);
@@ -48,7 +49,10 @@ export function ProfilePage() {
   useEffect(() => {
     if (!profile) return;
     setUsername(profile.username);
-    setNickname(profile.nickname);
+    // The display name (nickname) holds "First Last" — split it for editing.
+    const parts = (profile.nickname || "").trim().split(/\s+/).filter(Boolean);
+    setFirstName(parts[0] ?? "");
+    setLastName(parts.slice(1).join(" "));
     setBio(profile.bio);
     setStatusText(profile.status_text);
     setIsOnline(profile.is_online);
@@ -91,14 +95,22 @@ export function ProfilePage() {
     };
   }, [settings.showNavButtons]);
 
+  // "First Last" display name recombined from the two edit fields.
+  const nickname = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+
   async function handleSave(e: FormEvent) {
     e.preventDefault();
+    const handle = username.trim().replace(/^\$/, "");
+    if (handle.length < 3) {
+      setError("Username must be at least 3 characters");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await save({
-        username: username.trim().replace(/^\$/, ""),
-        nickname: nickname.trim(),
+        username: handle,
+        nickname: nickname,
         bio: bio.trim(),
         status_text: statusText.trim(),
         privacy: { ...privacy, secure_mode: secureMode },
@@ -108,13 +120,21 @@ export function ProfilePage() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.code === "USERNAME_TAKEN"
-          ? "Username already taken"
+          ? "Username already taken — please choose another"
           : "Could not save profile",
       );
     } finally {
       setSaving(false);
     }
   }
+
+  const createdAtLabel = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
   async function handleSavePrivacy() {
     setSavingPrivacy(true);
@@ -193,7 +213,19 @@ export function ProfilePage() {
 
   return (
     <div className="page-shell page-shell__inner glass-panel profile-page" ref={pageRef}>
-      {loading && !profile ? <p className="auth-hint">Loading profile…</p> : null}
+      {loading && !profile ? (
+        <div className="profile-page__state" role="status">
+          <span className="profile-page__spinner" aria-hidden />
+          <p className="auth-hint">Loading profile…</p>
+        </div>
+      ) : null}
+
+      {!loading && !profile ? (
+        <div className="profile-page__state" role="alert">
+          <p className="auth-hint">We couldn’t load your profile.</p>
+          <Button type="button" onClick={() => void refresh()}>Retry</Button>
+        </div>
+      ) : null}
 
       {profile ? (
         <>
@@ -276,16 +308,28 @@ export function ProfilePage() {
             {editing ? (
               <div className="profile-card__edit-body">
                 <Input
+                  label="First name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  hint="Shown in chats and calls"
+                />
+                <Input
+                  label="Last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+                <Input
                   label="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.replace(/^\$/, ""))}
-                  hint="Unique handle — shown as $username"
+                  hint="Unique handle — must be at least 3 characters"
                 />
                 <Input
-                  label="Display name"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  hint="Name shown in chats and calls"
+                  label="Email"
+                  value={session.user.email ?? ""}
+                  readOnly
+                  disabled
+                  hint="Email cannot be changed"
                 />
                 <Input
                   label="Bio"
@@ -312,16 +356,34 @@ export function ProfilePage() {
               </div>
             ) : (
               <div className="profile-card__view">
+                <div className="profile-info-row">
+                  <span className="profile-info-row__label">First name</span>
+                  <span className="profile-info-row__value">{firstName || "—"}</span>
+                </div>
+                <div className="profile-info-row">
+                  <span className="profile-info-row__label">Last name</span>
+                  <span className="profile-info-row__value">{lastName || "—"}</span>
+                </div>
+                <div className="profile-info-row">
+                  <span className="profile-info-row__label">Username</span>
+                  <span className="profile-info-row__value">@{username.replace(/^\$/, "")}</span>
+                </div>
+                <div className="profile-info-row">
+                  <span className="profile-info-row__label">Email</span>
+                  <span className="profile-info-row__value">{session.user.email || "—"}</span>
+                </div>
+                {createdAtLabel ? (
+                  <div className="profile-info-row">
+                    <span className="profile-info-row__label">Member since</span>
+                    <span className="profile-info-row__value">{createdAtLabel}</span>
+                  </div>
+                ) : null}
                 {profile.phone_number ? (
                   <div className="profile-info-row">
                     <span className="profile-info-row__label">Phone</span>
                     <span className="profile-info-row__value">{profile.phone_number}</span>
                   </div>
                 ) : null}
-                <div className="profile-info-row">
-                  <span className="profile-info-row__label">Username</span>
-                  <span className="profile-info-row__value">@{username.replace(/^\$/, "")}</span>
-                </div>
                 {bio ? (
                   <div className="profile-info-row">
                     <span className="profile-info-row__label">Bio</span>

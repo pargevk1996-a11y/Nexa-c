@@ -136,6 +136,9 @@ class UserStore:
             if existing:
                 raise ValueError("account_exists")
             safe_name = (username.strip()[:64] if username else "") or key.split("@")[0][:64]
+            # Usernames are unique system-wide.
+            if any(u.username.lower() == safe_name.lower() for u in self._by_id.values()):
+                raise ValueError("username_taken")
             user = StoredUser(
                 id=str(uuid4()),
                 email=key,
@@ -152,8 +155,14 @@ class UserStore:
         if not existing:
             raise ValueError("account_not_found")
         existing.is_email_verified = True
-        if username and existing.username != username:
-            existing.username = username.strip()[:64]
+        safe = username.strip()[:64] if username else ""
+        if safe and existing.username != safe:
+            taken = any(
+                u.username.lower() == safe.lower() and u.id != existing.id
+                for u in self._by_id.values()
+            )
+            if not taken:
+                existing.username = safe
         return existing
 
     async def set_pin(self, user_id: str, pin_hash: str) -> bool:

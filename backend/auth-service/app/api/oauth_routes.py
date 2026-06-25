@@ -115,7 +115,8 @@ async def oauth_start(provider: str, mode: str = "login") -> RedirectResponse:
     return RedirectResponse(url, status_code=302)
 
 
-async def _fetch_github_user(access_token: str) -> tuple[str, str, str]:
+async def _fetch_github_user(access_token: str) -> tuple[str, str, str, str]:
+    """Return (subject, email, login, display_name) for a GitHub user."""
     headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
     async with httpx.AsyncClient(timeout=15.0) as client:
         user_res = await client.get("https://api.github.com/user", headers=headers)
@@ -128,11 +129,13 @@ async def _fetch_github_user(access_token: str) -> tuple[str, str, str]:
             emails = email_res.json()
             primary = next((e for e in emails if e.get("primary")), None)
             email = (primary or emails[0] if emails else {}).get("address", "")
-        username = data.get("login") or "github_user"
-        return str(data.get("id", username)), email or f"{username}@users.noreply.github.com", username
+        login = data.get("login") or "github_user"
+        display_name = data.get("name") or login
+        return str(data.get("id", login)), email or f"{login}@users.noreply.github.com", login, display_name
 
 
 async def _fetch_google_user(access_token: str) -> tuple[str, str, str]:
+    """Return (subject, email, display_name) for a Google user."""
     async with httpx.AsyncClient(timeout=15.0) as client:
         res = await client.get(
             "https://openidconnect.googleapis.com/v1/userinfo",
@@ -146,7 +149,13 @@ async def _fetch_google_user(access_token: str) -> tuple[str, str, str]:
         return sub, email, name
 
 
-async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
+async def _exchange_code(provider: str, code: str) -> tuple[str, str, str, str]:
+    """Return (subject, email, username, display_name).
+
+    username is the auto-assigned handle: the full Gmail address for Google and
+    the GitHub login for GitHub. display_name is the person's real name (used as
+    the profile nickname / chat-list name).
+    """
     redirect_uri = _oauth_redirect_uri(provider)
     if provider == "google":
         secret = settings.google_client_secret
@@ -182,7 +191,9 @@ async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
             access_token = token_res.json().get("access_token")
         if not access_token:
             raise HTTPException(status_code=400, detail={"error": {"code": "OAUTH_FAILED", "message": "Could not obtain access token"}})
-        return await _fetch_google_user(access_token)
+        sub, email, display_name = await _fetch_google_user(access_token)
+        # Google handle = the full Gmail address (auto-assigned username).
+        return sub, email, email, display_name
 
     secret = settings.github_client_secret
     if not secret:
@@ -208,7 +219,9 @@ async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
             token_res.text,
         )
         raise HTTPException(status_code=400, detail={"error": {"code": "OAUTH_FAILED", "message": "Could not obtain access token"}})
-    return await _fetch_github_user(access_token)
+    # GitHub handle = the GitHub login (auto-assigned username).
+    gid, email, login, display_name = await _fetch_github_user(access_token)
+    return gid, email, login, display_name
 
 
 @router.get("/oauth/{provider}/callback")
@@ -239,7 +252,7 @@ async def oauth_provider_callback(
     mode = _decode_mode(state)
 
     try:
-        subject, email, username = await _exchange_code(provider, code)
+        subject, email, username, display_name = await _exchange_code(provider, code)
     except HTTPException as exc:
         err_code = "oauth_failed"
         if isinstance(exc.detail, dict):
@@ -267,6 +280,11 @@ async def oauth_provider_callback(
                 _frontend_callback_url({"error": "account_not_found", "provider": provider}),
                 status_code=302,
             )
+        if "username_taken" in err_str:
+            return RedirectResponse(
+                _frontend_callback_url({"error": "username_taken", "provider": provider}),
+                status_code=302,
+            )
         if "account_exists" in err_str:
             return RedirectResponse(
                 _frontend_callback_url({"error": "account_exists", "provider": provider}),
@@ -285,8 +303,12 @@ async def oauth_provider_callback(
         )
     exchange = secrets.token_urlsafe(32)
     _exchange_codes[exchange] = _to_user_response(user)
+    # `name` carries the provider's real display name so the SPA can seed the
+    # profile nickname (chat-list name) on first sign-in.
     return RedirectResponse(
-        _frontend_callback_url({"exchange": exchange, "provider": provider, "state": state or ""}),
+        _frontend_callback_url(
+            {"exchange": exchange, "provider": provider, "state": state or "", "name": display_name or ""}
+        ),
         status_code=302,
     )
 

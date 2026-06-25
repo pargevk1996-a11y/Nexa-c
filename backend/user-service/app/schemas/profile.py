@@ -31,6 +31,7 @@ class ProfileResponse(BaseModel):
     privacy: ProfilePrivacySettings = Field(default_factory=ProfilePrivacySettings)
     ecdh_public_key: str | None = None
     mlkem_public_key: str | None = None
+    created_at: str | None = None
 
 
 class ProfileUpdateRequest(BaseModel):

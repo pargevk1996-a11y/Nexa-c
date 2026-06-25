@@ -27,6 +27,7 @@ export function OAuthCallbackPage() {
           oauth_not_configured: { code: "OAUTH_NOT_CONFIGURED", message: "OAuth is not configured on the server." },
           account_not_found:    { code: "ACCOUNT_NOT_FOUND",    message: "Account not found. Please register first." },
           account_exists:       { code: "ACCOUNT_EXISTS",       message: "An account with this email already exists. Please sign in instead." },
+          username_taken:       { code: "USERNAME_TAKEN",       message: "That username is already taken. Please try a different account." },
           access_denied:        { code: "OAUTH_ERROR",          message: "Sign-in was cancelled." },
         };
         const mapped = msgMap[errorParam] ?? { code: "OAUTH_ERROR", message: "Sign-in failed. Please try again." };
@@ -49,6 +50,12 @@ export function OAuthCallbackPage() {
       }
 
       await storeSession(result.session);
+      // Stash the provider's real display name so ProfileContext can seed the
+      // profile nickname (chat-list name) when it bootstraps on first sign-in.
+      const displayName = searchParams.get("name");
+      if (displayName) {
+        try { sessionStorage.setItem("nexa:oauth_name", displayName); } catch { /* ignore */ }
+      }
       if (!cancelled) navigate("/app/chats", { replace: true });
     }
 

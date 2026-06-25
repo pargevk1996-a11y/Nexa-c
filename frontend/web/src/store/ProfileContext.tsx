@@ -21,20 +21,42 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
-function deriveNickname(username?: string | null, email?: string | null): string {
-  // OAuth users get their display name stored as username (e.g. "John Smith" from Google).
-  // If it already contains a space it's a proper display name — use it as-is.
-  if (username?.includes(" ")) return username.trim();
-  // For username-only logins, derive a readable name from the email local part.
-  if (email) {
-    const local = email.split("@")[0];
-    return local
-      .split(/[._\-+]/)
-      .filter(Boolean)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+/** The provider handle assigned at OAuth time (full Gmail or GitHub login),
+ *  used as the profile @username. Falls back to the email, then the raw value. */
+function deriveHandle(username?: string | null, email?: string | null): string {
+  const u = username?.trim();
+  // A space means this is a legacy display name, not a handle — prefer the email.
+  if (u && !u.includes(" ")) return u;
+  if (email?.trim()) return email.trim();
+  return u ?? "";
+}
+
+/** Readable display name (nickname) used for the chat list & profile name.
+ *  Prefers the OAuth display name stashed at sign-in, then any legacy
+ *  display-name-as-username, then a Title-Cased email local part. */
+function deriveDisplayName(
+  oauthName: string | null,
+  currentUsername: string,
+  email?: string | null,
+): string {
+  if (oauthName?.trim()) return oauthName.trim();
+  if (currentUsername.includes(" ")) return currentUsername.trim();
+  const src = email?.split("@")[0] || currentUsername;
+  return src
+    .split(/[._\-+]/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function takeOAuthName(): string | null {
+  try {
+    const v = sessionStorage.getItem("nexa:oauth_name");
+    if (v) sessionStorage.removeItem("nexa:oauth_name");
+    return v;
+  } catch {
+    return null;
   }
-  return username?.trim() ?? "";
 }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
@@ -49,26 +71,33 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
     setLoading(true);
+    const oauthName = takeOAuthName();
     try {
       const p = await fetchMyProfile();
-      // If the profile exists but has no nickname yet (e.g. older OAuth account),
-      // silently patch it so the profile page and chat list show a real name.
-      if (!p.nickname?.trim() && (s.user.username || s.user.email)) {
-        const nickname = deriveNickname(s.user.username, s.user.email);
-        if (nickname) {
-          const patched = await updateMyProfile({ nickname }).catch(() => p);
-          setProfile({ ...patched, privacy: patched.privacy ?? DEFAULT_PROFILE_PRIVACY });
-          return;
-        }
+      // Self-heal: (a) legacy profiles where the @username was set to the display
+      // name (contains a space) get a real handle; (b) empty nicknames get a
+      // readable display name. Both keep existing accounts working without a
+      // manual migration.
+      const patch: { username?: string; nickname?: string } = {};
+      if (p.username.includes(" ")) {
+        patch.username = deriveHandle(s.user.username, s.user.email);
+      }
+      if (!p.nickname?.trim()) {
+        patch.nickname = deriveDisplayName(oauthName, p.username, s.user.email);
+      }
+      if (Object.keys(patch).length > 0) {
+        const patched = await updateMyProfile(patch).catch(() => p);
+        setProfile({ ...patched, privacy: patched.privacy ?? DEFAULT_PROFILE_PRIVACY });
+        return;
       }
       setProfile({ ...p, privacy: p.privacy ?? DEFAULT_PROFILE_PRIVACY });
     } catch {
-      // Profile doesn't exist yet — bootstrap it (first login only).
-      const username = s.user.username;
-      if (username) {
+      // Profile doesn't exist yet — bootstrap it (first sign-in only).
+      const handle = deriveHandle(s.user.username, s.user.email);
+      if (handle) {
         try {
-          const nickname = deriveNickname(username, s.user.email);
-          const p = await bootstrapProfile(username, nickname || username);
+          const nickname = deriveDisplayName(oauthName, handle, s.user.email);
+          const p = await bootstrapProfile(handle, nickname || handle);
           setProfile({ ...p, privacy: p.privacy ?? DEFAULT_PROFILE_PRIVACY });
         } catch {
           setProfile(null);

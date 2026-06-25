@@ -63,7 +63,15 @@ class Settings(BaseSettings):
     jwt_refresh_secret: str = Field(default="", validation_alias="JWT_REFRESH_SECRET")
     jwt_algorithm: str = Field(default="RS256", validation_alias="JWT_ALGORITHM")
     jwt_access_ttl_seconds: int = Field(default=900, validation_alias="JWT_ACCESS_TTL_SECONDS")
-    jwt_refresh_ttl_seconds: int = Field(default=604800, validation_alias="JWT_REFRESH_TTL_SECONDS")
+    # Refresh token / session idle lifetime. The refresh cookie max_age is reset on
+    # every rotation, so this is effectively a sliding idle window: the session
+    # survives browser/device restarts and only dies after this much inactivity
+    # (or on explicit sign-out / refresh-token reuse). Default: 48 hours.
+    jwt_refresh_ttl_seconds: int = Field(default=172800, validation_alias="JWT_REFRESH_TTL_SECONDS")
+    # Max concurrent active sessions per user (multi-device). Older sessions beyond
+    # this count are revoked on a new login. Generous so normal multi-device use
+    # (phone + desktop + native app) never logs a device out unexpectedly.
+    max_active_sessions: int = Field(default=5, validation_alias="MAX_ACTIVE_SESSIONS")
     refresh_cookie_name: str = Field(default="refresh_token", validation_alias="REFRESH_COOKIE_NAME")
     jwt_access_private_key_file: str = Field(default="", validation_alias="JWT_ACCESS_PRIVATE_KEY_FILE")
     jwt_access_private_key: str = Field(default="", validation_alias="JWT_ACCESS_PRIVATE_KEY")
