@@ -1,6 +1,7 @@
 import { listConversations, type ApiConversation } from "@/api/chat";
 import { catchUpConversation } from "@/realtime/sync";
 import { apiMessageToUi } from "@/realtime/mapMessage";
+import { decryptApiMessage } from "@/realtime/decryptMessage";
 import { loadOfflineQueue } from "@/realtime/offlineQueue";
 import type { Conversation, Message } from "@/types";
 import { mergeConversationLists, mergeConversationMessages } from "./conflictResolution";
@@ -120,7 +121,9 @@ export async function runReconnectSync(
     for (const convId of convIds) {
       try {
         const synced = await catchUpConversation(convId);
-        const ui = synced.map((m) => apiMessageToUi(m, userId));
+        const getConv = (id: string) => mergedConvs.find((c) => c.id === id);
+        const decrypted = await Promise.all(synced.map((m) => decryptApiMessage(m, getConv)));
+        const ui = decrypted.map((m) => apiMessageToUi(m, userId));
         const cached = (await loadOfflineMessages(userId, convId)) ?? [];
         const merged = mergeConversationMessages(cached, ui);
         callbacks.onMessages(convId, merged);

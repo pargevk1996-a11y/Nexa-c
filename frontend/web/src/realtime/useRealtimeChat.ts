@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
-  getConversationKey,
-  encryptMessage,
   encryptForConversation,
-  decryptMessage,
-  decryptMessageForward,
-  decryptMessageGroupV4,
-  decryptMessageDR,
-  decryptGroupV6,
-  decryptMessagePQXDH,
   clearConversationKey,
 } from "@/security/e2ee";
-import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4, E2eeEnvelopeV5, E2eeEnvelopeV6, E2eeEnvelopeV7 } from "@/security/e2ee";
 import { storePeerSenderKey, type SenderKeyDistributionBody } from "@/security/senderKeys";
 import { fetchSenderKeyDistribution } from "@/api/e2ee";
 import {
@@ -24,8 +15,10 @@ import {
   type ApiMessage,
 } from "@/api/chat";
 import { getCachedSession } from "@/security/sessionCache";
+import { initUserSecurity } from "@/security/bootstrap";
 import type { Conversation, Message } from "@/types";
 import { apiMessageToUi } from "./mapMessage";
+import { decryptApiMessage } from "./decryptMessage";
 import { catchUpConversation, getLastSeq, setLastSeq } from "./sync";
 import { RealtimeWsClient } from "./wsClient";
 import type { RealtimeConnectionState, WsFrame } from "./types";
@@ -136,62 +129,7 @@ export function useRealtimeChat({
         seqByMessageId.current.set(msg.id, msg.seq);
         // Async decrypt then render — fire-and-forget with immediate optimistic render.
         void (async () => {
-          let decryptedMsg = msg;
-          if (msg.e2ee_envelope && typeof msg.e2ee_envelope === "object" && "ciphertext" in msg.e2ee_envelope) {
-            const env = msg.e2ee_envelope as Record<string, unknown>;
-            let plain: string | null = null;
-
-            if (env.v === 7 && "mlkem_ct" in env) {
-              // v7: PQXDH hybrid (ML-KEM-768 + ECDH P-256, post-quantum DM)
-              plain = await decryptMessagePQXDH(env as unknown as E2eeEnvelopeV7).catch(() => null);
-            } else if (env.v === 6 && "skId" in env) {
-              // v6: Sender Keys group (forward secrecy + break-in recovery + sealed sender)
-              const result = await decryptGroupV6(
-                env as unknown as E2eeEnvelopeV6,
-                msg.conversation_id,
-                msg.sender_id,
-              ).catch(() => null);
-              plain = result?.plaintext ?? null;
-            } else if (env.v === 5 && "dh_pub" in env) {
-              // v5: Double Ratchet (DMs, forward secrecy + break-in recovery)
-              const conv = getConversation?.(msg.conversation_id);
-              const peerId = conv?.peerUserId ?? "";
-              if (peerId) {
-                plain = await decryptMessageDR(env as unknown as E2eeEnvelopeV5, msg.conversation_id, peerId).catch(() => null);
-              }
-            } else if (env.v === 4 && "recipients" in env) {
-              // v4: per-message multi-recipient ECIES (groups, per-message forward secrecy)
-              plain = await decryptMessageGroupV4(env as unknown as E2eeEnvelopeV4, session.user.id).catch(() => null);
-            } else if (env.v === 3 && "ephemeral_pub" in env) {
-              // v3: per-message ephemeral ECDH (DMs, forward-secret — legacy, receive-only)
-              plain = await decryptMessageForward(env as unknown as E2eeEnvelopeV3).catch(() => null);
-            } else if (env.v === 2) {
-              // v2: static shared key (backward-compat — legacy group and DM messages)
-              const conv = getConversation?.(msg.conversation_id);
-              if (conv) {
-                const key = await getConversationKey(
-                  conv.id,
-                  conv.isGroup ? (conv.memberIds ?? []) : (conv.peerUserId ?? ""),
-                  Boolean(conv.isGroup),
-                  session.user.id,
-                ).catch(() => null);
-                if (key) plain = await decryptMessage(env as unknown as E2eeEnvelope, key).catch(() => null);
-              }
-            }
-
-            if (plain !== null) {
-              let body = plain;
-              let media_key: string | undefined;
-              try {
-                const parsed = JSON.parse(plain) as { body?: string; media_key?: string };
-                if (parsed && typeof parsed.body === "string") {
-                  body = parsed.body;
-                  if (typeof parsed.media_key === "string") media_key = parsed.media_key;
-                }
-              } catch { /* plain string body */ }
-              decryptedMsg = { ...msg, body, ...(media_key ? { media_key } : {}) };
-            }
-          }
+          const decryptedMsg = await decryptApiMessage(msg, getConversation);
           const ui = apiMessageToUi(decryptedMsg, session.user.id);
           onAppendMessage(msg.conversation_id, ui);
           onConversationActivity?.(msg.conversation_id, {
@@ -437,6 +375,7 @@ export function useRealtimeChat({
     if (activeConv?.isGroup) {
       void (async () => {
         try {
+          await initUserSecurity();
           const { eciesDecryptBytes } = await import("@/security/e2ee");
           const distributions = await fetchSenderKeyDistribution(activeId);
           for (const dist of distributions) {
@@ -477,7 +416,11 @@ export function useRealtimeChat({
         for (const m of newest) merged.set(m.id, m);
         for (const m of synced) merged.set(m.id, m);
         const sorted = [...merged.values()].sort((a, b) => a.seq - b.seq);
-        const ui = sorted.map((m) => apiMessageToUi(m, uid));
+        // Decrypt the loaded history (the REST loader returns E2EE envelopes);
+        // without this, opened conversations show no/garbled messages until a
+        // manual page refresh repaints from the decrypted offline cache.
+        const decryptedRows = await Promise.all(sorted.map((m) => decryptApiMessage(m, getConversation)));
+        const ui = decryptedRows.map((m) => apiMessageToUi(m, uid));
 
         // Only the newest window is loaded right now. Drop cached rows OLDER than
         // it so a stale/partial offline cache can't render a floating old message

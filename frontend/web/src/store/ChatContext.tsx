@@ -21,6 +21,7 @@ import {
   apiDeleteMessage,
 } from "@/api/chat";
 import { mapApiConversation } from "@/realtime/useRealtimeChat";
+import { decryptApiMessage } from "@/realtime/decryptMessage";
 import { apiMessageToUi } from "@/realtime/mapMessage";
 import type { DemoGif, DemoSticker } from "@/data/mockMedia";
 import { uploadFileResumable } from "@/media/resumableUpload";
@@ -354,6 +355,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const apiMessagesRef = useRef<Record<string, Message[]>>(apiMessages);
   apiMessagesRef.current = apiMessages;
   const [conversations, setConversations] = useState<Conversation[]>(cloneConversations);
+  // Always-current snapshot so message-decryption helpers can resolve a peer
+  // conversation without re-creating callbacks on every conversation change.
+  const conversationsRef = useRef<Conversation[]>(conversations);
+  conversationsRef.current = conversations;
+  const getConversationForDecrypt = useCallback(
+    (id: string) => conversationsRef.current.find((c) => c.id === id),
+    [],
+  );
   const [activeId, setActiveId] = useState<string | null>(() => {
     const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
     if (isMobile) return null;
@@ -1901,7 +1910,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (!liveChatEnabled || !userId) return;
     try {
       const msgs = await listMessages(conversationId, { limit: 50 });
-      const ui = msgs.map((m) => apiMessageToUi(m, userId));
+      const decrypted = await Promise.all(msgs.map((m) => decryptApiMessage(m, getConversationForDecrypt)));
+      const ui = decrypted.map((m) => apiMessageToUi(m, userId));
       setApiMessages((prev) => ({ ...prev, [conversationId]: ui }));
     } catch {
       // On failure clear the undefined sentinel so messagesLoading becomes false
@@ -1966,7 +1976,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setHasOlderByConv((prev) => ({ ...prev, [activeId]: false }));
         return;
       }
-      const uiOlder = older.map((m) => apiMessageToUi(m, userId));
+      const decryptedOlder = await Promise.all(older.map((m) => decryptApiMessage(m, getConversationForDecrypt)));
+      const uiOlder = decryptedOlder.map((m) => apiMessageToUi(m, userId));
       setApiMessages((prev) => {
         const current = prev[activeId] ?? [];
         const existingIds = new Set(current.map((m) => m.id));
