@@ -11,6 +11,18 @@
  */
 
 import { uploadPublicKey, fetchPeerPublicKey, fetchKeyPackage, putKeyPackages } from "@/api/e2ee";
+import {
+  type E2eeEnvelopeV6,
+  type SenderKeyState,
+  encryptGroupSK,
+  decryptGroupSK,
+  generateSenderKey,
+  loadOwnSenderKey,
+  loadPeerSenderKey,
+  saveSenderKeyState,
+  buildDistributionBody,
+} from "./senderKeys";
+export type { E2eeEnvelopeV6 } from "./senderKeys";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -128,7 +140,7 @@ export async function initDeviceKeyPair(): Promise<string> {
   // Generate fresh pair.
   const kp = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },
-    false, // private key: non-extractable (safe in IndexedDB structured clone)
+    true, // extractable: required for PKCS#8 key-backup export (#5 multi-device)
     ["deriveKey"],
   );
   const rawPub = await crypto.subtle.exportKey("raw", kp.publicKey);
@@ -148,6 +160,19 @@ export async function initDeviceKeyPair(): Promise<string> {
 
 export function getMyPublicKeyB64(): string | null {
   return _myPublicB64;
+}
+
+/** For keyExport.ts: restore an imported key pair into IDB and memory */
+export async function restoreDeviceKeyPair(kp: CryptoKeyPair, pubB64: string): Promise<void> {
+  await idbSet(IDB_KEY_PAIR, kp);
+  await idbSet(IDB_PUBLIC, pubB64);
+  _myKeyPair = kp;
+  _myPublicB64 = pubB64;
+}
+
+/** For keyExport.ts: get the current key pair for PKCS#8 export */
+export function getMyKeyPair(): CryptoKeyPair | null {
+  return _myKeyPair;
 }
 
 // ── Per-conversation AES key cache (in-memory only) ──────────────────────────
@@ -351,6 +376,12 @@ async function _eciesDecrypt(
   const raw = await _eciesDecryptRaw(ephemeralPubB64, ciphertextB64);
   if (!raw) return null;
   return crypto.subtle.importKey("raw", raw, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+/** Exported for sender key distribution unwrapping */
+export async function eciesDecryptBytes(ephemeralPubB64: string, ciphertextB64: string): Promise<Uint8Array | null> {
+  const raw = await _eciesDecryptRaw(ephemeralPubB64, ciphertextB64);
+  return raw ? new Uint8Array(raw) : null;
 }
 
 // ── Message encrypt / decrypt ─────────────────────────────────────────────────
@@ -759,9 +790,59 @@ export async function decryptMessageGroupV4(
 }
 
 /**
+ * Decrypt a v6 Sender Keys group envelope.
+ * Returns { plaintext, senderId } — sender_id comes from inside the sealed payload,
+ * not from server metadata (sealed sender: server cannot determine who sent).
+ */
+export async function decryptGroupV6(
+  envelope: E2eeEnvelopeV6,
+  groupId: string,
+  senderUserId: string,
+): Promise<{ plaintext: string; senderId: string }> {
+  const peerState = await loadPeerSenderKey(groupId, senderUserId);
+  if (!peerState) return { plaintext: "[no sender key — request redistribution]", senderId: senderUserId };
+  try {
+    const { plaintext, senderId, nextState } = await decryptGroupSK(envelope, peerState);
+    await saveSenderKeyState(groupId, senderUserId, nextState, nextState.skId);
+    return { plaintext, senderId };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.startsWith("SK_ID_MISMATCH")) {
+      return { plaintext: "[sender key rotated — fetch new distribution]", senderId: senderUserId };
+    }
+    return { plaintext: "[v6 decryption failed]", senderId: senderUserId };
+  }
+}
+
+/**
+ * Initialize or rotate our Sender Key for a group, distribute to all members.
+ * Call on group creation, on joining, or when a member is removed.
+ */
+export async function initGroupSenderKey(
+  groupId: string,
+  myUserId: string,
+  memberPubKeys: Map<string, string>,
+): Promise<void> {
+  const state = await generateSenderKey(groupId, myUserId);
+  const body = buildDistributionBody(state);
+  const distributions = await Promise.all(
+    Array.from(memberPubKeys.entries()).map(async ([userId, pubB64]) => {
+      const encoded = new TextEncoder().encode(JSON.stringify(body));
+      const plainBuf = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength) as ArrayBuffer;
+      const wrapped = await _eciesEncrypt(pubB64, plainBuf);
+      return { userId, ephemeral_pub: wrapped.ephemeral_pub, key_ct: wrapped.ciphertext };
+    }),
+  );
+  // Import the distribution API inline to avoid circular deps at module load time
+  const { uploadSenderKeyDistribution } = await import("@/api/e2ee");
+  await uploadSenderKeyDistribution(groupId, distributions);
+}
+
+/**
  * Unified encrypt helper:
  *   DM    → v5 (Double Ratchet: forward secrecy + break-in recovery)
- *   Group → v4 (per-message multi-recipient ECIES, per-message forward secrecy)
+ *   Group → v6 (Sender Keys: forward secrecy + break-in recovery + sealed sender)
+ *           Falls back to v4 if sender key not yet initialized.
  */
 export async function encryptForConversation(
   plaintext: string,
@@ -769,14 +850,32 @@ export async function encryptForConversation(
   peerOrMembers: string | string[],
   isGroup: boolean,
   myUserId: string,
-): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | E2eeEnvelopeV5 | null> {
+): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | E2eeEnvelopeV5 | E2eeEnvelopeV6 | null> {
   if (!isGroup) {
     const peerId = peerOrMembers as string;
     if (!peerId) return null;
     return encryptMessageDR(plaintext, conversationId, peerId);
   }
-  // Group: per-message multi-recipient ECIES (v4)
+
   const memberIds = peerOrMembers as string[];
+
+  // Try v6 Sender Keys first
+  let skState = await loadOwnSenderKey(conversationId);
+  if (!skState) {
+    // First message in this group: initialize sender key
+    const memberPubKeys = await _fetchMemberPublicKeys(memberIds, myUserId);
+    if (memberPubKeys.size > 0) {
+      await initGroupSenderKey(conversationId, myUserId, memberPubKeys);
+      skState = await loadOwnSenderKey(conversationId);
+    }
+  }
+  if (skState) {
+    const { envelope, nextState } = await encryptGroupSK(plaintext, myUserId, skState);
+    await saveSenderKeyState(conversationId, myUserId, nextState, nextState.skId);
+    return envelope;
+  }
+
+  // Fallback to v4 if sender key setup failed
   const memberPubKeys = await _fetchMemberPublicKeys(memberIds, myUserId);
   if (memberPubKeys.size === 0) return null;
   return encryptMessageGroupV4(plaintext, memberPubKeys);

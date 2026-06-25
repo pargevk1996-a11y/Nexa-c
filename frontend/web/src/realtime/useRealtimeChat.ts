@@ -7,9 +7,12 @@ import {
   decryptMessageForward,
   decryptMessageGroupV4,
   decryptMessageDR,
+  decryptGroupV6,
   clearConversationKey,
 } from "@/security/e2ee";
-import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4, E2eeEnvelopeV5 } from "@/security/e2ee";
+import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4, E2eeEnvelopeV5, E2eeEnvelopeV6 } from "@/security/e2ee";
+import { storePeerSenderKey, type SenderKeyDistributionBody } from "@/security/senderKeys";
+import { fetchSenderKeyDistribution } from "@/api/e2ee";
 import {
   listConversations,
   listMessages,
@@ -137,7 +140,15 @@ export function useRealtimeChat({
             const env = msg.e2ee_envelope as Record<string, unknown>;
             let plain: string | null = null;
 
-            if (env.v === 5 && "dh_pub" in env) {
+            if (env.v === 6 && "skId" in env) {
+              // v6: Sender Keys group (forward secrecy + break-in recovery + sealed sender)
+              const result = await decryptGroupV6(
+                env as unknown as E2eeEnvelopeV6,
+                msg.conversation_id,
+                msg.sender_id,
+              ).catch(() => null);
+              plain = result?.plaintext ?? null;
+            } else if (env.v === 5 && "dh_pub" in env) {
               // v5: Double Ratchet (DMs, forward secrecy + break-in recovery)
               const conv = getConversation?.(msg.conversation_id);
               const peerId = conv?.peerUserId ?? "";
@@ -415,6 +426,26 @@ export function useRealtimeChat({
     if (!session?.user.id) return;
 
     wsRef.current?.subscribe([activeId]);
+
+    // For group conversations: fetch sender key distributions from peers so we
+    // can decrypt v6 (Sender Keys) messages from other group members.
+    const activeConv = getConversation?.(activeId);
+    if (activeConv?.isGroup) {
+      void (async () => {
+        try {
+          const { eciesDecryptBytes } = await import("@/security/e2ee");
+          const distributions = await fetchSenderKeyDistribution(activeId);
+          for (const dist of distributions) {
+            const bodyBytes = await eciesDecryptBytes(dist.ephemeral_pub, dist.key_ct).catch(() => null);
+            if (!bodyBytes) continue;
+            const body = JSON.parse(new TextDecoder().decode(bodyBytes)) as SenderKeyDistributionBody;
+            await storePeerSenderKey(body);
+          }
+        } catch {
+          // Non-fatal: v6 messages fall back to error placeholder until next key fetch
+        }
+      })();
+    }
 
     let cancelled = false;
     void (async () => {

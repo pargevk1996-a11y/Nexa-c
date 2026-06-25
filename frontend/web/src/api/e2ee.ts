@@ -36,3 +36,30 @@ export async function putKeyPackages(
     body: JSON.stringify({ packages }),
   });
 }
+
+export async function uploadSenderKeyDistribution(
+  groupId: string,
+  distributions: { userId: string; ephemeral_pub: string; key_ct: string }[],
+): Promise<void> {
+  try {
+    await apiFetch(`/conversations/${groupId}/sender-key`, {
+      method: "PUT",
+      body: JSON.stringify({ distributions }),
+    });
+  } catch {
+    // Best-effort; members will request re-distribution on next connect
+  }
+}
+
+export async function fetchSenderKeyDistribution(
+  groupId: string,
+): Promise<{ sender_id: string; ephemeral_pub: string; key_ct: string }[]> {
+  try {
+    const data = await apiFetch<{
+      distributions: { sender_id: string; ephemeral_pub: string; key_ct: string }[];
+    }>(`/conversations/${groupId}/sender-key`);
+    return data.distributions ?? [];
+  } catch {
+    return [];
+  }
+}

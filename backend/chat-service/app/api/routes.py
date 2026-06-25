@@ -589,3 +589,56 @@ async def set_key_packages(
     for item in body.packages:
         await redis.set(f"kp:{conversation_id}:{item.user_id}", json.dumps(item.package), ex=ttl)
     return {"ok": True}
+
+
+# ── Sender Keys (v6 group E2EE) ───────────────────────────────────────────────
+# Sender distributes their ECIES-wrapped chain key to each member.
+# Server stores opaque ciphertexts; it cannot derive any message keys.
+
+class SenderKeyDistributionItem(BaseModel):
+    userId: str
+    ephemeral_pub: str
+    key_ct: str
+
+class SenderKeyDistributionBatch(BaseModel):
+    distributions: list[SenderKeyDistributionItem]
+
+
+@router.put("/conversations/{conversation_id}/sender-key")
+async def put_sender_key_distribution(
+    conversation_id: str,
+    body: SenderKeyDistributionBatch,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    conv = await chat_store.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
+    import json
+    from app.core.redis import get_redis
+    redis = await get_redis()
+    ttl = 60 * 60 * 24 * 90
+    for item in body.distributions:
+        payload = {"sender_id": user_id, "ephemeral_pub": item.ephemeral_pub, "key_ct": item.key_ct}
+        await redis.set(f"sk:{conversation_id}:{user_id}:{item.userId}", json.dumps(payload), ex=ttl)
+    return {"ok": True}
+
+
+@router.get("/conversations/{conversation_id}/sender-key")
+async def get_sender_key_distributions(
+    conversation_id: str,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    """Return all sender key distribution messages addressed to this user."""
+    conv = await chat_store.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
+    import json
+    from app.core.redis import get_redis
+    redis = await get_redis()
+    member_ids = [m.user_id for m in conv.members if m.user_id != user_id]
+    distributions = []
+    for sender_id in member_ids:
+        raw = await redis.get(f"sk:{conversation_id}:{sender_id}:{user_id}")
+        if raw:
+            distributions.append(json.loads(raw))
+    return {"distributions": distributions}

@@ -1845,3 +1845,15 @@ body {
   color: var(--text-muted);
   border: 1px solid var(--border);
 }
+
+/* ── Key backup fields (#5 multi-device) ────────────────────────────── */
+.settings-key-backup__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 320px;
+}
+.settings-key-backup__fields .auth-input {
+  width: 100%;
+}
