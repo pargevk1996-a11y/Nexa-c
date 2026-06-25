@@ -87,6 +87,10 @@ export function LockProvider({ children }: { children: ReactNode }) {
       setLockState("active");
       setLockedAt(0);
       resetInactivityTimer();
+      // The access cookie was just reissued with pin_verified=true. Any data the
+      // app tried to fetch while locked got 403 PIN_REQUIRED — tell the data
+      // contexts to reload now so chats/messages appear without a page refresh.
+      try { window.dispatchEvent(new Event("securechat-unlocked")); } catch { /* ignore */ }
     } catch (e) {
       if (e instanceof ApiError) {
         setPinError(e.message);
@@ -104,6 +108,8 @@ export function LockProvider({ children }: { children: ReactNode }) {
       setLockState("active");
       setLockedAt(0);
       resetInactivityTimer();
+      // Cookie now carries pin_verified=true — reload data that 403'd while locked.
+      try { window.dispatchEvent(new Event("securechat-unlocked")); } catch { /* ignore */ }
     } catch (e) {
       if (e instanceof ApiError) {
         const code = (e as ApiError).code;

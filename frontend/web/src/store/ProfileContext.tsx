@@ -110,11 +110,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Re-run after any login event (OAuth redirect sets session AFTER first render).
+  // Re-run after any login event (OAuth redirect sets session AFTER first render)
+  // and after the PIN is verified (data fetched while locked got 403 PIN_REQUIRED).
   useEffect(() => {
     const onSession = () => void refresh();
     window.addEventListener("securechat-session", onSession);
-    return () => window.removeEventListener("securechat-session", onSession);
+    window.addEventListener("securechat-unlocked", onSession);
+    return () => {
+      window.removeEventListener("securechat-session", onSession);
+      window.removeEventListener("securechat-unlocked", onSession);
+    };
   }, [refresh]);
 
   useEffect(() => {

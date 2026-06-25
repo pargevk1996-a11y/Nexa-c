@@ -1955,6 +1955,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [liveChatEnabled, activeId, refreshConversations, refreshMessagesForConversation]);
 
+  // After the PIN is verified (app unlocks), the access cookie is reissued with
+  // pin_verified=true. Any data fetched WHILE locked got 403 PIN_REQUIRED from
+  // the gateway — so the conversation list comes back empty right after login
+  // until a manual page refresh. Reload conversations + the open chat here so
+  // they appear immediately once unlocked.
+  useEffect(() => {
+    if (!liveChatEnabled) return;
+    const onUnlocked = () => {
+      void refreshConversations();
+      if (activeId) void refreshMessagesForConversation(activeId);
+    };
+    window.addEventListener("securechat-unlocked", onUnlocked);
+    return () => window.removeEventListener("securechat-unlocked", onUnlocked);
+  }, [liveChatEnabled, activeId, refreshConversations, refreshMessagesForConversation]);
+
   const [hasOlderByConv, setHasOlderByConv] = useState<Record<string, boolean>>({});
   const loadingOlderRef = useRef(false);
 
