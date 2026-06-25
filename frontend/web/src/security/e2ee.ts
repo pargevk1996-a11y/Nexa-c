@@ -23,6 +23,13 @@ import {
   buildDistributionBody,
 } from "./senderKeys";
 export type { E2eeEnvelopeV6 } from "./senderKeys";
+import {
+  type E2eeEnvelopeV7,
+  encryptPQXDH,
+  decryptPQXDH,
+  getMlKemPublicKeyB64,
+} from "./pqxdh";
+export type { E2eeEnvelopeV7 } from "./pqxdh";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -839,8 +846,21 @@ export async function initGroupSenderKey(
 }
 
 /**
+ * Decrypt a v7 PQXDH envelope (DMs — post-quantum hybrid).
+ */
+export async function decryptMessagePQXDH(envelope: E2eeEnvelopeV7): Promise<string> {
+  if (!_myKeyPair) return "[device key not initialized]";
+  try {
+    return await decryptPQXDH(envelope, _myKeyPair.privateKey);
+  } catch {
+    return "[v7 PQXDH decryption failed]";
+  }
+}
+
+/**
  * Unified encrypt helper:
- *   DM    → v5 (Double Ratchet: forward secrecy + break-in recovery)
+ *   DM    → v7 (PQXDH hybrid ML-KEM-768 + ECDH: post-quantum forward secrecy)
+ *           Falls back to v5 (Double Ratchet) if peer has no ML-KEM key yet.
  *   Group → v6 (Sender Keys: forward secrecy + break-in recovery + sealed sender)
  *           Falls back to v4 if sender key not yet initialized.
  */
@@ -850,10 +870,25 @@ export async function encryptForConversation(
   peerOrMembers: string | string[],
   isGroup: boolean,
   myUserId: string,
-): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | E2eeEnvelopeV5 | E2eeEnvelopeV6 | null> {
+): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | E2eeEnvelopeV5 | E2eeEnvelopeV6 | E2eeEnvelopeV7 | null> {
   if (!isGroup) {
     const peerId = peerOrMembers as string;
     if (!peerId) return null;
+
+    // Try v7 PQXDH first (if peer has ML-KEM key)
+    try {
+      const { fetchPeerMlKemPublicKey } = await import("@/api/e2ee");
+      const peerMlKemPub = await fetchPeerMlKemPublicKey(peerId);
+      if (peerMlKemPub && _myPublicB64) {
+        const peerEcdhPub = await fetchPeerPublicKey(peerId);
+        if (peerEcdhPub) {
+          return encryptPQXDH(plaintext, peerEcdhPub, peerMlKemPub, _myPublicB64);
+        }
+      }
+    } catch {
+      // Fall through to v5
+    }
+
     return encryptMessageDR(plaintext, conversationId, peerId);
   }
 

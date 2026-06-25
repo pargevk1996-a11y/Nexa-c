@@ -47,6 +47,7 @@ class Profile:
     verification_badge: VerificationBadge = "none"
     privacy: ProfilePrivacy = field(default_factory=ProfilePrivacy)
     ecdh_public_key: str | None = None
+    mlkem_public_key: str | None = None
 
 
 @dataclass
@@ -154,6 +155,13 @@ class ProfileStore:
         if not p:
             return None
         p.ecdh_public_key = ecdh_public_key
+        return p
+
+    async def update_mlkem_public_key(self, user_id: str, mlkem_public_key: str) -> Profile | None:
+        p = self._by_id.get(user_id)
+        if not p:
+            return None
+        p.mlkem_public_key = mlkem_public_key
         return p
 
     async def set_presence(self, user_id: str, *, is_online: bool, status_text: str | None = None) -> Profile | None:

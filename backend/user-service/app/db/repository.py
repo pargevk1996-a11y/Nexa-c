@@ -40,6 +40,7 @@ class PostgresProfileStore:
                 allow_search_by_username=row.allow_search_by_username,
             ),
             ecdh_public_key=getattr(row, "ecdh_public_key", None),
+            mlkem_public_key=getattr(row, "mlkem_public_key", None),
         )
 
     async def bootstrap(self, user_id: str, username: str, *, nickname: str | None = None) -> Profile:
@@ -189,6 +190,16 @@ class PostgresProfileStore:
             if not row:
                 return None
             row.ecdh_public_key = ecdh_public_key
+            await session.commit()
+            await session.refresh(row)
+            return self._to_profile(row)
+
+    async def update_mlkem_public_key(self, user_id: str, mlkem_public_key: str) -> Profile | None:
+        async with self._sm() as session:
+            row = await session.scalar(select(ProfileRow).where(ProfileRow.id == user_id))
+            if not row:
+                return None
+            row.mlkem_public_key = mlkem_public_key
             await session.commit()
             await session.refresh(row)
             return self._to_profile(row)

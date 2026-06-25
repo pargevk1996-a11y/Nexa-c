@@ -37,6 +37,22 @@ export async function putKeyPackages(
   });
 }
 
+export async function uploadMlKemPublicKey(mlkemPublicKey: string): Promise<void> {
+  await apiFetch("/users/me/mlkem-public-key", {
+    method: "PUT",
+    body: JSON.stringify({ mlkem_public_key: mlkemPublicKey }),
+  });
+}
+
+export async function fetchPeerMlKemPublicKey(userId: string): Promise<string | null> {
+  try {
+    const data = await apiFetch<{ mlkem_public_key?: string | null }>(`/users/${userId}/mlkem-public-key`);
+    return data.mlkem_public_key ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function uploadSenderKeyDistribution(
   groupId: string,
   distributions: { userId: string; ephemeral_pub: string; key_ct: string }[],

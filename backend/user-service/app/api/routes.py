@@ -24,6 +24,9 @@ class ScreenLockState(BaseModel):
 class PublicKeyRequest(BaseModel):
     ecdh_public_key: str = Field(min_length=10, max_length=256)
 
+class MlKemPublicKeyRequest(BaseModel):
+    mlkem_public_key: str = Field(min_length=10, max_length=2048)  # ML-KEM-768 pubkey ~1580 b64 chars
+
 
 def _privacy_to_schema(p: ProfilePrivacy) -> ProfilePrivacySettings:
     return ProfilePrivacySettings(
@@ -52,6 +55,7 @@ def _to_profile(p) -> ProfileResponse:
         verification_badge=p.verification_badge,
         privacy=_privacy_to_schema(p.privacy),
         ecdh_public_key=p.ecdh_public_key,
+        mlkem_public_key=p.mlkem_public_key,
     )
 
 
@@ -71,6 +75,7 @@ def _to_public(p, viewer_id: str) -> PublicProfileResponse:
         last_seen_at=visible.last_seen_at.isoformat() if visible.last_seen_at else None,
         verification_badge=visible.verification_badge,
         ecdh_public_key=visible.ecdh_public_key,
+        mlkem_public_key=visible.mlkem_public_key,
     )
 
 
@@ -176,6 +181,29 @@ async def set_public_key(
             detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
         )
     return _to_profile(p)
+
+
+@router.put("/me/mlkem-public-key", response_model=ProfileResponse)
+async def set_mlkem_public_key(
+    body: MlKemPublicKeyRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> ProfileResponse:
+    p = await profile_store.update_mlkem_public_key(user_id, body.mlkem_public_key)
+    if not p:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "PROFILE_NOT_FOUND", "message": "Profile not bootstrapped"}},
+        )
+    return _to_profile(p)
+
+
+@router.get("/{user_id}/mlkem-public-key")
+async def get_mlkem_public_key(
+    user_id: str,
+    _: str = Depends(get_current_user_id),
+) -> dict:
+    p = await profile_store.get(user_id)
+    return {"mlkem_public_key": p.mlkem_public_key if p else None}
 
 
 @router.get("/me/screen-lock", response_model=ScreenLockState)

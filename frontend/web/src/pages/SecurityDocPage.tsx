@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 const BRAND = "Nexa";
-const LAST_UPDATED = "2026-06-24 (v2 — DR v5 live)";
+const LAST_UPDATED = "2026-06-25 (v3 — Sender Keys v6 · PQXDH v7 · sealed sender · multi-device)";
 
 export function SecurityDocPage() {
   useEffect(() => {
@@ -19,7 +19,7 @@ export function SecurityDocPage() {
           </p>
           <p className="legal-page__intro">
             This document describes the current encryption architecture of Nexa, our threat model,
-            and the planned upgrade path to full Signal Protocol E2EE. We publish this because
+            and the security upgrade path we are continuing to build. We publish this because
             trust requires transparency, and transparency requires specifics.
           </p>
         </header>
@@ -50,7 +50,7 @@ export function SecurityDocPage() {
                 <td>✅ Sender Keys</td>
                 <td>✅</td>
                 <td>❌</td>
-                <td>✅ Per-message ECIES (multi-recipient)</td>
+                <td>✅ Sender Keys v6 (HMAC-SHA-256 chain ratchet)</td>
               </tr>
               <tr>
                 <td>E2EE — медиафайлы</td>
@@ -64,31 +64,36 @@ export function SecurityDocPage() {
                 <td>✅ Double Ratchet</td>
                 <td>✅ Double Ratchet</td>
                 <td>❌</td>
-                <td>✅ Per-message (DMs: Double Ratchet v5 · Groups: ECIES per recipient v4)*</td>
+                <td>✅ DMs: PQXDH v7 + DR v5 · Groups: Sender Keys v6 chain ratchet</td>
               </tr>
               <tr>
                 <td>Break-in recovery</td>
                 <td>✅ Double Ratchet DH step</td>
                 <td>✅</td>
                 <td>❌</td>
-                <td>✅ DMs: Double Ratchet DH ratchet (v5) · Groups: planned</td>
+                <td>✅ DMs: DR DH ratchet (v5) · Groups: Sender Key rotation (v6)</td>
+              </tr>
+              <tr>
+                <td>Post-quantum (PQC)</td>
+                <td>✅ PQXDH (X25519 + ML-KEM-768)</td>
+                <td>✅ PQXDH</td>
+                <td>❌</td>
+                <td>✅ PQXDH v7 (ECDH P-256 + ML-KEM-768 hybrid)</td>
               </tr>
               <tr>
                 <td>Протокол шифрования</td>
                 <td>Signal Protocol (X3DH + Double Ratchet)</td>
                 <td>Signal Protocol</td>
                 <td>MTProto 2.0 (собственный)</td>
-                <td>Double Ratchet (DMs, v5) + ECIES (Groups, v4)</td>
+                <td>DR v5 (DMs) · Sender Keys v6 (groups) · PQXDH v7 (post-quantum DMs)</td>
               </tr>
             </tbody>
           </table>
           <p style={{ marginTop: "0.75rem", fontSize: "0.9em", opacity: 0.75 }}>
-            * DMs use the Double Ratchet Algorithm (v5 envelope): each message advances a symmetric
-            chain key (HMAC-SHA256) and a DH ratchet step occurs when the peer replies, giving both
-            forward secrecy and break-in recovery. Groups use per-message multi-recipient ECIES (v4
-            envelope): a fresh random AES-256-GCM key per message, individually ECIES-wrapped for
-            each member and discarded after encryption — forward secrecy equivalent to v3, without
-            a ratchet per sender.
+            DMs use PQXDH v7 (hybrid ML-KEM-768 + ECDH P-256) with Double Ratchet v5 as fallback.
+            Groups use Sender Keys v6: each sender maintains a HMAC-SHA-256 chain ratchet;
+            break-in recovery via key rotation when a member leaves. Sealed sender: sender identity
+            is encrypted inside the E2EE envelope — the server cannot determine who sent what.
           </p>
         </section>
 
@@ -122,19 +127,18 @@ export function SecurityDocPage() {
             </li>
             <li>
               <strong>Compromised server</strong> — an attacker with read access to the database
-              or server memory. <em>Partially mitigated</em> by client-side ECDH encryption for
-              DMs (the server stores ciphertext only). Group chats have weaker guarantees (see
-              §6). Full mitigation requires Signal Protocol (see §8).
+              or server memory. <em>Mitigated</em> for message content: the server stores only
+              ciphertext for both DMs (v5 DR / v7 PQXDH) and groups (v6 Sender Keys). Sealed
+              sender (v6) additionally hides sender identity within groups — the server cannot
+              determine who sent what. The server still sees conversation membership and timing.
             </li>
             <li>
               <strong>Metadata analysis</strong> — an attacker inferring who talks to whom,
               when, and how often.{" "}
-              <em>Partially mitigated:</em> message content lengths are now hidden (plaintext
-              is padded to 256-byte blocks before encryption — all short messages produce
-              identical-length ciphertext). Not mitigated: the server still sees conversation
-              membership (who talks to whom), message timing, and online presence. Full
-              protection requires network-level anonymity (anonymous relay / Sealed Sender
-              + unidentified delivery) — on the roadmap (§8.6).
+              <em>Partially mitigated:</em> message content lengths hidden (256-byte padding ✅),
+              sender identity in groups hidden (sealed sender v6 ✅). Not mitigated: conversation
+              membership and message timing — requires network-level anonymity (out of scope for
+              a web app; see §8.7).
             </li>
             <li>
               <strong>Compromised client device</strong> — out of scope. A malicious OS or
@@ -186,43 +190,41 @@ envelope = { v:5, dh_pub, pn, n, ciphertext, senderDeviceId }`}</pre>
             messages decrypt correctly without reordering.
           </p>
 
-          <h3>2.2 Group conversations — v4 multi-recipient ECIES</h3>
+          <h3>2.2 Group conversations — Sender Keys v6 (break-in recovery + sealed sender)</h3>
           <p>
-            Each group message uses a <strong>fresh random AES-256-GCM key</strong> generated
-            at send time. This key is ECIES-wrapped individually for every group member (in
-            parallel) and the entire bundle is stored in the <code>e2ee_envelope</code> field
-            alongside the ciphertext. The message key is discarded immediately after encryption.
+            Group messages use <strong>Sender Keys</strong> — each sender maintains a HMAC-SHA-256
+            chain key that ratchets per message. The chain key is distributed to members via ECIES.
           </p>
-          <pre>{`// v4 envelope — per-message multi-recipient ECIES:
-msgKey  = AES-256-GCM.generateKey()           // fresh per message, discarded after
-body    = AES-GCM.encrypt(msgKey, plaintext)  // iv prepended
+          <pre>{`// v6 — Sender Keys (sealed sender):
+msgKey  = HMAC-SHA256(chainKey, 0x02)   // one-time message key
+nextCK  = HMAC-SHA256(chainKey, 0x01)   // advance chain; old key discarded
+payload = { text: plaintext, sender_id } // sealed: sender inside ciphertext
+cipher  = AES-256-GCM(msgKey, padded_payload)
+envelope = { v:6, ciphertext: cipher, iteration, skId }
+// Break-in recovery: rotate chainKey when member removed → re-distribute to remaining members only`}</pre>
+          <p>
+            <strong>Sealed sender:</strong> <code>sender_id</code> is inside the AES-GCM ciphertext —
+            the server sees only <code>conversation_id</code> and an opaque blob.{" "}
+            <strong>Break-in recovery:</strong> fresh random chain key on member removal;
+            excluded party cannot derive new chain.{" "}
+            <strong>Forward secrecy:</strong> chain advances per message; past keys discarded.
+          </p>
 
-recipients = members.map(member => {
-  ephemeralKey  = ECDH.generateKey()          // fresh per recipient
-  wrappingKey   = ECDH(ephemeral.private, member.publicKey)
-  key_ct        = AES-GCM.encrypt(wrappingKey, rawMsgKey)
-  return { user_id, ephemeral_pub, key_ct }
-})
-
-envelope = { v:4, ciphertext: body, recipients, senderDeviceId }`}</pre>
+          <h3>2.3 Post-Quantum DMs — PQXDH v7 (ML-KEM-768 + ECDH P-256)</h3>
           <p>
-            <strong>Forward secrecy:</strong> the message key is never stored or transmitted in
-            the clear. Compromising a device key in the future reveals nothing about messages
-            sent before the compromise — the ECIES ephemeral key used to wrap each message key
-            is also discarded immediately. This is equivalent forward secrecy to v3 DMs.
+            DMs use <strong>PQXDH</strong> — hybrid key agreement secure against quantum computers.
+            Combines classical ECDH P-256 with NIST-standardized ML-KEM-768 (CRYSTALS-Kyber, FIPS 203).
           </p>
+          <pre>{`// v7 — PQXDH hybrid (per-message):
+(eph_priv, eph_pub) = ECDH.generateKey()
+ecdh_shared         = ECDH(eph_priv, peerEcdhPub)
+(mlkem_ct, mlkem_s) = ml_kem768.encapsulate(peerMlKemPub)   // 1088-byte ct
+hybridKey           = HKDF-SHA256(ecdh_shared ‖ mlkem_s, info="nexa_pqxdh_v7")
+ciphertext          = AES-256-GCM(hybridKey, padded_plaintext)
+envelope            = { v:7, ephemeral_pub, mlkem_ct, ciphertext }`}</pre>
           <p>
-            <strong>New member isolation:</strong> a member who joins after a message is sent
-            is not in that message's <code>recipients</code> list and cannot decrypt it.
-            Membership changes (join, leave, ban) also still trigger a{" "}
-            <code>member.changed</code> WS event so all clients clear any cached state.
-          </p>
-          <p>
-            <strong>Remaining limitation for groups:</strong> the multi-recipient ECIES (v4)
-            provides per-message forward secrecy but <em>no DH ratchet step</em> — if a device key
-            is actively compromised mid-session, future group messages in that session may be exposed
-            until the device is replaced. DMs do not have this limitation (see §2.1 — v5 DR
-            self-heals after one round-trip). Group break-in recovery (Sender Keys) is planned.
+            <em>Security holds if either component (ECDH or ML-KEM) is secure.</em>{" "}
+            Fallback to v5 Double Ratchet when the peer has no ML-KEM key yet.
           </p>
         </section>
 
@@ -273,8 +275,9 @@ envelope = { v:4, ciphertext: body, recipients, senderDeviceId }`}</pre>
           <p>
             <strong>Key loss:</strong> if a user clears their browser storage, their device key
             pair is lost. They will generate a new key pair on next login and cannot decrypt
-            messages encrypted to the old key. Multi-device and key backup are not yet
-            implemented.
+            messages encrypted to the old key. Use{" "}
+            <strong>Settings → Devices → E2EE Key Backup</strong> to export an encrypted backup
+            of your key pair and restore it on a new device or after storage loss.
           </p>
         </section>
 
@@ -339,39 +342,31 @@ envelope = { v:4, ciphertext: body, recipients, senderDeviceId }`}</pre>
           <p>We want you to know exactly what we <em>don't</em> protect against today:</p>
           <ul>
             <li>
-              <strong>No break-in recovery for group chats.</strong> DM conversations use the
-              Double Ratchet Algorithm (v5): if a device key is compromised mid-session, the
-              session self-heals after the peer's next reply — no action needed. Group conversations
-              (v4 ECIES) have per-message forward secrecy but <em>no DH ratchet step</em>: a
-              mid-session device compromise keeps future group messages in that session exposed
-              until the device key is rotated. Sender Keys (group ratchet) is on the roadmap.
-            </li>
-            <li>
-              <strong>Partial metadata protection.</strong>{" "}
-              <em>Message sizes:</em> ✅ mitigated — all plaintext is padded to 256-byte
-              blocks before AES-GCM encryption, so every short message (≤ 255 chars) produces
-              identical-length ciphertext (274 bytes after IV + tag).{" "}
-              <em>Social graph:</em> ❌ the server knows who talks to whom (conversation
-              membership), when messages are sent, and online presence. Hiding the social graph
-              requires network-level anonymity (anonymous relay servers, Sealed Sender +
-              unidentified delivery) — this cannot be done in a standard web app without a
-              trusted relay layer. See §8.6.
+              <strong>Social graph metadata.</strong>{" "}
+              <em>Message sizes:</em> ✅ mitigated — all plaintext is padded to 256-byte blocks.{" "}
+              <em>Sender identity (groups):</em> ✅ mitigated — sealed sender (v6) encrypts
+              sender_id inside the E2EE ciphertext; the server routes on conversation_id only.{" "}
+              <em>Conversation membership and timing:</em> ❌ the server still sees who is in each
+              conversation and when messages are sent. Full mitigation requires an anonymous relay
+              layer (not planned — impractical for a web app without infrastructure changes).
             </li>
             <li>
               <strong>Media key forward secrecy depends on message forward secrecy.</strong> Each
-              media file has a random per-file AES-256-GCM key, carried inside the message
-              envelope. Since message envelopes are per-message ephemeral (v3/v4), the media
-              key has the same forward secrecy guarantees as the message.
+              media file has a random per-file AES-256-GCM key inside the message envelope. The
+              key has the same forward secrecy guarantees as the message envelope (PQXDH v7 for DMs,
+              Sender Keys v6 for groups).
             </li>
             <li>
-              <strong>Single device only.</strong> The ECDH key pair is per-browser. There is no
-              multi-device key synchronization or key backup. Clearing browser storage loses access
-              to encrypted history.
+              <strong>Multi-device: key backup only, not real-time sync.</strong> Users can export
+              their ECDH + ML-KEM key pair in an encrypted backup (Settings → Devices → E2EE Key
+              Backup) and import on a new device. Double Ratchet session state is not backed up —
+              importing restores future DM capability but not past history. Real-time multi-device
+              key distribution (Signal-style device linking) is not yet implemented.
             </li>
             <li>
-              <strong>Key verification not implemented.</strong> There is no mechanism (safety
-              numbers, QR code) for users to verify each other's public keys out-of-band. A
-              malicious server could substitute a key.
+              <strong>X3DH prekey bundles not implemented.</strong> The current DR session init
+              requires both parties to be registered on the server first. Signal's X3DH allows
+              async session init (offline first message) — this remains a future milestone.
             </li>
           </ul>
         </section>
@@ -423,56 +418,53 @@ envelope = { v:4, ciphertext: body, recipients, senderDeviceId }`}</pre>
               parties' identity public keys to be registered on the server first.</li>
           </ul>
 
-          <h3>8.4 Phase 4 — Group per-message forward secrecy (done)</h3>
+          <h3>8.4 Phase 4 — Group Sender Keys + break-in recovery (done ✅)</h3>
           <p>
-            Implemented as <strong>multi-recipient ECIES (v4 envelope)</strong>. Each group
-            message generates a fresh random AES-256-GCM key, ECIES-wrapped in parallel for
-            every group member using their long-term ECDH public key plus a per-recipient
-            ephemeral keypair. The message key is discarded after encryption. This gives the
-            same per-message forward secrecy as v3 DMs without requiring shared ratchet state.
-            New members cannot decrypt messages sent before they joined. Sender Keys (Signal
-            SKDM + per-sender ratchet chain) remain a future option for very large groups.
+            Group messages now use <strong>Sender Keys v6</strong>: a HMAC-SHA-256 chain ratchet
+            per sender. Break-in recovery is implemented — when a member is removed, the sender
+            generates a fresh random chain key and distributes it only to remaining members. The
+            removed party cannot derive future chain keys. Sender keys are distributed via ECIES
+            (individually wrapped for each member). New members cannot decrypt messages from before
+            they joined (new member isolation).
           </p>
 
-          <h3>8.5 Phase 5 — Media encryption (done) + key verification</h3>
+          <h3>8.5 Phase 5 — Media encryption + Sealed Sender + Multi-device (done ✅)</h3>
           <p>
-            Media files (images, voice, video, documents) are now encrypted client-side with a
-            per-file random AES-256-GCM key before upload. The file key is included in the
-            message <code>e2ee_envelope</code> (encrypted with the conversation key), so
-            only conversation participants can decrypt it. The server receives and stores only
-            ciphertext. Next: key verification (safety numbers) so users can confirm
-            they're talking to the right person.
+            Media files are encrypted client-side (AES-256-GCM per file, key in E2EE envelope).
+            Sealed Sender: <code>sender_id</code> is encrypted inside the v6 AES-GCM payload —
+            the server sees only <code>conversation_id</code>, not who sent what in groups.
+            Multi-device key backup: ECDH + ML-KEM key pair can be exported encrypted with a
+            passphrase (PBKDF2 + AES-256-GCM) and imported on a new device (Settings → Devices).
           </p>
 
-          <h3>8.6 Phase 6 — Metadata protection (social graph)</h3>
+          <h3>8.6 Phase 6 — Post-Quantum E2EE: PQXDH v7 (done ✅)</h3>
           <p>
-            The server currently sees conversation membership, message timing, and online presence.
-            Meaningful reduction requires:
+            DMs now use <strong>PQXDH v7</strong>: hybrid ML-KEM-768 (CRYSTALS-Kyber, NIST FIPS 203)
+            + ECDH P-256. The combined shared secret is derived via HKDF-SHA-256. If either
+            component (classical or post-quantum) remains secure, the encryption is unbroken.
+            ML-KEM keys are generated on first login and uploaded to the server automatically.
+            Peers without ML-KEM keys fall back to Double Ratchet v5.
           </p>
+
+          <h3>8.7 Phase 7 — Remaining roadmap</h3>
           <ul>
             <li>
-              <strong>Message size padding</strong> (done ✅) — all plaintext padded to 256-byte
-              blocks before encryption. Every short message produces identical-length ciphertext.
+              <strong>X3DH prekey bundles</strong> — async session init (offline first message)
+              without a live handshake. Requires SPK + OPK rotation infrastructure.
             </li>
             <li>
-              <strong>Sealed Sender + unidentified delivery</strong> — sender identity encrypted
-              inside the E2EE envelope; the server routes by recipient only, not sender. Requires
-              unidentified delivery tokens (signed by identity key, not linked to session).
+              <strong>Real-time multi-device sync</strong> — Signal-style device linking (IDB
+              state sync across devices). Currently only key backup/restore is supported.
             </li>
             <li>
-              <strong>Anonymous relay</strong> — messages submitted through a relay that strips IP
-              and session metadata. The relay sees destination but not sender; no single server
-              sees both. Requires a trusted (or distributed) relay infrastructure.
+              <strong>Anonymous relay / network-level metadata</strong> — conversation timing and
+              membership metadata still visible to server. Cover traffic not planned.
             </li>
             <li>
-              <strong>Cover traffic</strong> — periodic dummy messages to hide timing. High
-              bandwidth cost; impractical for mobile without aggressive scheduling.
+              <strong>Independent public audit</strong> — audit scope prepared; pursuing OSTIF
+              engagement. Results will be published.
             </li>
           </ul>
-          <p>
-            Items 2–3 are on the roadmap. Cover traffic is not planned (bandwidth/battery cost).
-            Note: message sizes are already protected (padding done ✅).
-          </p>
         </section>
 
         <section id="responsible-disclosure">

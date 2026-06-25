@@ -30,6 +30,7 @@ class ProfileResponse(BaseModel):
     verification_badge: VerificationBadge = "none"
     privacy: ProfilePrivacySettings = Field(default_factory=ProfilePrivacySettings)
     ecdh_public_key: str | None = None
+    mlkem_public_key: str | None = None
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -57,6 +58,7 @@ class PublicProfileResponse(BaseModel):
     last_seen_at: str | None = None
     verification_badge: VerificationBadge = "none"
     ecdh_public_key: str | None = None
+    mlkem_public_key: str | None = None
 
 
 class PresenceUpdateRequest(BaseModel):

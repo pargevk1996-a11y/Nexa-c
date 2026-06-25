@@ -8,9 +8,10 @@ import {
   decryptMessageGroupV4,
   decryptMessageDR,
   decryptGroupV6,
+  decryptMessagePQXDH,
   clearConversationKey,
 } from "@/security/e2ee";
-import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4, E2eeEnvelopeV5, E2eeEnvelopeV6 } from "@/security/e2ee";
+import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4, E2eeEnvelopeV5, E2eeEnvelopeV6, E2eeEnvelopeV7 } from "@/security/e2ee";
 import { storePeerSenderKey, type SenderKeyDistributionBody } from "@/security/senderKeys";
 import { fetchSenderKeyDistribution } from "@/api/e2ee";
 import {
@@ -140,7 +141,10 @@ export function useRealtimeChat({
             const env = msg.e2ee_envelope as Record<string, unknown>;
             let plain: string | null = null;
 
-            if (env.v === 6 && "skId" in env) {
+            if (env.v === 7 && "mlkem_ct" in env) {
+              // v7: PQXDH hybrid (ML-KEM-768 + ECDH P-256, post-quantum DM)
+              plain = await decryptMessagePQXDH(env as unknown as E2eeEnvelopeV7).catch(() => null);
+            } else if (env.v === 6 && "skId" in env) {
               // v6: Sender Keys group (forward secrecy + break-in recovery + sealed sender)
               const result = await decryptGroupV6(
                 env as unknown as E2eeEnvelopeV6,
