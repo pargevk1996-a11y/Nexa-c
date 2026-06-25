@@ -50,9 +50,11 @@ interface OAuthButtonsProps {
   consentGiven?: boolean;
   /** Called when the user tries OAuth without having accepted the consent checkbox. */
   onConsentMissing?: () => void;
+  /** 'register' = create account, 'login' = sign in to existing account (default). */
+  mode?: "register" | "login";
 }
 
-export function OAuthButtons({ onError, alwaysShow, consentGiven, onConsentMissing }: OAuthButtonsProps) {
+export function OAuthButtons({ onError, alwaysShow, consentGiven, onConsentMissing, mode = "login" }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
   // consentGiven is only relevant on the registration page (where the prop is passed).
   // On login or other pages it is undefined → treat as allowed.
@@ -69,7 +71,7 @@ export function OAuthButtons({ onError, alwaysShow, consentGiven, onConsentMissi
     }
     setLoadingProvider(provider);
     onError?.("");
-    startOAuthLogin(provider);
+    startOAuthLogin(provider, mode);
   }
 
   return (

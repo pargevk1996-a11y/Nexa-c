@@ -26,6 +26,7 @@ interface MessageListProps {
   loading?: boolean;
   messages: Message[];
   isGroup: boolean;
+  isChannelAdmin?: boolean;
   isSecret?: boolean;
   isSuperSecret?: boolean;
   selectionMode: boolean;
@@ -80,25 +81,27 @@ const MessageMeta = memo(function MessageMeta({
   sending,
   showReadReceipts,
   onRetry,
+  showFull = true,
 }: {
   message: Message;
   sending: boolean;
   showReadReceipts: boolean;
   onRetry?: (messageId: string) => void;
+  showFull?: boolean;
 }) {
   const failed = message.status === "failed";
 
   return (
-    <div className="chat-bubble__time">
-      <MessageBadges message={message} />
+    <div className={`chat-bubble__time${showFull ? "" : " chat-bubble__time--compact"}`}>
+      {showFull && <MessageBadges message={message} />}
       <span className="chat-bubble__time-text">{message.sentAt}</span>
-      {message.scheduledAt ? (
+      {showFull && message.scheduledAt ? (
         <span className="chat-bubble__time-extra"> · {message.scheduledAt}</span>
       ) : null}
-      {message.ephemeral ? (
+      {showFull && message.ephemeral ? (
         <span className="chat-bubble__time-extra"> · Disappearing</span>
       ) : null}
-      {failed ? (
+      {showFull && failed ? (
         <>
           <span className="chat-bubble__status--failed">Not sent</span>
           {onRetry ? (
@@ -111,7 +114,7 @@ const MessageMeta = memo(function MessageMeta({
             </button>
           ) : null}
         </>
-      ) : message.outgoing && !message.recalled ? (
+      ) : showFull && message.outgoing && !message.recalled ? (
         <MessageReceiptIcons
           status={sending ? "sending" : message.status}
           showDetailedReceipts={showReadReceipts}
@@ -237,6 +240,7 @@ export function MessageList({
   loading = false,
   messages,
   isGroup,
+  isChannelAdmin,
   isSecret,
   isSuperSecret,
   selectionMode,
@@ -257,12 +261,6 @@ export function MessageList({
   const [menu, setMenu] = useState<ContextState | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  // The list is rendered invisibly until it has been pinned to the last
-  // message. Virtuoso's initial positioning + variable-height measurement +
-  // async media loading all move the scroll position on first paint; hiding the
-  // list during that settling means the user only ever sees the final state —
-  // the latest message already in view — with zero visible scrolling.
-  const [pinned, setPinned] = useState(false);
   // Mirrors isAtBottom for use inside callbacks without re-subscribing.
   const isAtBottomRef = useRef(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
@@ -284,19 +282,10 @@ export function MessageList({
   const listReadyRef = useRef(false);
   // Per-conversation guard: arm listReadyRef exactly once per chat open.
   const readyConvRef = useRef<string | undefined>(undefined);
-  // "Opening window": true for a short settling period right after a chat is
-  // opened. While true, ANY change to the list's total height (async media,
-  // link previews, voice waveforms, video thumbs, or Virtuoso's own
-  // variable-height measurement) instantly re-pins the viewport to the very
-  // last message. This guarantees the chat always lands exactly on the latest
-  // message — never mid-history, never with a visible scroll. It does not
-  // affect load-older (that needs the user at the top, impossible while pinned
-  // to the bottom during this window).
+  // "Opening window": true for a short period after a chat is opened.
+  // While true, any height change (media load, measurement reflow) instantly
+  // re-pins to the last message so new-content resizes don't push the viewport.
   const openingRef = useRef(true);
-  // Debounce timer for "heights have settled": while the chat is opening, every
-  // total-height change (media load, measurement) resets this. When no change
-  // happens for a short window, the list is genuinely stable at the bottom and
-  // is revealed. This is what guarantees the user never sees the list move.
   const settleTimerRef = useRef<number | undefined>(undefined);
 
   const rows = useMemo(() => buildMessageRows(messages), [messages]);
@@ -310,8 +299,12 @@ export function MessageList({
   const galleryImagesRef = useRef(galleryImages);
   galleryImagesRef.current = galleryImages;
 
-  // Pin the viewport to the last message instantly (no animation).
+  // Pin the viewport to the last message instantly (0ms, no animation).
+  // Uses both direct scrollTop (instant, no Virtuoso round-trip) and scrollToIndex
+  // (keeps Virtuoso's internal state in sync).
   const pinToBottom = useCallback(() => {
+    const el = scrollerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
     virtuosoRef.current?.scrollToIndex({
       index: rowsLenRef.current - 1,
       align: "end",
@@ -319,21 +312,19 @@ export function MessageList({
     });
   }, []);
 
-  // Reveal the list and end the opening window in one shot, so there can be no
-  // post-reveal re-pin (= no visible jump once the user can see the list).
+  // Close the opening window and do a final pin — no reveal needed (chat is always visible).
   const revealAndClose = useCallback(() => {
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     settleTimerRef.current = undefined;
-    pinToBottom();
     openingRef.current = false;
-    setPinned(true);
+    pinToBottom();
   }, [pinToBottom]);
 
   // (Re)start the settle countdown. Called on every height change while opening;
-  // when heights stop changing for ~140ms the list is stable and we reveal it.
+  // when heights stop changing for ~120ms the opening window ends.
   const armSettle = useCallback(() => {
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = window.setTimeout(revealAndClose, 140);
+    settleTimerRef.current = window.setTimeout(revealAndClose, 120);
   }, [revealAndClose]);
 
   // Reset all per-conversation state on conversation switch.
@@ -351,13 +342,19 @@ export function MessageList({
     // Disable scroll-up detection until the new Virtuoso instance has
     // finished its initial render at initialTopMostItemIndex.
     listReadyRef.current = false;
-    // Re-arm the opening window so the new chat snaps to its last message.
+    // Re-arm the opening window so the new chat re-pins on height changes.
     openingRef.current = true;
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     settleTimerRef.current = undefined;
-    // Hide the new chat until it is pinned to its last message.
-    setPinned(false);
   }, [conversationId]);
+
+  // Instantly snap scroll to the very bottom on conversation switch —
+  // fires synchronously before the browser paints so the user never sees mid-history.
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Arm the scroll-up detector after Virtuoso's first render with data.
   // One requestAnimationFrame is enough — by then initialTopMostItemIndex
@@ -649,17 +646,15 @@ export function MessageList({
       */}
       {/* Skeleton overlay covers the list while it positions itself to the last
           message, so the user never sees the scroll settling or a blank flash. */}
-      {!pinned ? (
-        <div className="chat-messages-pinning" aria-hidden>
-          <MessageListSkeleton />
-        </div>
-      ) : null}
       <Virtuoso
         key={conversationId ?? "none"}
         ref={virtuosoRef}
-        scrollerRef={(ref) => { scrollerRef.current = ref as HTMLElement | null; }}
+        scrollerRef={(ref) => {
+          scrollerRef.current = ref as HTMLElement | null;
+          // Snap to bottom the moment the scroller mounts (before first paint).
+          if (ref) (ref as HTMLElement).scrollTop = (ref as HTMLElement).scrollHeight;
+        }}
         className={`chat-messages ${isSecret ? "chat-messages--secret" : "chat-messages--copy-ok"}`}
-        style={{ opacity: pinned ? 1 : 0 }}
         role="log"
         aria-live="polite"
         data={rows}
@@ -717,10 +712,12 @@ export function MessageList({
           const selected = selectedMessageIds.has(m.id);
           const sending = m.outgoing && isSendingMessage(m);
           return (
-            <div className={m.outgoing ? "msg-row msg-row--out" : "msg-row msg-row--in"}>
+            <div
+              className={m.outgoing ? "msg-row msg-row--out" : "msg-row msg-row--in"}
+              onContextMenu={(e) => openMenu(m, e)}
+            >
             <div
               className={`chat-bubble-row ${m.outgoing ? "chat-bubble-row--out" : "chat-bubble-row--in"} ${row.grouped ? "chat-bubble-row--grouped" : ""} ${row.showTail ? "chat-bubble-row--tail" : ""} ${selected ? "chat-bubble-row--selected" : ""} ${m.ephemeral ? "chat-bubble-row--ephemeral" : ""} ${sending ? "chat-bubble-row--sending" : ""} ${m.status === "failed" ? "chat-bubble-row--failed" : ""} ${m.kind === "sticker" ? "chat-bubble-row--sticker" : ""} ${m.kind === "gif" ? "chat-bubble-row--gif" : ""}`}
-              onContextMenu={(e) => openMenu(m, e)}
               onClick={selectionMode ? () => onToggleSelection(m.id) : undefined}
               onTouchStart={(e) => onRowTouchStart(e, m)}
               onTouchMove={onRowTouchMove}
@@ -738,12 +735,13 @@ export function MessageList({
               ) : null}
               <div className="chat-bubble-row__body">
                 {renderContent(m)}
-                {row.showTail ? (
+                {!m.recalled && !m.deleted ? (
                   <MessageMeta
                     message={m}
                     sending={sending}
                     showReadReceipts={showReadReceipts}
                     onRetry={onRetryMessage}
+                    showFull={row.showTail}
                   />
                 ) : null}
                 {!isSecret && !selectionMode && !m.recalled && row.showTail ? (
@@ -791,6 +789,7 @@ export function MessageList({
         <MessageContextMenu
           message={menu.message}
           isGroup={isGroup}
+          isChannelAdmin={isChannelAdmin}
           isSecret={isSecret}
           isSuperSecret={isSuperSecret}
           isPinned={pinnedMessageId === menu.message.id || Boolean(menu.message.pinned)}

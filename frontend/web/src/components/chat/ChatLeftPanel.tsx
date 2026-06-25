@@ -1,18 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSettings } from "@/store/SettingsContext";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   IconBell,
   IconCalls,
   IconChats,
   IconContacts,
-  IconLock,
   IconProfile,
   IconSearch,
   IconSettings,
   IconX,
 } from "@/components/icons/Icons";
+import { useLock } from "@/store/LockContext";
 
 /* ── FAB speed-dial ─────────────────────────────────────────────────────── */
+function CategoryIcon({ id }: { id: string }) {
+  if (id === "all") return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  );
+  if (id === "groups") return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/>
+      <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><path d="M18 14c2 0 4 1.3 4 4"/>
+    </svg>
+  );
+  if (id === "private") return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+  if (id === "channels") return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 8.5a10 10 0 0 1 0 7M18.4 10a5 5 0 0 1 0 4"/>
+      <path d="M3 11v2l11 5V6L3 11z"/>
+    </svg>
+  );
+  return null;
+}
+
 function FabSpeedDial({ onContact, onGroup, onChannel }: {
   onContact: () => void;
   onGroup: () => void;
@@ -111,8 +139,8 @@ function FabSpeedDial({ onContact, onGroup, onChannel }: {
 }
 import { features } from "@/features/registry";
 import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
-import { useLock } from "@/store/LockContext";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { ArcCategoryPopup } from "@/components/chat/ArcCategoryPopup";
 import { getCachedSession } from "@/api/auth";
 import { listIncomingRequests } from "@/api/contacts";
 import {
@@ -125,11 +153,148 @@ import type { Conversation } from "@/types";
 import type { ChatMenuAction } from "@/components/chat/ChatContextMenu";
 
 
+function ChatsCycleButton({
+  category,
+  onCategoryChange,
+}: {
+  category: ChatCategory;
+  onCategoryChange: (c: ChatCategory) => void;
+}) {
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [hoveredArcId, setHoveredArcId] = useState<string | null>(null);
+  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchActiveRef = useRef(false);
+  const popupOpenRef = useRef(false); // mirrors popupOpen for use in callbacks
+  const activeArcItemRef = useRef<string | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const buttonRectRef = useRef<DOMRect | null>(null);
+
+  const ids = useMemo(() => CHAT_CATEGORIES.map((c) => c.id), []);
+
+  const cancelTimer = useCallback(() => {
+    if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null; }
+  }, []);
+
+  const closePopup = useCallback(() => {
+    popupOpenRef.current = false;
+    activeArcItemRef.current = null;
+    setHoveredArcId(null);
+    setPopupOpen(false);
+  }, []);
+
+  const startHoldTimer = useCallback(() => {
+    cancelTimer();
+    holdRef.current = setTimeout(() => {
+      holdRef.current = null;
+      if (buttonRef.current) {
+        buttonRectRef.current = buttonRef.current.getBoundingClientRect();
+      }
+      popupOpenRef.current = true;
+      setPopupOpen(true);
+      navigator.vibrate?.(25);
+    }, 900);
+  }, [cancelTimer]);
+
+  // ── Mobile touch ─────────────────────────────────────────────────────────
+  const handleTouchStart = useCallback(() => {
+    touchActiveRef.current = true;
+    startHoldTimer();
+  }, [startHoldTimer]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (popupOpenRef.current) {
+      // Detect which arc circle is under the finger
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const arcEl = el?.closest?.("[data-arc-cat-id]");
+      const id = arcEl?.getAttribute?.("data-arc-cat-id") ?? null;
+      if (id !== activeArcItemRef.current) {
+        activeArcItemRef.current = id;
+        setHoveredArcId(id);
+      }
+      return;
+    }
+    cancelTimer();
+  }, [cancelTimer]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (popupOpenRef.current) {
+      // Release while popup open → select hovered item (if any) and close
+      const selectedId = activeArcItemRef.current;
+      closePopup();
+      setTimeout(() => { touchActiveRef.current = false; }, 500);
+      if (selectedId) onCategoryChange(selectedId as ChatCategory);
+      return;
+    }
+    const wasQuickTap = holdRef.current !== null;
+    cancelTimer();
+    setTimeout(() => { touchActiveRef.current = false; }, 500);
+    if (!wasQuickTap) return;
+    e.preventDefault();
+    const idx = ids.indexOf(category);
+    onCategoryChange(ids[(idx + 1) % ids.length]);
+  }, [closePopup, cancelTimer, ids, category, onCategoryChange]);
+
+  // ── Desktop mouse ─────────────────────────────────────────────────────────
+  const handleMouseDown = useCallback(() => {
+    if (touchActiveRef.current) return;
+    startHoldTimer();
+  }, [startHoldTimer]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!touchActiveRef.current) cancelTimer();
+  }, [cancelTimer]);
+
+  const handleClick = useCallback(() => {
+    if (touchActiveRef.current) return;
+    if (holdRef.current === null) return;
+    cancelTimer();
+    const idx = ids.indexOf(category);
+    onCategoryChange(ids[(idx + 1) % ids.length]);
+  }, [cancelTimer, ids, category, onCategoryChange]);
+
+  const catLabel = CAT_LABEL[category] ?? "ALL";
+
+  return (
+    <div className="chat-nav-cat-wrap">
+      {popupOpen && buttonRectRef.current && (
+        <ArcCategoryPopup
+          rect={buttonRectRef.current}
+          activeCategory={category}
+          hoveredId={hoveredArcId}
+          onSelect={onCategoryChange}
+          onClose={closePopup}
+        />
+      )}
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`chat-left-panel__app-nav-item chat-left-panel__app-nav-item--always-active${popupOpen ? " chat-left-panel__app-nav-item--active" : ""}`}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        onClick={handleClick}
+        aria-label={`Filter: ${catLabel}`}
+        aria-haspopup="menu"
+        aria-expanded={popupOpen}
+      >
+        <span className="chat-left-panel__nav-icon-wrap">
+          <IconChats size={18} />
+        </span>
+        <span>{catLabel}</span>
+      </button>
+    </div>
+  );
+}
+
 interface ChatLeftPanelProps {
   loading?: boolean;
   savedConversation: Conversation | null;
   conversations: Conversation[];
   hiddenConversations: Conversation[];
+  archivedConversations: Conversation[];
   activeId: string | null;
   search: string;
   onSearchChange: (q: string) => void;
@@ -137,7 +302,6 @@ interface ChatLeftPanelProps {
   onCategoryChange: (c: ChatCategory) => void;
   folder: ChatFolderId | "all";
   onFolderChange: (f: ChatFolderId | "all") => void;
-  pinUnlocked: boolean;
   onSelect: (id: string) => void;
   onChatMenuAction: (conversation: Conversation, action: ChatMenuAction) => void;
   onCreateGroup: () => void;
@@ -145,18 +309,25 @@ interface ChatLeftPanelProps {
 }
 
 const APP_NAV = [
-  { to: "/app/chats", label: "Chats", Icon: IconChats },
   { to: "/app/contacts", label: "Contacts", Icon: IconContacts },
   { to: "/app/calls", label: "Calls", Icon: IconCalls },
   { to: "/app/profile", label: "Profile", Icon: IconProfile },
   { to: "/app/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
+const CAT_LABEL: Record<string, string> = {
+  all: "ALL",
+  private: "Chats",
+  groups: "Groups",
+  channels: "Channels",
+};
+
 export function ChatLeftPanel({
   loading,
   savedConversation,
   conversations,
   hiddenConversations,
+  archivedConversations,
   activeId,
   search,
   onSearchChange,
@@ -164,14 +335,14 @@ export function ChatLeftPanel({
   onCategoryChange,
   folder,
   onFolderChange: _onFolderChange,
-  pinUnlocked,
   onSelect,
   onChatMenuAction,
   onCreateGroup,
   drafts,
 }: ChatLeftPanelProps) {
   const navigate = useNavigate();
-  const { lock } = useLock();
+  const { settings } = useSettings();
+  const { lockSession } = useLock();
   const searchRef = useRef<HTMLInputElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -195,10 +366,10 @@ export function ChatLeftPanel({
       .catch(() => {});
   }, []);
 
-  // Two-finger horizontal swipe cycles the All / Groups / Channels filter
-  // (the visible pills are hidden on mobile).
+  // Two-finger horizontal swipe cycles the All / Groups / Channels filter.
+  // Disabled when showNavButtons is on (pills are visible instead).
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || settings.showNavButtons) return;
     let startX = 0;
     let lastX = 0;
     let two = false;
@@ -224,8 +395,8 @@ export function ChatLeftPanel({
       if (Math.abs(dx) < 50) return;
       const ids = CHAT_CATEGORIES.map((c) => c.id);
       const idx = ids.indexOf(category);
-      const next = dx < 0 ? idx + 1 : idx - 1;
-      if (next >= 0 && next < ids.length) onCategoryChange(ids[next]);
+      const next = ((dx < 0 ? idx + 1 : idx - 1) + ids.length) % ids.length;
+      onCategoryChange(ids[next]);
     };
     window.addEventListener("touchstart", onStart, { passive: true });
     window.addEventListener("touchmove", onMove, { passive: true });
@@ -235,22 +406,17 @@ export function ChatLeftPanel({
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [category, onCategoryChange]);
+  }, [category, onCategoryChange, settings.showNavButtons]);
 
-  const effectiveSearch = pinUnlocked && search.startsWith("#") ? "" : search;
-
-  const allConversations = useMemo(
-    () => (pinUnlocked ? [...conversations, ...hiddenConversations] : conversations),
-    [conversations, hiddenConversations, pinUnlocked],
-  );
+  const effectiveSearch = search;
 
   const pinned = useMemo(
-    () => sortChatList(allConversations.filter((c) => c.pinned), drafts),
-    [allConversations, drafts],
+    () => sortChatList(conversations.filter((c) => c.pinned), drafts),
+    [conversations, drafts],
   );
   const regular = useMemo(
-    () => sortChatList(allConversations.filter((c) => !c.pinned), drafts),
-    [allConversations, drafts],
+    () => sortChatList(conversations.filter((c) => !c.pinned), drafts),
+    [conversations, drafts],
   );
 
   return (
@@ -327,46 +493,33 @@ export function ChatLeftPanel({
             >
               <IconBell size={18} />
             </button>
-            {/* Manual screen lock — moved here from the removed top bar. */}
             <button
               type="button"
               className="chat-left-panel__head-btn"
-              onClick={() => lock("pin_required")}
-              aria-label="Lock screen"
-              title="Lock screen (PIN required to unlock)"
+              aria-label="Lock"
+              title="Lock"
+              onClick={() => void lockSession()}
             >
-              <IconLock size={18} />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
             </button>
-            {/* Logo (day/night toggle) sits to the RIGHT of the lock. */}
+            {/* Logo (day/night toggle) sits to the RIGHT of the lock button. */}
             <LogoThemeToggle size={30} className="chat-left-panel__head-logo" />
           </div>
         </div>
       </header>
 
-      <nav className="chat-folders chat-folders--categories" aria-label="Filter chats">
-        {CHAT_CATEGORIES.map((c) => {
-          const active = category === c.id;
-          return (
-            <span key={c.id} className="chat-folder-wrap">
-              <button
-                type="button"
-                className={`chat-folder-pill ${active ? "chat-folder-pill--active" : ""}`}
-                onClick={() => onCategoryChange(c.id)}
-              >
-                {c.label}
-              </button>
-            </span>
-          );
-        })}
-      </nav>
 
       <ChatSidebar
         loading={loading}
         savedConversation={savedConversation}
         pinnedConversations={pinned}
         conversations={regular}
-        archivedConversations={[]}
-        hiddenConversations={[]}
+        archivedConversations={archivedConversations}
+        hiddenConversations={hiddenConversations}
         activeId={activeId}
         search={effectiveSearch}
         category={category}
@@ -385,6 +538,10 @@ export function ChatLeftPanel({
       </div>
 
       <nav className="chat-left-panel__app-nav" aria-label="App">
+        <ChatsCycleButton
+          category={category}
+          onCategoryChange={onCategoryChange}
+        />
         {APP_NAV.map((item) => (
           <NavLink
             key={item.to}

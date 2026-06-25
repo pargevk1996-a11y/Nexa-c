@@ -46,7 +46,8 @@ _PIN_EXEMPT = frozenset(
 def _decode_jwt_claims_unsafe(token: str) -> dict:
     """Decode JWT payload without signature verification (gateway pre-check only).
     Auth-service re-verifies all tokens — this is for fast PIN enforcement only."""
-    import base64, json
+    import base64
+    import json
     try:
         parts = token.split(".")
         if len(parts) != 3:
