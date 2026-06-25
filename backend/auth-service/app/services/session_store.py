@@ -21,6 +21,7 @@ class StoredSession:
     revoked: bool = False
     ip_hint: str | None = None
     device_fingerprint: str = ""
+    pin_verified_at: datetime | None = None
 
 
 @dataclass
@@ -154,6 +155,16 @@ class SessionStore:
         qr.session_id = session_id
         qr.refresh_token_raw = refresh_token_raw
         return qr
+
+    async def set_pin_verified_at(self, session_id: str) -> None:
+        s = self._sessions.get(session_id)
+        if s:
+            s.pin_verified_at = datetime.now(UTC)
+
+    async def clear_pin_verified_all(self, user_id: str) -> None:
+        for s in self._sessions.values():
+            if s.user_id == user_id and not s.revoked:
+                s.pin_verified_at = None
 
     async def consume_qr_refresh(self, token: str) -> None:
         """One-time read: clear the plaintext refresh token from the QR row once

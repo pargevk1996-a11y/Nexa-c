@@ -79,6 +79,14 @@ export async function apiFetch<T>(
           retryAfterSeconds = err.retry_after_seconds;
         }
       }
+      // PIN enforcement: signal LockContext to show PIN screen
+      if (
+        res.status === 403 &&
+        (code === "PIN_SETUP_REQUIRED" || code === "PIN_REQUIRED") &&
+        !path.startsWith("/auth/pin/")
+      ) {
+        window.dispatchEvent(new CustomEvent("nexa:pin_blocked", { detail: { code } }));
+      }
       throw new ApiError(message, res.status, code, details, retryAfterSeconds);
     } catch (e) {
       if (e instanceof ApiError) throw e;

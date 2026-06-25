@@ -4,7 +4,7 @@ import { dispatchScreenshot, type CaptureVector } from "./screenshotEvent";
 import { dispatchAway } from "./awayEvent";
 import { storageKeys } from "./storageKeys";
 
-const TAB_UNLOCKED_KEY = storageKeys.tabUnlocked;
+const TAB_UNLOCKED_KEY = "_nxtu";
 
 const SHIELD_CLASS = "privacy-shield-active";
 const PROTECTED_CLASS = "privacy-protected";
@@ -244,7 +244,7 @@ export function sealContent(latchMs = 0): void {
     try {
       sessionStorage.setItem(SEAL_SESSION_KEY, "1");
       // Only broadcast a real lock (not a temporary screenshot latch) to other tabs.
-      if (latchMs === 0) localStorage.removeItem(storageKeys.globalUnlocked);
+      if (latchMs === 0) localStorage.removeItem("_nxgu");
     } catch { /* storage unavailable */ }
   } else {
     // Lock overlay is already rendered — fade the instant blackout overlay so the
@@ -268,7 +268,7 @@ export function explicitUnlock(): void {
   try {
     sessionStorage.removeItem(SEAL_SESSION_KEY);
     sessionStorage.setItem(TAB_UNLOCKED_KEY, "1");
-    localStorage.setItem(storageKeys.globalUnlocked, "1");
+    localStorage.setItem("_nxgu", "1");
   } catch { /* storage unavailable */ }
   document.body.classList.remove(SHIELD_CLASS);
   applyRootHidden(false);
@@ -282,7 +282,7 @@ export function releaseGuestAuthShield(): void {
   requiresExplicitUnlock = false;
   try {
     sessionStorage.removeItem(TAB_UNLOCKED_KEY);
-    localStorage.removeItem(storageKeys.globalUnlocked);
+    localStorage.removeItem("_nxgu");
   } catch { /* storage unavailable */ }
   document.body.classList.remove(SHIELD_CLASS);
   applyRootHidden(false);
@@ -494,12 +494,6 @@ export function installPrivacySeal(): void {
     e.preventDefault();
   }
 
-  function onContextMenu(e: MouseEvent) {
-    if (isScreenshotAllowed()) return;
-    if (isEditableTarget(e.target)) return;
-    e.preventDefault();
-  }
-
   function onDragStart(e: DragEvent) {
     if (isEditableTarget(e.target)) return;
     e.preventDefault();
@@ -521,7 +515,6 @@ export function installPrivacySeal(): void {
   document.addEventListener("keyup", onKeyUp, { capture: true });
   document.addEventListener("copy", onCopy);
   document.addEventListener("cut", onCut);
-  document.addEventListener("contextmenu", onContextMenu);
   document.addEventListener("dragstart", onDragStart);
   document.addEventListener("selectionchange", clearSelectionOutsideFields);
   // Focus-loss protection — cross-platform (all devices/OS/browsers): any
@@ -548,7 +541,7 @@ export function installPrivacySeal(): void {
   // Cross-tab state sync: when another tab locks or unlocks, mirror it here.
   // The "storage" event fires only in OTHER tabs, never the one that wrote the value.
   window.addEventListener("storage", (e: StorageEvent) => {
-    if (e.key !== storageKeys.globalUnlocked) return;
+    if (e.key !== "_nxgu") return;
     if (e.newValue === "1") {
       try { sessionStorage.setItem(TAB_UNLOCKED_KEY, "1"); } catch { /* ignore */ }
       tryUnsealContent();

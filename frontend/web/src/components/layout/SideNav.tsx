@@ -1,3 +1,4 @@
+import { useCallback, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   IconCalls,
@@ -7,7 +8,9 @@ import {
   IconSettings,
 } from "@/components/icons/Icons";
 import { LogoThemeToggle } from "@/components/layout/LogoThemeToggle";
+import { ArcCategoryPopup } from "@/components/chat/ArcCategoryPopup";
 import { useChatOptional } from "@/store/ChatContext";
+import { CHAT_CATEGORIES } from "@/utils/chatTypes";
 
 // ── Inline secondary-view icons ──────────────────────────────────────────────
 function IconBlocked({ size = 20 }: { size?: number }) {
@@ -54,7 +57,7 @@ function ToggleNavItem({ primaryTo, secondaryParam, primaryLabel, secondaryLabel
     const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
     if (!onPrimaryPath) {
       navigate(primaryTo);
-    } else if (!secondaryActive && !isMobile) {
+    } else if (!secondaryActive) {
       navigate(`${primaryTo}?${secondaryParam}`);
     } else {
       navigate(primaryTo);
@@ -105,6 +108,162 @@ function NavItem({ to, label, Icon, badge }: {
   );
 }
 
+const CAT_LABEL: Record<string, string> = {
+  all: "ALL",
+  private: "Chats",
+  groups: "Groups",
+  channels: "Channels",
+};
+
+// "Chats" nav item that cycles ALL→Chats→Groups→Channels on repeated tap
+// and opens an arc-circle popup on 900ms hold (slide to item, release to select).
+function ChatsNavItem({ badge }: { badge?: number }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const chat = useChatOptional();
+  const activeCategory = chat?.activeCategory ?? "all";
+  const setActiveCategory = chat?.setActiveCategory;
+
+  const isOnChats = location.pathname.startsWith("/app/chats");
+  const ids = useMemo(() => CHAT_CATEGORIES.map((c) => c.id), []);
+
+  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [hoveredArcId, setHoveredArcId] = useState<string | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const buttonRectRef = useRef<DOMRect | null>(null);
+  const touchActiveRef = useRef(false);
+  const popupOpenRef = useRef(false);
+  const activeArcItemRef = useRef<string | null>(null);
+
+  const cancelTimer = useCallback(() => {
+    if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null; }
+  }, []);
+
+  const closePopup = useCallback(() => {
+    popupOpenRef.current = false;
+    activeArcItemRef.current = null;
+    setHoveredArcId(null);
+    setPopupOpen(false);
+  }, []);
+
+  const startHoldTimer = useCallback(() => {
+    cancelTimer();
+    holdRef.current = setTimeout(() => {
+      holdRef.current = null;
+      if (buttonRef.current) {
+        buttonRectRef.current = buttonRef.current.getBoundingClientRect();
+      }
+      popupOpenRef.current = true;
+      setPopupOpen(true);
+      navigator.vibrate?.(25);
+    }, 900);
+  }, [cancelTimer]);
+
+  const cycle = useCallback(() => {
+    if (!isOnChats) { navigate("/app/chats"); return; }
+    if (!setActiveCategory) return;
+    const idx = ids.indexOf(activeCategory);
+    setActiveCategory(ids[(idx + 1) % ids.length]);
+  }, [isOnChats, navigate, ids, activeCategory, setActiveCategory]);
+
+  const handleTouchStart = useCallback(() => {
+    touchActiveRef.current = true;
+    startHoldTimer();
+  }, [startHoldTimer]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (popupOpenRef.current) {
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const arcEl = el?.closest?.("[data-arc-cat-id]");
+      const id = arcEl?.getAttribute?.("data-arc-cat-id") ?? null;
+      if (id !== activeArcItemRef.current) {
+        activeArcItemRef.current = id;
+        setHoveredArcId(id);
+      }
+      return;
+    }
+    cancelTimer();
+  }, [cancelTimer]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (popupOpenRef.current) {
+      const selectedId = activeArcItemRef.current;
+      closePopup();
+      setTimeout(() => { touchActiveRef.current = false; }, 500);
+      if (selectedId) {
+        if (!isOnChats) navigate("/app/chats");
+        setActiveCategory?.(selectedId as typeof activeCategory);
+      }
+      return;
+    }
+    const wasQuickTap = holdRef.current !== null;
+    cancelTimer();
+    setTimeout(() => { touchActiveRef.current = false; }, 500);
+    if (!wasQuickTap) return;
+    e.preventDefault();
+    cycle();
+  }, [closePopup, cancelTimer, cycle, isOnChats, navigate, setActiveCategory]);
+
+  const handleMouseDown = useCallback(() => {
+    if (touchActiveRef.current) return;
+    startHoldTimer();
+  }, [startHoldTimer]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!touchActiveRef.current) cancelTimer();
+  }, [cancelTimer]);
+
+  const handleClick = useCallback(() => {
+    if (touchActiveRef.current) return;
+    if (holdRef.current === null) return;
+    cancelTimer();
+    cycle();
+  }, [cancelTimer, cycle]);
+
+  const label = isOnChats ? (CAT_LABEL[activeCategory] ?? "ALL") : "Chats";
+
+  return (
+    <div style={{ position: "relative" }}>
+      {popupOpen && buttonRectRef.current && (
+        <ArcCategoryPopup
+          rect={buttonRectRef.current}
+          activeCategory={activeCategory}
+          hoveredId={hoveredArcId}
+          onSelect={(cat) => {
+            if (!isOnChats) navigate("/app/chats");
+            setActiveCategory?.(cat);
+          }}
+          onClose={closePopup}
+        />
+      )}
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`side-nav__item${isOnChats ? " side-nav__item--active" : ""}`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        title={label}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={popupOpen}
+      >
+        <span className="side-nav__icon"><IconChats size={20} /></span>
+        <span className="side-nav__label">{label}</span>
+        {badge && badge > 0 ? (
+          <span className="side-nav__badge" aria-label={`${badge} unread`}>{badge > 99 ? "99+" : badge}</span>
+        ) : null}
+      </button>
+    </div>
+  );
+}
+
+
 export function SideNav() {
   const unread = useChatOptional()?.getUnreadTotal() ?? 0;
 
@@ -114,7 +273,7 @@ export function SideNav() {
         <div className="side-nav__brand">
           <LogoThemeToggle size={46} className="side-nav__brand-logo" />
         </div>
-        <NavItem to="/app/chats" label="Chats" Icon={IconChats} badge={unread} />
+        <ChatsNavItem badge={unread} />
         <ToggleNavItem
           primaryTo="/app/contacts"
           secondaryParam="v=blocked"

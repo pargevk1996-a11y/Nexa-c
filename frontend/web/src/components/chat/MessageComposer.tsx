@@ -176,7 +176,7 @@ export function MessageComposer({
       stopTyping();
       return;
     }
-    if (trimmed.startsWith("#") && trimmed.length > 1 && onScheduleRequest) {
+    if (trimmed.startsWith("#") && onScheduleRequest) {
       onScheduleRequest(trimmed.slice(1).trim());
       setText("");
       clearReplies();

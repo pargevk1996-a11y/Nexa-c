@@ -49,6 +49,27 @@ export interface E2eeEnvelopeV4 {
   senderDeviceId: string;
 }
 
+/**
+ * v5 — Double Ratchet for DMs (break-in recovery).
+ * Each message advances the symmetric ratchet; when the peer sends their next
+ * message back, a fresh DH ratchet step runs — future messages self-heal even
+ * if the current session private key was actively compromised.
+ *
+ * Protocol sketch:
+ *   Init:     SK = HKDF(ECDH(identity_A, identity_B), info="nexa_dr_init")
+ *   DH step:  KDF_RK(RK, ECDH(DHs, DHr)) → (new_RK, new_CK)
+ *   Sym step: HMAC-SHA256(CK, 0x01) → new_CK; HMAC-SHA256(CK, 0x02) → MK
+ *   Encrypt:  AES-256-GCM(MK, plaintext)
+ */
+export interface E2eeEnvelopeV5 {
+  v: 5;
+  dh_pub: string;       // base64 raw P-256 sender ratchet public key
+  pn: number;           // previous sending chain length
+  n: number;            // message number in current sending chain
+  ciphertext: string;   // base64(iv[12] || AES-256-GCM(MK, plaintext))
+  senderDeviceId: string;
+}
+
 // ── IndexedDB key storage ─────────────────────────────────────────────────────
 
 const IDB_NAME = "nexa-e2ee";
@@ -344,7 +365,7 @@ function _getDeviceId(): string {
 
 export async function encryptMessage(plaintext: string, key: CryptoKey): Promise<E2eeEnvelope> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const data = new TextEncoder().encode(plaintext);
+  const data = _pad(new TextEncoder().encode(plaintext));
   const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
   const combined = new Uint8Array(iv.byteLength + ct.byteLength);
   combined.set(iv);
@@ -359,7 +380,7 @@ export async function decryptMessage(envelope: E2eeEnvelope, key: CryptoKey): Pr
     const iv = combined.slice(0, 12);
     const ct = combined.slice(12);
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
-    return new TextDecoder().decode(plain);
+    return new TextDecoder().decode(_unpad(new Uint8Array(plain)));
   } catch {
     return "[decryption failed]";
   }
@@ -405,7 +426,7 @@ export async function encryptMessageForward(
   );
 
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const data = new TextEncoder().encode(plaintext);
+  const data = _pad(new TextEncoder().encode(plaintext));
   const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, data);
   const combined = new Uint8Array(iv.byteLength + ct.byteLength);
   combined.set(iv);
@@ -446,10 +467,238 @@ export async function decryptMessageForward(envelope: E2eeEnvelopeV3): Promise<s
     const iv = combined.slice(0, 12);
     const ct = combined.slice(12);
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, ct);
-    return new TextDecoder().decode(plain);
+    return new TextDecoder().decode(_unpad(new Uint8Array(plain)));
   } catch {
     return "[decryption failed]";
   }
+}
+
+// ── Double Ratchet (v5) — DM break-in recovery ───────────────────────────────
+
+interface DRState {
+  RK: ArrayBuffer;                    // 32-byte root key
+  CKs: ArrayBuffer | null;            // 32-byte send chain key (null until first send)
+  CKr: ArrayBuffer | null;            // 32-byte receive chain key (null until first receive)
+  DHs_pub: string;                    // base64 own current ratchet public key
+  DHs_priv: CryptoKey;                // non-extractable, persisted via IndexedDB structured clone
+  DHr: string | null;                 // base64 peer's current ratchet public key
+  Ns: number;                         // send message count in current chain
+  Nr: number;                         // next expected receive message number
+  PN: number;                         // previous send chain length (sent in envelope header)
+  MKSKIPPED: Record<string, string>;  // "pubkey:N" → base64(32-byte MK) for out-of-order
+}
+
+const _DR_MAX_SKIP = 1000; // cap skipped-key storage per chain
+
+// Raw bytes of ECDH shared secret via deriveKey→exportKey (avoids needing "deriveBits" usage)
+async function _ecdhRaw(privKey: CryptoKey, peerPubB64: string): Promise<ArrayBuffer> {
+  const peerPub = await crypto.subtle.importKey(
+    "raw", _b64ToBuf(peerPubB64), { name: "ECDH", namedCurve: "P-256" }, false, [],
+  );
+  const derived = await crypto.subtle.deriveKey(
+    { name: "ECDH", public: peerPub }, privKey,
+    { name: "AES-GCM", length: 256 }, true, ["encrypt"],
+  );
+  return crypto.subtle.exportKey("raw", derived);
+}
+
+// KDF_RK: HKDF(IKM=dhOut, salt=RK, info="nexa_ratchet_root") → [new_RK(32), new_CK(32)]
+async function _kdfRk(rk: ArrayBuffer, dhOut: ArrayBuffer): Promise<[ArrayBuffer, ArrayBuffer]> {
+  const hkdfKey = await crypto.subtle.importKey("raw", dhOut, "HKDF", false, ["deriveBits"]);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(rk), info: new TextEncoder().encode("nexa_ratchet_root") },
+    hkdfKey, 512,
+  ));
+  return [bits.slice(0, 32).buffer as ArrayBuffer, bits.slice(32).buffer as ArrayBuffer];
+}
+
+// KDF_CK: HMAC-SHA256(CK, 0x01) → new_CK; HMAC-SHA256(CK, 0x02) → MK
+async function _kdfCk(ck: ArrayBuffer): Promise<[ArrayBuffer, ArrayBuffer]> {
+  const hmacKey = await crypto.subtle.importKey(
+    "raw", ck, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const newCk = await crypto.subtle.sign("HMAC", hmacKey, new Uint8Array([1]));
+  const mk = await crypto.subtle.sign("HMAC", hmacKey, new Uint8Array([2]));
+  return [newCk, mk];
+}
+
+async function _encryptWithMk(mk: ArrayBuffer, plaintext: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", mk, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, _pad(new TextEncoder().encode(plaintext)));
+  const combined = new Uint8Array(12 + ct.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(ct), 12);
+  return _bufToB64(combined.buffer);
+}
+
+async function _decryptWithMk(mk: ArrayBuffer, ciphertextB64: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", mk, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const combined = _b64ToBuf(ciphertextB64);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: combined.slice(0, 12) }, key, combined.slice(12));
+  return new TextDecoder().decode(_unpad(new Uint8Array(plain)));
+}
+
+// Derive initial shared secret from identity ECDH → HKDF
+async function _initDRSharedSecret(peerPubB64: string): Promise<ArrayBuffer> {
+  if (!_myKeyPair) throw new Error("keypair not initialized");
+  const dhOut = await _ecdhRaw(_myKeyPair.privateKey, peerPubB64);
+  const hkdfKey = await crypto.subtle.importKey("raw", dhOut, "HKDF", false, ["deriveBits"]);
+  return crypto.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: new TextEncoder().encode("nexa_dr_init") },
+    hkdfKey, 256,
+  );
+}
+
+async function _genRatchetKp(): Promise<{ pub: string; priv: CryptoKey }> {
+  const kp = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]);
+  const pubRaw = await crypto.subtle.exportKey("raw", kp.publicKey);
+  return { pub: _bufToB64(pubRaw), priv: kp.privateKey };
+}
+
+async function _getOrInitDRState(convId: string, peerUserId: string): Promise<DRState | null> {
+  const existing = await idbGet<DRState>(`dr-state:${convId}`);
+  if (existing) return existing;
+  if (!_myKeyPair || !_myPublicB64) return null;
+
+  const peerPub = await fetchPeerPublicKey(peerUserId).catch(() => null);
+  if (!peerPub) return null;
+
+  const sk = await _initDRSharedSecret(peerPub);
+  const { pub, priv } = await _genRatchetKp();
+  const state: DRState = {
+    RK: sk, CKs: null, CKr: null,
+    DHs_pub: pub, DHs_priv: priv, DHr: null,
+    Ns: 0, Nr: 0, PN: 0, MKSKIPPED: {},
+  };
+  await idbSet(`dr-state:${convId}`, state);
+  return state;
+}
+
+/**
+ * Encrypt a DM using the Double Ratchet.
+ * On first call, initialises the DR session with an identity-key ECDH.
+ * Every subsequent call advances the symmetric ratchet; when a reply is received
+ * the DH ratchet self-heals the session against break-in.
+ */
+export async function encryptMessageDR(
+  plaintext: string,
+  convId: string,
+  peerUserId: string,
+): Promise<E2eeEnvelopeV5 | null> {
+  let state = await _getOrInitDRState(convId, peerUserId);
+  if (!state || !_myKeyPair) return null;
+
+  // First send: no CKs yet — do the initial DH ratchet step targeting peer identity pub
+  if (!state.CKs) {
+    const peerPub = await fetchPeerPublicKey(peerUserId).catch(() => null);
+    if (!peerPub) return null;
+    const dhTarget = state.DHr ?? peerPub;
+    const dhOut = await _ecdhRaw(state.DHs_priv, dhTarget);
+    const [newRK, newCKs] = await _kdfRk(state.RK, dhOut);
+    state = { ...state, RK: newRK, CKs: newCKs, DHr: dhTarget };
+  }
+
+  const [newCKs, mk] = await _kdfCk(state.CKs!);
+  const ciphertext = await _encryptWithMk(mk, plaintext);
+
+  const envelope: E2eeEnvelopeV5 = {
+    v: 5, dh_pub: state.DHs_pub, pn: state.PN, n: state.Ns,
+    ciphertext, senderDeviceId: _getDeviceId(),
+  };
+  await idbSet(`dr-state:${convId}`, { ...state, CKs: newCKs, Ns: state.Ns + 1 });
+  return envelope;
+}
+
+/**
+ * Decrypt a v5 DM envelope using the Double Ratchet.
+ * Performs a DH ratchet step when the sender's ratchet key has changed, which
+ * is what provides break-in recovery: after one round-trip the session heals.
+ * Out-of-order messages are handled via MKSKIPPED.
+ */
+export async function decryptMessageDR(
+  envelope: E2eeEnvelopeV5,
+  convId: string,
+  peerUserId: string,
+): Promise<string> {
+  if (envelope.v !== 5) return "[unsupported envelope version]";
+  if (!_myKeyPair) return "[device key not initialized]";
+
+  let state = await idbGet<DRState>(`dr-state:${convId}`);
+  if (!state) {
+    const peerPub = await fetchPeerPublicKey(peerUserId).catch(() => null);
+    if (!peerPub) return "[peer key not found]";
+    const sk = await _initDRSharedSecret(peerPub);
+    const { pub, priv } = await _genRatchetKp();
+    state = {
+      RK: sk, CKs: null, CKr: null,
+      DHs_pub: pub, DHs_priv: priv, DHr: null,
+      Ns: 0, Nr: 0, PN: 0, MKSKIPPED: {},
+    };
+  }
+
+  // Fast path: out-of-order message whose key was already stored
+  const skipKey = `${envelope.dh_pub}:${envelope.n}`;
+  if (state.MKSKIPPED[skipKey]) {
+    try {
+      const plain = await _decryptWithMk(_b64ToBuf(state.MKSKIPPED[skipKey]), envelope.ciphertext);
+      const { [skipKey]: _used, ...rest } = state.MKSKIPPED;
+      await idbSet(`dr-state:${convId}`, { ...state, MKSKIPPED: rest });
+      return plain;
+    } catch { return "[decryption failed]"; }
+  }
+
+  // DH ratchet step: sender's ratchet key has changed
+  if (envelope.dh_pub !== state.DHr) {
+    // Save skipped message keys from the current receive chain (pn = their previous chain length)
+    if (state.CKr !== null && state.DHr !== null) {
+      let ck = state.CKr;
+      const limit = Math.min(envelope.pn, state.Nr + _DR_MAX_SKIP);
+      for (let i = state.Nr; i < limit; i++) {
+        const [nextCk, mk] = await _kdfCk(ck);
+        state = { ...state, MKSKIPPED: { ...state.MKSKIPPED, [`${state.DHr}:${i}`]: _bufToB64(mk) } };
+        ck = nextCk;
+      }
+    }
+
+    // For the very first received message use identity key; afterwards use current ratchet key
+    const privForRatchet = state.DHr === null ? _myKeyPair.privateKey : state.DHs_priv;
+    const dhOut1 = await _ecdhRaw(privForRatchet, envelope.dh_pub);
+    const [newRK1, newCKr] = await _kdfRk(state.RK, dhOut1);
+
+    // Immediately generate next DHs and derive new send chain
+    const { pub: newDHsPub, priv: newDHsPriv } = await _genRatchetKp();
+    const dhOut2 = await _ecdhRaw(newDHsPriv, envelope.dh_pub);
+    const [newRK2, newCKs] = await _kdfRk(newRK1, dhOut2);
+
+    state = {
+      ...state,
+      RK: newRK2, CKs: newCKs, CKr: newCKr,
+      DHs_pub: newDHsPub, DHs_priv: newDHsPriv, DHr: envelope.dh_pub,
+      PN: state.Ns, Ns: 0, Nr: 0,
+    };
+  }
+
+  if (!state.CKr) return "[no receive chain]";
+
+  // n before current Nr means the key is gone (wasn't stored in MKSKIPPED)
+  if (envelope.n < state.Nr) return "[out-of-order: message key expired]";
+
+  // Skip ahead for in-order gap (stores keys for messages we haven't seen yet)
+  let ck = state.CKr;
+  const skipLimit = Math.min(envelope.n, state.Nr + _DR_MAX_SKIP);
+  for (let i = state.Nr; i < skipLimit; i++) {
+    const [nextCk, mk] = await _kdfCk(ck);
+    state = { ...state, MKSKIPPED: { ...state.MKSKIPPED, [`${envelope.dh_pub}:${i}`]: _bufToB64(mk) } };
+    ck = nextCk;
+  }
+
+  const [newCKr, mk] = await _kdfCk(ck);
+  try {
+    const plain = await _decryptWithMk(mk, envelope.ciphertext);
+    await idbSet(`dr-state:${convId}`, { ...state, CKr: newCKr, Nr: envelope.n + 1 });
+    return plain;
+  } catch { return "[decryption failed]"; }
 }
 
 // ── Group per-message ECIES (v4) ─────────────────────────────────────────────
@@ -469,7 +718,7 @@ export async function encryptMessageGroupV4(
 
   // Encrypt plaintext with the message key.
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, msgKey, new TextEncoder().encode(plaintext));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, msgKey, _pad(new TextEncoder().encode(plaintext)));
   const body = new Uint8Array(12 + ct.byteLength);
   body.set(iv);
   body.set(new Uint8Array(ct), 12);
@@ -503,7 +752,7 @@ export async function decryptMessageGroupV4(
     const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
     const combined = _b64ToBuf(envelope.ciphertext);
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: combined.slice(0, 12) }, aesKey, combined.slice(12));
-    return new TextDecoder().decode(plain);
+    return new TextDecoder().decode(_unpad(new Uint8Array(plain)));
   } catch {
     return "[decryption failed]";
   }
@@ -511,7 +760,7 @@ export async function decryptMessageGroupV4(
 
 /**
  * Unified encrypt helper:
- *   DM    → v3 (per-message ephemeral ECDH, forward secrecy)
+ *   DM    → v5 (Double Ratchet: forward secrecy + break-in recovery)
  *   Group → v4 (per-message multi-recipient ECIES, per-message forward secrecy)
  */
 export async function encryptForConversation(
@@ -520,19 +769,42 @@ export async function encryptForConversation(
   peerOrMembers: string | string[],
   isGroup: boolean,
   myUserId: string,
-): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | null> {
+): Promise<E2eeEnvelope | E2eeEnvelopeV3 | E2eeEnvelopeV4 | E2eeEnvelopeV5 | null> {
   if (!isGroup) {
     const peerId = peerOrMembers as string;
     if (!peerId) return null;
-    const peerPub64 = await fetchPeerPublicKey(peerId);
-    if (!peerPub64) return null;
-    return encryptMessageForward(plaintext, peerPub64);
+    return encryptMessageDR(plaintext, conversationId, peerId);
   }
   // Group: per-message multi-recipient ECIES (v4)
   const memberIds = peerOrMembers as string[];
   const memberPubKeys = await _fetchMemberPublicKeys(memberIds, myUserId);
   if (memberPubKeys.size === 0) return null;
   return encryptMessageGroupV4(plaintext, memberPubKeys);
+}
+
+// ── Message padding (ISO 7816-4) ─────────────────────────────────────────────
+// All user message plaintext is padded to the nearest 256-byte block before
+// AES-GCM encryption. This hides the exact plaintext length from the server —
+// every message under 256 bytes produces identical-length ciphertext (274 bytes
+// after IV + AES-GCM tag). Backward-compatible: _unpad returns input unchanged
+// when no 0x80 marker is found (pre-padding messages still decrypt correctly).
+
+const _PAD_BLOCK = 256;
+
+function _pad(data: Uint8Array): Uint8Array<ArrayBuffer> {
+  const padLen = _PAD_BLOCK - (data.length % _PAD_BLOCK);
+  const buf = new ArrayBuffer(data.length + padLen);
+  const out = new Uint8Array(buf);
+  out.set(data);
+  out[data.length] = 0x80; // ISO 7816-4 marker; remainder stays 0x00
+  return out;
+}
+
+function _unpad(data: Uint8Array): Uint8Array {
+  let i = data.length - 1;
+  while (i >= 0 && data[i] === 0x00) i--;
+  if (i >= 0 && data[i] === 0x80) return data.slice(0, i);
+  return data; // no padding found → backward-compat with old messages
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

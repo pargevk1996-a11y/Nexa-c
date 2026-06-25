@@ -239,6 +239,7 @@ async def qr_approve(
         device_label="QR linked device",
         request=request,
         revoke_others=False,
+        pin_status=user.pin_status,
     )
     qr = await session_store.approve_qr(
         body.qr_token,

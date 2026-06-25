@@ -414,6 +414,22 @@ class PostgresChatStore:
             )
             await session.commit()
 
+    async def ensure_member(self, conv_id: str, user_id: str, *, role: str = "member") -> None:
+        """Idempotently add user to a conversation (INSERT ON CONFLICT DO NOTHING)."""
+        try:
+            conv_uuid = _uuid(conv_id)
+            user_uuid = _uuid(user_id)
+        except Exception:
+            return
+        async with self._sm() as session:
+            stmt = pg_insert(MemberRow).values(
+                conversation_id=conv_uuid,
+                user_id=user_uuid,
+                role=role,
+            ).on_conflict_do_nothing(index_elements=["conversation_id", "user_id"])
+            await session.execute(stmt)
+            await session.commit()
+
     async def add_members(self, conv_id: str, user_ids: list[str]) -> None:
         conv_uuid = _uuid(conv_id)
         async with self._sm() as session:
@@ -691,7 +707,7 @@ class PostgresChatStore:
                 return None
             return _to_message(row)
 
-    async def edit_message(self, msg_id: str, user_id: str, body: str) -> Message | None:
+    async def edit_message(self, msg_id: str, user_id: str, body: str, *, silent: bool = False) -> Message | None:
         msg = await self.get_message(msg_id, user_id)
         if not msg or msg.sender_id != user_id:
             return None
@@ -702,7 +718,8 @@ class PostgresChatStore:
             if not row:
                 return None
             row.body_enc = maybe_encrypt_body(body).encode("utf-8")
-            row.edited_at = datetime.now(UTC)
+            if not silent:
+                row.edited_at = datetime.now(UTC)
             await session.commit()
             await session.refresh(row)
             return _to_message(row)

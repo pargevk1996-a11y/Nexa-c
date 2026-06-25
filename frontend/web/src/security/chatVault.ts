@@ -14,6 +14,7 @@ export interface SerializedMessageMutations {
   reactionOverrides: Record<string, { reactions: Record<string, number>; myReaction?: string }>;
   pinnedByConversation: Record<string, string | null>;
   statusOverrides: Record<string, MessageStatus>;
+  clearedConversations: string[];
 }
 
 export interface ChatVaultPayload {
@@ -36,6 +37,7 @@ export function emptySerializedMutations(): SerializedMessageMutations {
     reactionOverrides: {},
     pinnedByConversation: {},
     statusOverrides: {},
+    clearedConversations: [],
   };
 }
 

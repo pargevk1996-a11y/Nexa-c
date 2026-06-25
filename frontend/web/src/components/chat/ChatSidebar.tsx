@@ -108,7 +108,9 @@ const ConvList = memo(function ConvList({
             </div>
             <div className="chat-conv-item__meta">
               <span className="chat-conv-item__time">{c.lastAt}</span>
-              {c.unread > 0 ? (
+              {c.muted ? (
+                <span className="chat-conv-item__muted" aria-label="Muted" title="Notifications muted">🔕</span>
+              ) : c.unread > 0 ? (
                 <span className="chat-unread" aria-label={`${c.unread} unread`}>
                   {c.unread > 99 ? "99+" : c.unread}
                 </span>
@@ -199,7 +201,7 @@ export function ChatSidebar({
         {/* Category heading — always visible so mobile swipe has orientation */}
         {!search.trim() ? (
           <h2 className="chat-sidebar__cat-title">
-            {category === "groups" ? "Groups" : category === "channels" ? "Channels" : category === "private" ? "Direct Messages" : category === "secret" ? "Secret Chats" : "Chats"}
+            {category === "groups" ? "Groups" : category === "channels" ? "Channels" : category === "private" ? "Chats" : category === "secret" ? "Secret Chats" : "ALL"}
           </h2>
         ) : null}
         {loading ? (

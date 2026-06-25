@@ -28,6 +28,8 @@
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0;
+  cursor: pointer;
+  touch-action: manipulation;
   transition:
     background var(--dur) var(--ease),
     color var(--dur) var(--ease),
@@ -125,43 +127,49 @@
 }
 
 /* ── MOBILE ONLY ─────────────────────────────────────────────────────────
-   Default: desktop rail is hidden. Navigation via swipes only.
-   When showNavButtons is ON (app-shell--show-nav): fixed bottom bar visible
-   in ALL sections and ALL view states (list, conversation, contacts…). */
+   Default: desktop rail hidden. Swipe-only navigation.
+   showNavButtons ON → bottom bar in all sections. Two strategies:
+     • Non-chats: in-flow flex item (guaranteed to work in all page layouts)
+     • Chats: position:fixed (conversation panel takes full screen, in-flow fails) */
 @media (max-width: 768px) {
-  /* Default: hide the desktop rail */
+  /* Default: hide the desktop rail on mobile */
   .side-nav { display: none; }
 
-  /* Non-chats sections: full-width layout without the rail */
+  /* ── NON-CHATS: frame goes column (needed for page layout) ──── */
   .app-shell:not(.app-shell--nexa-chats) .app-shell__frame {
     flex-direction: column; gap: 0; padding: 0;
   }
-  .app-shell:not(.app-shell--nexa-chats) .app-shell__body { order: 1; }
 
-  /* ── SHOW-NAV ON: fixed bottom bar ─────────────────────────────────── */
+  /* ── SHOW-NAV ON: fixed bottom bar in ALL sections ──────────── */
   .app-shell--show-nav .side-nav {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0; width: 100%;
     z-index: 200;
     flex-direction: row;
-    align-items: center;
-    justify-content: center;
+    align-items: center; justify-content: center;
     gap: 0.15rem;
     padding: 0.35rem 0.5rem calc(0.35rem + var(--safe-bottom, 0px));
+    border: none; border-top: 1px solid var(--border); border-radius: 0;
     background: var(--bg-elevated);
-    border-top: 1px solid var(--border);
-    border-radius: 0;
     -webkit-backdrop-filter: blur(20px) saturate(1.5);
     backdrop-filter: blur(20px) saturate(1.5);
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-    align-self: auto;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.25);
+  }
+  /* In Chats: hide when conversation open (full-screen chat) */
+  .app-shell--show-nav.app-shell--nexa-chats:has(.chat-shell--conversation-open) .side-nav {
+    display: none;
+  }
+  /* Pad body in ALL sections so content doesn't hide behind the fixed bar */
+  .app-shell--show-nav:not(:is(.app-shell--nexa-chats:has(.chat-shell--conversation-open))) .app-shell__body {
+    padding-bottom: calc(90px + var(--safe-bottom, 0px));
   }
 
-  /* Hide logo in the bottom bar */
+  /* ── Shared styles for both approaches ──────────────────────── */
+  /* Hide logo in mobile bottom bar */
   .app-shell--show-nav .side-nav__brand { display: none; }
 
-  /* Groups as a horizontal row */
+  /* Groups as horizontal row */
   .app-shell--show-nav .side-nav__group--main {
     flex-direction: row; width: auto; flex: 1; justify-content: center; gap: 0.15rem;
   }
@@ -169,7 +177,7 @@
     flex-direction: row; width: auto; margin-top: 0; padding-top: 0; border-top: none; gap: 0.15rem;
   }
 
-  /* Nav items in the bottom bar */
+  /* Nav item sizing */
   .app-shell--show-nav .side-nav__item {
     flex: 1 1 0; max-width: 120px; width: auto;
     flex-direction: column; gap: 0.15rem;
@@ -183,12 +191,7 @@
     font-size: 0.68rem; font-weight: 600;
   }
 
-  /* Pad main content so nothing hides behind the fixed bar */
-  .app-shell--show-nav .app-shell__body {
-    padding-bottom: calc(62px + var(--safe-bottom, 0px));
-  }
-
-  /* Hide the in-panel nav in Chats — the global fixed bar replaces it */
+  /* Hide chat-left-panel__app-nav — global bar replaces it */
   .app-shell--show-nav .chat-left-panel__app-nav { display: none; }
 } /* end @media (max-width: 768px) */
 

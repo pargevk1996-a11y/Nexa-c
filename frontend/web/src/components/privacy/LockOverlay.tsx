@@ -1,167 +1,161 @@
-import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getCachedSession } from "@/api/auth";
-import {
-  hasStoredSignature,
-  storeSignatureForUser,
-  validateSignatureFormat,
-  verifySignatureForUser,
-} from "@/security/signaturePin";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLock, type LockState } from "@/store/LockContext";
+import { isGuestAuthPath } from "@/security/authRoutes";
 
-interface StateContent {
-  title: string;
-  body: string;
-  clickable: boolean;
-}
-
-const STATE_CONTENT: Record<Exclude<LockState, "active">, StateContent> = {
-  pin_required: {
-    title: "Screen locked",
-    body: "Enter your PIN to unlock.",
-    clickable: false,
-  },
+const CLICK_CONTENT: Record<"screenshot_blocked" | "away", { title: string; body: string }> = {
   screenshot_blocked: {
     title: "Oops! Screenshots are not allowed.",
     body: "To unlock, please click on the screen.",
-    clickable: true,
   },
   away: {
     title: "We always think about your security",
     body: "To continue, click anywhere on the screen.",
-    clickable: true,
   },
 };
 
-function PinForm({ onSuccess }: { onSuccess: () => void }) {
-  // The session may still be hydrating when a restored lock paints on reload.
-  // Track it reactively (via the persistSession event) so the PIN form becomes
-  // usable the moment the session is available — never a permanent lockout.
-  const [session, setSession] = useState(getCachedSession);
+function PinForm({
+  mode,
+  error,
+  onSubmit,
+  onCancel,
+}: {
+  mode: "setup" | "verify";
+  error: string | null;
+  onSubmit: (pin: string) => Promise<void>;
+  onCancel?: () => Promise<void>;
+}) {
   const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  // true = no PIN stored yet → setup mode; false = verify mode
-  const [setupMode, setSetupMode] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Random id each mount so browser can't correlate with saved credentials
-  const uid = useId();
 
-  // Pick up the session as soon as bootstrap finishes hydrating it.
-  useEffect(() => {
-    const onSession = () => setSession(getCachedSession());
-    window.addEventListener("securechat-session", onSession);
-    return () => window.removeEventListener("securechat-session", onSession);
-  }, []);
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setLocalError(null);
 
-  useEffect(() => {
-    if (!session) return;
-    // Setup mode ONLY when no PIN blob exists on this device. Using a decryption
-    // check here would let a transient decrypt failure (device key not warm yet)
-    // present setup mode and accept+overwrite the PIN on the first try. Blob
-    // presence is decryption-independent, so an existing PIN always means verify.
-    setSetupMode(!hasStoredSignature(session.user.id));
-    // Don't auto-focus on touch devices — that pops the on-screen keyboard before
-    // the user taps the field. Focus only with a fine pointer (desktop).
-    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches) {
-      inputRef.current?.focus();
-    }
-  }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!/^\d{1,6}$/.test(pin)) { setLocalError("PIN must be 1–6 digits"); return; }
 
-  async function submit() {
-    if (!session || submitting) return;
-    const err = validateSignatureFormat(pin);
-    if (err) { setError(err); return; }
-    setSubmitting(true);
-    try {
-      if (setupMode) {
-        await storeSignatureForUser(session.user.id, pin);
-        onSuccess();
-      } else {
-        const ok = await verifySignatureForUser(session.user.id, pin);
-        if (ok) {
-          onSuccess();
-        } else {
-          setError("Incorrect PIN. Try again.");
-          setPin("");
-        }
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    setLoading(true);
+    await onSubmit(pin);
+    setLoading(false);
+    setPin("");
   }
 
-  // No <form> element — prevents browser from triggering "Save password?" dialog.
-  // type="text" + CSS masking instead of type="password" avoids the password-manager
-  // heuristic entirely. autoComplete="off" + data-lpignore cover extension managers.
+  async function handleCancel() {
+    if (!onCancel) return;
+    setCancelling(true);
+    await onCancel();
+    // onCancel navigates away; no need to reset state.
+  }
+
+  const displayError = localError || error;
+  const busy = loading || cancelling;
+
   return (
-    <div
-      className="lock-overlay__pin-form"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <form className="lock-overlay__pin-form" onSubmit={handleSubmit}>
+      <h2 className="lock-overlay__title">
+        {mode === "setup" ? "Create your PIN" : "Enter your PIN"}
+      </h2>
+      <p className="lock-overlay__body">
+        {mode === "setup"
+          ? "Choose a PIN to protect your account. You'll need it every time you open the app."
+          : "Enter your PIN to continue."}
+      </p>
+
       <input
         ref={inputRef}
-        id={uid}
-        className="lock-overlay__pin-input lock-overlay__pin-input--masked"
-        type="text"
+        type="password"
         inputMode="numeric"
-        maxLength={6}
+        className="lock-overlay__pin-input"
+        placeholder={mode === "setup" ? "Create PIN (1–6 digits)" : "Enter PIN"}
         value={pin}
-        onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(""); }}
-        onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
-        placeholder={setupMode ? "Create a 4–6 digit PIN" : "Enter PIN"}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        data-lpignore="true"
-        data-1p-ignore="true"
-        data-form-type="other"
-        aria-label="PIN code"
+        maxLength={6}
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        autoComplete="new-password"
+        autoFocus
+        disabled={busy}
       />
-      {error && <p className="lock-overlay__pin-error">{error}</p>}
+
+      {displayError && (
+        <p className="lock-overlay__pin-error">{displayError}</p>
+      )}
+
       <button
-        type="button"
-        className="btn btn--primary lock-overlay__pin-btn"
-        disabled={submitting || pin.length < 4}
-        onClick={() => void submit()}
+        type="submit"
+        className="lock-overlay__pin-btn"
+        disabled={busy || pin.length === 0}
       >
-        {submitting ? "Verifying…" : setupMode ? "Set PIN & Unlock" : "Unlock"}
+        {loading ? "…" : mode === "setup" ? "Set PIN" : "Unlock"}
       </button>
-    </div>
+
+      {mode === "setup" && onCancel && (
+        <button
+          type="button"
+          className="lock-overlay__pin-cancel"
+          onClick={() => void handleCancel()}
+          disabled={busy}
+        >
+          {cancelling ? "Cancelling…" : "Cancel and discard account"}
+        </button>
+      )}
+    </form>
   );
 }
 
 export function LockOverlay() {
-  const { lockState, unlock } = useLock();
+  const { lockState, unlock, pinError, onPinSetup, onPinVerify, onPinCancel } = useLock();
+  // This component renders OUTSIDE <Router>, so we can't use useLocation().
+  // Track the path via the bridged "nexa:locationchange" event + popstate.
+  const [pathname, setPathname] = useState<string>(window.location.pathname);
+
+  useEffect(() => {
+    const sync = () => setPathname(window.location.pathname);
+    window.addEventListener("nexa:locationchange", sync as EventListener);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("nexa:locationchange", sync as EventListener);
+      window.removeEventListener("popstate", sync);
+    };
+  }, []);
+
+  // PIN overlay must never cover guest pages (login, register, oauth, etc.)
+  if (isGuestAuthPath(pathname)) return null;
 
   if (lockState === "active") return null;
 
-  const { clickable } = STATE_CONTENT[lockState];
-  const isPinRequired = lockState === "pin_required";
-
-  function handleOverlayClick() {
-    if (!clickable) return;
-    unlock();
+  if (lockState === "pin_setup" || lockState === "pin_required") {
+    return createPortal(
+      <div className="lock-overlay lock-overlay--pin">
+        <div className="lock-overlay__inner">
+          <PinForm
+            mode={lockState === "pin_setup" ? "setup" : "verify"}
+            error={pinError}
+            onSubmit={lockState === "pin_setup" ? onPinSetup : onPinVerify}
+            onCancel={lockState === "pin_setup" ? onPinCancel : undefined}
+          />
+        </div>
+      </div>,
+      document.body,
+    );
   }
+
+  const { title, body } = CLICK_CONTENT[lockState as "screenshot_blocked" | "away"];
 
   return createPortal(
     <div
-      className={`lock-overlay${clickable ? " lock-overlay--clickable" : ""}`}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onClick={handleOverlayClick}
-      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") handleOverlayClick(); } : undefined}
-      aria-label={clickable ? "Click to unlock" : undefined}
+      className="lock-overlay lock-overlay--clickable"
+      role="button"
+      tabIndex={0}
+      onClick={unlock}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") unlock(); }}
+      aria-label="Click to unlock"
     >
-      {isPinRequired && (
-        <div
-          className="lock-overlay__inner"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <PinForm onSuccess={unlock} />
-        </div>
-      )}
+      <div className="lock-overlay__inner" onClick={(e) => e.stopPropagation()}>
+        <p className="lock-overlay__title">{title}</p>
+        <p className="lock-overlay__body">{body}</p>
+      </div>
     </div>,
     document.body,
   );

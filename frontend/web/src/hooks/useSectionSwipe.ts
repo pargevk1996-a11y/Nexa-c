@@ -69,5 +69,5 @@ export function useSectionSwipe(enabled = true): void {
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, enabled]);
 }

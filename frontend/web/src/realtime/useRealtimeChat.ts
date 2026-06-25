@@ -6,9 +6,10 @@ import {
   decryptMessage,
   decryptMessageForward,
   decryptMessageGroupV4,
+  decryptMessageDR,
   clearConversationKey,
 } from "@/security/e2ee";
-import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4 } from "@/security/e2ee";
+import type { E2eeEnvelope, E2eeEnvelopeV3, E2eeEnvelopeV4, E2eeEnvelopeV5 } from "@/security/e2ee";
 import {
   listConversations,
   listMessages,
@@ -136,11 +137,18 @@ export function useRealtimeChat({
             const env = msg.e2ee_envelope as Record<string, unknown>;
             let plain: string | null = null;
 
-            if (env.v === 4 && "recipients" in env) {
+            if (env.v === 5 && "dh_pub" in env) {
+              // v5: Double Ratchet (DMs, forward secrecy + break-in recovery)
+              const conv = getConversation?.(msg.conversation_id);
+              const peerId = conv?.peerUserId ?? "";
+              if (peerId) {
+                plain = await decryptMessageDR(env as unknown as E2eeEnvelopeV5, msg.conversation_id, peerId).catch(() => null);
+              }
+            } else if (env.v === 4 && "recipients" in env) {
               // v4: per-message multi-recipient ECIES (groups, per-message forward secrecy)
               plain = await decryptMessageGroupV4(env as unknown as E2eeEnvelopeV4, session.user.id).catch(() => null);
             } else if (env.v === 3 && "ephemeral_pub" in env) {
-              // v3: per-message ephemeral ECDH (DMs, forward-secret)
+              // v3: per-message ephemeral ECDH (DMs, forward-secret — legacy, receive-only)
               plain = await decryptMessageForward(env as unknown as E2eeEnvelopeV3).catch(() => null);
             } else if (env.v === 2) {
               // v2: static shared key (backward-compat — legacy group and DM messages)

@@ -232,40 +232,6 @@
   color: var(--text);
 }
 
-/* Manual screen-lock padlock, sits right after the NEXA wordmark. */
-.top-nav__lock-btn {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  margin-left: 0.15rem;
-  border: none;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition:
-    background var(--dur) var(--ease),
-    color var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
-}
-
-.top-nav__lock-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.top-nav__lock-btn:active {
-  transform: scale(0.92);
-}
-
-/* Comfortable 44px tap target on touch devices (phones/tablets, any OS). */
-@media (pointer: coarse) {
-  .top-nav__lock-btn {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-}
 
 .top-nav__avatar {
   width: 2.25rem;

@@ -6,7 +6,6 @@ import {
 } from "./crypto";
 import { deriveUserDataKey } from "./crypto";
 import { destroyDeviceKeyMaterial, hasDeviceKeyMaterial } from "./deviceKey";
-import { clearSignatureForUser } from "./signaturePin";
 import { storageKeys } from "./storageKeys";
 
 export async function setSecureItem<T>(storageKey: string, userId: string, value: T): Promise<void> {
@@ -47,7 +46,6 @@ export function clearUserSecureStorage(userId: string): void {
   removeSecureItem(storageKeys.settings(userId));
   removeSecureItem(storageKeys.panelLayout(userId));
   removeSecureItem(storageKeys.chatVault(userId));
-  clearSignatureForUser(userId);
   localStorage.removeItem("securechat_demo_session");
   localStorage.removeItem("securechat_settings");
   localStorage.removeItem("securechat-panel-widths");

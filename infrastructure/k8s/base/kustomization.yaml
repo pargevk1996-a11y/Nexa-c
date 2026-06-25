@@ -4,7 +4,6 @@ namespace: nexa
 resources:
   - namespace.yaml
   - configmap-env.yaml
-  - external-secret.yaml
   - api-gateway-deployment.yaml
   - services.yaml
   - ingress.yaml

@@ -41,6 +41,9 @@ const UserProfilePage = lazy(() =>
 const LegalPage = lazy(() =>
   import("@/pages/LegalPage").then((m) => ({ default: m.LegalPage })),
 );
+const SecurityDocPage = lazy(() =>
+  import("@/pages/SecurityDocPage").then((m) => ({ default: m.SecurityDocPage })),
+);
 const ForgotPasswordPage = lazy(() =>
   import("@/pages/ForgotPasswordPage").then((m) => ({ default: m.ForgotPasswordPage })),
 );
@@ -68,15 +71,16 @@ export default function App() {
           there before, and the briefly-fetched chunk swaps in seamlessly. */}
       <Suspense fallback={null}>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-
         {/* Public legal/trust pages — reachable signed-in or out (BUG-023) */}
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/license" element={<LegalPage kind="license" />} />
+        <Route path="/docs/security" element={<SecurityDocPage />} />
 
         <Route element={<GuestRoute />}>
-          {/* Login & Register render the home page with a floating auth modal */}
+          {/* "/" / "/login" / "/register" all show the landing page;
+              GuestRoute redirects authenticated users straight to /app/chats */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LandingPage />} />
           <Route path="/register" element={<LandingPage />} />
           <Route element={<AuthLayout />}>

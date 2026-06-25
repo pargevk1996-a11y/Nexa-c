@@ -589,25 +589,3 @@ async def set_key_packages(
     for item in body.packages:
         await redis.set(f"kp:{conversation_id}:{item.user_id}", json.dumps(item.package), ex=ttl)
     return {"ok": True}
-
-
-@router.delete("/conversations/{conversation_id}/key-packages")
-async def clear_key_packages(
-    conversation_id: str,
-    user_id: str = Depends(get_current_user_id),
-) -> dict:
-    """Delete all group key packages for this conversation, forcing re-key on next message send."""
-    conv = await chat_store.get_conversation(conversation_id, user_id)
-    if not conv:
-        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Conversation not found"}})
-    from app.core.redis import get_redis
-    redis = await get_redis()
-    pattern = f"kp:{conversation_id}:*"
-    cursor = 0
-    while True:
-        cursor, keys = await redis.scan(cursor, match=pattern, count=100)
-        if keys:
-            await redis.delete(*keys)
-        if cursor == 0:
-            break
-    return {"ok": True}

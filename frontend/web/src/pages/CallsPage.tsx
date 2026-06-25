@@ -9,6 +9,7 @@ import { useCall } from "@/calls/CallProvider";
 import { resolveDemoCallPeers } from "@/calls/demoCallPeers";
 import { useChat } from "@/store/ChatContext";
 import type { CallType } from "@/types";
+import { useSettings } from "@/store/SettingsContext";
 
 function isMissedCall(c: CallSession, meId: string): boolean {
   if (c.status === "missed" || c.status === "no_answer" || c.status === "declined") return true;
@@ -44,6 +45,7 @@ function callLabel(session: CallSession, meId: string): string {
 
 export function CallsPage() {
   const { visibleConversations } = useChat();
+  const { settings } = useSettings();
   const call = useCall();
   const session = getCachedSession();
   const [recent, setRecent] = useState<CallSession[]>([]);
@@ -58,10 +60,11 @@ export function CallsPage() {
       .catch(() => setRecent([]));
   }, [session?.user?.id, session?.demoMode]);
 
-  // Mobile: two-finger horizontal swipe → missed / all calls
+  // Mobile: two-finger horizontal swipe → missed / all calls.
+  // Disabled when showNavButtons is on (double-tap nav button replaces it).
   useEffect(() => {
     const el = pageRef.current;
-    if (!el) return;
+    if (!el || settings.showNavButtons) return;
     let startX = 0;
     let lastX = 0;
     let two = false;
@@ -89,7 +92,7 @@ export function CallsPage() {
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, [setSearchParams]);
+  }, [setSearchParams, settings.showNavButtons]);
 
   function startCall(
     conversationId: string,

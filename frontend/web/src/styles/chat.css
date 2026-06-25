@@ -1317,7 +1317,7 @@
   flex-shrink: 0;
   cursor: pointer;
   background: #000;
-  transform: scaleX(-1); /* selfie mirror */
+  /* No mirror — review shows how the recipient will see it */
 }
 
 /* Call overlay */
@@ -2595,12 +2595,15 @@
   object-fit: cover;
 }
 
-/* Round video note */
+/* Round video note — circular in every state (poster, playing, placeholder) */
 .video-msg--note .video-msg__stage {
   width: 200px;
   height: 200px;
-  border-radius: 50%;
+  min-width: unset;
+  aspect-ratio: 1 / 1;  /* override 16/9 from generic stage */
+  border-radius: 50% !important;
   overflow: hidden;
+  border: 2.5px solid rgba(255, 255, 255, 0.18) !important;
 }
 
 .video-msg--note .video-msg__video,
@@ -2608,6 +2611,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: none; /* never mirror the sent video */
+}
+
+.video-msg--note .video-msg__play-overlay {
+  border-radius: 50%;
 }
 
 

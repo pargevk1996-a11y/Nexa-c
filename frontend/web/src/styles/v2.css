@@ -36,10 +36,9 @@ body::before {
 /* ── 2. LEFT PANEL ────────────────────────────────────────────── */
 .chat-left-panel {
   position: relative;
-  background: rgba(8, 8, 22, 0.22);
-  -webkit-backdrop-filter: blur(10px) saturate(1.2);
-  backdrop-filter: blur(10px) saturate(1.2);
+  background: rgba(8, 8, 22, 0.72);
   border: none;
+  /* No backdrop-filter here — it was causing scroll jank for the chat list */
 }
 
 /* —— NEXA logo + wordmark watermark behind the chat list —— */
@@ -458,9 +457,9 @@ body::before {
 
 /* ── 5. CHAT HEADER ───────────────────────────────────────────── */
 .chat-header {
-  background: rgba(7,5,16,0.58);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
+  background: rgba(7,5,16,0.80);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255,255,255,0.065);
 }
 
@@ -471,9 +470,9 @@ body::before {
 .chat-shell--telegram .chat-composer {
   border-radius: 24px;
   border: 1px solid rgba(91, 110, 255,0.18);
-  background: rgba(9,7,20,0.84);
-  -webkit-backdrop-filter: blur(30px) saturate(1.5);
-  backdrop-filter: blur(30px) saturate(1.5);
+  background: rgba(9,7,20,0.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   box-shadow:
     0 6px 28px rgba(0,0,0,0.38),
     inset 0 1px 0 rgba(255,255,255,0.042);
@@ -571,76 +570,6 @@ body::before {
   font-size: 0.87rem;
   color: rgba(248,247,252,0.52);
   line-height: 1.55;
-}
-
-.lock-overlay__pin-form {
-  margin-top: 0.65rem;
-  gap: 0.75rem;
-  max-width: 240px;
-  width: 100%;
-}
-
-/* PIN input — feels like a premium lock screen */
-.lock-overlay__pin-input {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(91, 110, 255,0.28);
-  border-radius: 16px;
-  font-size: 1.5rem;
-  letter-spacing: 0.5em;
-  color: #e8e6f5;
-  padding: 0.85rem 1rem;
-  text-align: center;
-  transition:
-    border-color 180ms var(--ease),
-    box-shadow 180ms var(--ease),
-    background 180ms var(--ease);
-  outline: none;
-}
-
-.lock-overlay__pin-input::placeholder {
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-  color: rgba(248,247,252,0.3);
-}
-
-.lock-overlay__pin-input:focus {
-  border-color: rgba(129,140,248,0.72);
-  background: rgba(255,255,255,0.09);
-  box-shadow:
-    0 0 0 3px rgba(99,102,241,0.18),
-    0 0 28px rgba(99,102,241,0.14);
-}
-
-/* Unlock button */
-.lock-overlay__pin-btn {
-  padding: 0.78rem;
-  font-size: 0.92rem;
-  font-weight: 700;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #5B6EFF, #7B8CFF);
-  border: none;
-  color: #fff;
-  box-shadow: 0 0 20px rgba(91, 110, 255,0.45);
-  transition:
-    transform 120ms var(--ease-spring),
-    box-shadow 200ms var(--ease),
-    filter 200ms var(--ease);
-}
-
-.lock-overlay__pin-btn:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0 32px rgba(91, 110, 255,0.65);
-  filter: brightness(1.07);
-}
-
-.lock-overlay__pin-btn:not(:disabled):active {
-  transform: scale(0.97) translateY(0);
-  transition-duration: 70ms;
-}
-
-.lock-overlay__pin-btn:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
 }
 
 /* ── 11. AUTH FORMS ───────────────────────────────────────────── */
@@ -1695,4 +1624,178 @@ body::before {
     width: 48px;
     height: 48px;
   }
+}
+
+/* ── Category cycle button in bottom nav ─────────────────────────────────── */
+.chat-nav-cat-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-left-panel__app-nav-item--always-active {
+  color: #c4b5fd !important;
+  background: rgba(91, 110, 255, 0.17) !important;
+  flex: 1;
+}
+
+.chat-nav-cat-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(13, 10, 28, 0.96);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.5);
+  border-radius: 14px;
+  padding: 6px;
+  border: 1px solid rgba(91, 110, 255, 0.22);
+  white-space: nowrap;
+  z-index: 200;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  animation: cat-popup-in 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cat-popup-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.92); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.chat-nav-cat-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background 120ms, color 120ms;
+}
+
+.chat-nav-cat-popup-item:hover {
+  background: rgba(91, 110, 255, 0.16);
+  color: #e0d7ff;
+}
+
+.chat-nav-cat-popup-item--active {
+  background: rgba(91, 110, 255, 0.24);
+  color: #c4b5fd;
+}
+
+[data-theme="light"] .chat-nav-cat-popup {
+  background: rgba(248, 246, 255, 0.97);
+  border-color: rgba(91, 110, 255, 0.18);
+  box-shadow: 0 8px 32px rgba(91, 110, 255, 0.12);
+}
+
+[data-theme="light"] .chat-nav-cat-popup-item { color: #4a4680; }
+[data-theme="light"] .chat-nav-cat-popup-item:hover { background: rgba(91,110,255,0.1); color: #3730a3; }
+[data-theme="light"] .chat-nav-cat-popup-item--active { background: rgba(91,110,255,0.18); color: #4338ca; }
+
+/* ── Arc category popup (hold on Chats button) ───────────────────────────── */
+.arc-cat-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: transparent;
+  touch-action: none;
+}
+
+.arc-cat-item {
+  position: fixed;
+  z-index: 1201;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--nav-ball-idle, rgba(255,255,255,0.10));
+  border: 1.5px solid rgba(196, 181, 253, 0.22);
+  color: rgba(196, 181, 253, 0.92);
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.42), inset 0 1px 2px rgba(255,255,255,0.18);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  transform: translate(var(--ax, 0), var(--ay, 0));
+  animation: arc-cat-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  will-change: transform, opacity;
+  touch-action: manipulation;
+}
+
+.arc-cat-item--active {
+  background: var(--nav-ball-active, rgba(91,110,255,0.85));
+  border-color: rgba(196, 181, 253, 0.5);
+  color: #fff;
+  box-shadow: var(--nav-ball-active-shadow, 0 6px 20px rgba(79,124,255,0.55)),
+              inset 0 1px 2px rgba(255,255,255,0.28);
+}
+
+.arc-cat-item:hover:not(.arc-cat-item--active) {
+  background: rgba(91, 110, 255, 0.38);
+  border-color: rgba(196, 181, 253, 0.4);
+  color: #e2d9ff;
+}
+
+.arc-cat-item__label {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  pointer-events: none;
+}
+
+@keyframes arc-cat-in {
+  0%   { transform: translate(0, 0) scale(0); opacity: 0; }
+  100% { transform: translate(var(--ax, 0), var(--ay, 0)) scale(1); opacity: 1; }
+}
+
+.arc-cat-item--hovered {
+  background: rgba(91, 110, 255, 0.55);
+  border-color: rgba(196, 181, 253, 0.5);
+  color: #fff;
+  transform: translate(var(--ax, 0), var(--ay, 0)) scale(1.14);
+  box-shadow: 0 8px 24px rgba(79,124,255,0.5), inset 0 1px 2px rgba(255,255,255,0.2);
+}
+
+[data-theme="light"] .arc-cat-item {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(91, 110, 255, 0.25);
+  color: #5b6eff;
+  box-shadow: 0 4px 14px rgba(91,110,255,0.15), inset 0 1px 2px rgba(255,255,255,0.9);
+}
+[data-theme="light"] .arc-cat-item--active {
+  background: rgba(91, 110, 255, 0.88);
+  color: #fff;
+  border-color: rgba(91, 110, 255, 0.55);
+}
+[data-theme="light"] .arc-cat-item--hovered {
+  background: rgba(91, 110, 255, 0.75);
+  color: #fff;
+}
+[data-theme="light"] .arc-cat-item:hover:not(.arc-cat-item--active) {
+  background: rgba(91, 110, 255, 0.12);
+  color: #3730a3;
+}
+
+/* ── Compact message timestamp (non-tail grouped messages) ───────────────── */
+.chat-bubble__time--compact {
+  font-size: 10px;
+  opacity: 0.72;
+  margin-top: 0.05rem;
 }

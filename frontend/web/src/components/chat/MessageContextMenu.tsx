@@ -29,6 +29,7 @@ interface MessageContextMenuProps {
   isSecret?: boolean;
   isSuperSecret?: boolean;
   isPinned?: boolean;
+  isChannelAdmin?: boolean;
   position: { x: number; y: number };
   onAction: (action: MessageMenuAction) => void;
   onClose: () => void;
@@ -48,6 +49,7 @@ function buildMenuItems(
   isSecret: boolean,
   isSuperSecret: boolean,
   isPinned: boolean,
+  isChannelAdmin: boolean,
 ): MenuItem[] {
   if (message.recalled || message.deleted) {
     return [
@@ -68,11 +70,14 @@ function buildMenuItems(
   const items: MenuItem[] = [];
 
   if (!message.recalled && !message.ephemeral) {
-    items.push({ id: "reply", label: "Reply", action: { type: "reply" } });
-    if (!isSecret && !isSuperSecret) {
+    // In broadcast channel don't show Reply/Forward — it's a one-way announcement feed.
+    if (!isChannelAdmin) {
+      items.push({ id: "reply", label: "Reply", action: { type: "reply" } });
+    }
+    if (!isSecret && !isSuperSecret && !isChannelAdmin) {
       items.push({ id: "forward", label: "Forward", action: { type: "forward" } });
     }
-    if (features.chat.pins) {
+    if (features.chat.pins && !isChannelAdmin) {
       items.push({
         id: isPinned ? "unpin" : "pin",
         label: isPinned ? "Unpin" : "Pin",
@@ -85,27 +90,28 @@ function buildMenuItems(
     items.push({ id: "copy", label: "Copy", action: { type: "copy" } });
   }
 
+  // Channel admin can always edit their own messages (no "edited" marker will appear — backend handles that).
   if (isOwn && isText && !isSecret && !isSuperSecret && !message.ephemeral) {
     items.push({ id: "edit", label: "Edit", action: { type: "edit" } });
   }
 
-  if (canRecall) {
-    items.push({ id: "recall", label: "Undo send", action: { type: "recall" }, danger: true });
-  } else if (isOwn && viewedByPeer) {
-    const forEveryoneLabel = isGroup ? "Delete for everyone" : "Delete for both";
+  // Own messages: always offer delete for everyone (channel admins too).
+  // Keep "Undo send" as a separate fast option when still within recall window.
+  if (isOwn || isChannelAdmin) {
+    if (canRecall) {
+      items.push({ id: "recall", label: "Undo send", action: { type: "recall" }, danger: true });
+    }
+    const forEveryoneLabel = isChannelAdmin || isGroup ? "Delete for everyone" : "Delete for both";
     items.push({
       id: "delete",
       label: "Delete",
       children: [
         { id: "delete-me", label: "Delete for me", action: { type: "delete", scope: "me" } },
-        {
-          id: "delete-all",
-          label: forEveryoneLabel,
-          action: { type: "delete", scope: "everyone" },
-        },
+        { id: "delete-all", label: forEveryoneLabel, action: { type: "delete", scope: "everyone" } },
       ],
     });
   } else {
+    // Incoming message — can only delete from own view.
     items.push({
       id: "delete-me-only",
       label: "Delete for me",
@@ -124,6 +130,7 @@ export function MessageContextMenu({
   isSecret,
   isSuperSecret,
   isPinned,
+  isChannelAdmin,
   position,
   onAction,
   onClose,
@@ -132,7 +139,7 @@ export function MessageContextMenu({
   const [coords, setCoords] = useState(position);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [reactExpanded, setReactExpanded] = useState(false);
-  const items = buildMenuItems(message, isGroup, Boolean(isSecret), Boolean(isSuperSecret), Boolean(isPinned));
+  const items = buildMenuItems(message, isGroup, Boolean(isSecret), Boolean(isSuperSecret), Boolean(isPinned), Boolean(isChannelAdmin));
 
   useLayoutEffect(() => {
     const el = menuRef.current;

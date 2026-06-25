@@ -219,9 +219,6 @@ export function useScreenshotPrevention() {
       if (e.touches.length < 3) hideOverlay(400);
     };
 
-    // ── 5. Right-click ────────────────────────────────────────────────────────
-    const onContextMenu = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
-
     // ── 6. Copy outside compose fields ────────────────────────────────────────
     const onCopy = (e: ClipboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -245,7 +242,6 @@ export function useScreenshotPrevention() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     document.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
     document.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
-    document.addEventListener("contextmenu", onContextMenu, { capture: true });
     document.addEventListener("copy", onCopy, { capture: true });
 
     return () => {
@@ -256,7 +252,6 @@ export function useScreenshotPrevention() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       document.removeEventListener("touchstart", onTouchStart, { capture: true });
       document.removeEventListener("touchend", onTouchEnd, { capture: true });
-      document.removeEventListener("contextmenu", onContextMenu, { capture: true });
       document.removeEventListener("copy", onCopy, { capture: true });
       if (hideTimer) clearTimeout(hideTimer);
       if (overlayEl) { overlayEl.remove(); overlayEl = null; }

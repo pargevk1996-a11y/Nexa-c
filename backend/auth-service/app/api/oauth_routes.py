@@ -17,6 +17,7 @@ from app.services.user_store import store
 router = APIRouter(prefix="/api/v1", tags=["oauth"])
 
 SUPPORTED_PROVIDERS = frozenset({"google", "github"})
+_VALID_MODES = frozenset({"register", "login"})
 
 # One-time codes for SPA session exchange after provider redirect
 _exchange_codes: dict[str, UserResponse] = {}
@@ -57,8 +58,22 @@ def _oauth_disabled_redirect(provider: str) -> RedirectResponse:
     )
 
 
+def _encode_state(mode: str) -> str:
+    """Embed mode in the OAuth state so the callback can enforce register-vs-login."""
+    return f"{mode}|{secrets.token_urlsafe(24)}"
+
+
+def _decode_mode(state: str | None) -> str:
+    """Extract mode from state; fall back to 'login' for legacy / tampered values."""
+    if state and "|" in state:
+        part = state.split("|", 1)[0]
+        if part in _VALID_MODES:
+            return part
+    return "login"
+
+
 @router.get("/oauth/{provider}/start")
-async def oauth_start(provider: str) -> RedirectResponse:
+async def oauth_start(provider: str, mode: str = "login") -> RedirectResponse:
     if provider not in SUPPORTED_PROVIDERS:
         raise HTTPException(status_code=404, detail={"error": {"code": "UNKNOWN_PROVIDER", "message": "Unknown provider"}})
 
@@ -66,13 +81,15 @@ async def oauth_start(provider: str) -> RedirectResponse:
         return _oauth_disabled_redirect(provider)
 
     client_id = _provider_client_id(provider)
-    state = secrets.token_urlsafe(24)
 
     if not client_id:
         return RedirectResponse(
             _frontend_callback_url({"error": "oauth_not_configured", "provider": provider}),
             status_code=302,
         )
+
+    safe_mode = mode if mode in _VALID_MODES else "login"
+    state = _encode_state(safe_mode)
 
     redirect_uri = _oauth_redirect_uri(provider)
     if provider == "google":
@@ -147,8 +164,6 @@ async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
                 },
             )
             if token_res.is_error:
-                # Google's error body contains the reason (e.g. invalid_client,
-                # redirect_uri_mismatch) — no secrets — so log it for diagnosis.
                 logger.warning(
                     "Google token exchange failed: status=%s redirect_uri=%s body=%s",
                     token_res.status_code,
@@ -186,8 +201,6 @@ async def _exchange_code(provider: str, code: str) -> tuple[str, str, str]:
         token_res.raise_for_status()
         access_token = token_res.json().get("access_token")
     if not access_token:
-        # GitHub returns HTTP 200 with {"error": ...} on failure — log the body
-        # (error code/description only, no secret) so we can see the reason.
         logger.warning(
             "GitHub token exchange failed: status=%s redirect_uri=%s body=%s",
             token_res.status_code,
@@ -223,6 +236,8 @@ async def oauth_provider_callback(
             status_code=302,
         )
 
+    mode = _decode_mode(state)
+
     try:
         subject, email, username = await _exchange_code(provider, code)
     except HTTPException as exc:
@@ -244,20 +259,26 @@ async def oauth_provider_callback(
         )
 
     try:
-        user = await store.get_oauth_user(provider, subject, email, username)
+        user = await store.get_or_create_oauth_user(provider, subject, email, username, mode=mode)
     except ValueError as exc:
-        if "account_not_found" in str(exc):
+        err_str = str(exc)
+        if "account_not_found" in err_str:
             return RedirectResponse(
                 _frontend_callback_url({"error": "account_not_found", "provider": provider}),
                 status_code=302,
             )
-        logger.exception("OAuth %s get_oauth_user failed", provider)
+        if "account_exists" in err_str:
+            return RedirectResponse(
+                _frontend_callback_url({"error": "account_exists", "provider": provider}),
+                status_code=302,
+            )
+        logger.exception("OAuth %s get_or_create_oauth_user failed", provider)
         return RedirectResponse(
             _frontend_callback_url({"error": "oauth_user_failed", "provider": provider}),
             status_code=302,
         )
     except Exception:
-        logger.exception("OAuth %s get_oauth_user failed", provider)
+        logger.exception("OAuth %s get_or_create_oauth_user failed", provider)
         return RedirectResponse(
             _frontend_callback_url({"error": "oauth_user_failed", "provider": provider}),
             status_code=302,
@@ -299,6 +320,7 @@ async def oauth_exchange(
         device_label="OAuth",
         request=request,
         revoke_others=True,
+        pin_status=stored.pin_status,
     )
     _set_refresh_cookie(response, raw_refresh)
     _set_access_cookie(response, access)

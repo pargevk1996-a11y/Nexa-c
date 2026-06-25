@@ -10,169 +10,273 @@ import {
 import { sealContent, explicitUnlock } from "@/security/privacySeal";
 import { setScreenshotCb } from "@/security/screenshotEvent";
 import { isGuestAuthPath } from "@/security/authRoutes";
-import { fetchScreenLock, setScreenLock } from "@/api/profile";
+import { cancelPinSetup, getPinStatus, lockSession as lockSessionApi, setupPin, verifyPin } from "@/api/auth";
+import { ApiError } from "@/api/client";
 
-// Legacy persisted-lock keys from the old auto-lock system. Clear them on load
-// so a stale value from that system can never affect the new lock.
+// Clear legacy lock keys from old system.
 try {
   localStorage.removeItem("_nxlr");
   localStorage.removeItem("_nxla");
-} catch {
-  /* storage unavailable */
-}
+  localStorage.removeItem("nexa-screen-lock");
+  sessionStorage.removeItem("_nxtu");
+} catch { /* ignore */ }
 
-// Local fast-path cache of the ACCOUNT-WIDE manual-lock flag. The server is the
-// source of truth (so the lock follows the account across every browser / OS /
-// device), but we also mirror it in localStorage so a reload restores the lock
-// INSTANTLY — before the network round-trip — with no unlocked flash. The lock
-// stays until the correct PIN is entered. Only the lock STATE is stored here and
-// on the server, never the PIN itself.
-const LOCK_PERSIST_KEY = "nexa-screen-lock";
+const PIN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
-function isManualLockPersisted(): boolean {
-  try {
-    return localStorage.getItem(LOCK_PERSIST_KEY) === "pin_required";
-  } catch {
-    return false;
-  }
-}
-
-function persistManualLock(locked: boolean): void {
-  try {
-    if (locked) localStorage.setItem(LOCK_PERSIST_KEY, "pin_required");
-    else localStorage.removeItem(LOCK_PERSIST_KEY);
-  } catch {
-    /* storage unavailable — best effort */
-  }
-}
-
-/**
- * The screen lock is USER-INITIATED. A manual padlock lock (`pin_required`) is
- * PERSISTENT: it is restored on page load / reload and can only be cleared by
- * entering the PIN. There is still NO automatic locking on tab-switch, blur or
- * inactivity; the transient `screenshot_blocked` / `away` screens are session-
- * only (click to dismiss) and are never persisted.
- */
-export type LockState = "active" | "pin_required" | "screenshot_blocked" | "away";
+export type LockState = "active" | "screenshot_blocked" | "away" | "pin_setup" | "pin_required";
 
 interface LockContextValue {
   lockState: LockState;
   lockedAt: number;
-  /** Lock the screen. `pin_required` = manual lock (PIN needed to unlock). */
+  pinError: string | null;
   lock(reason: Exclude<LockState, "active">): void;
   unlock(): void;
+  onPinSetup(pin: string): Promise<void>;
+  onPinVerify(pin: string): Promise<void>;
+  onPinCancel(): Promise<void>;
+  lockSession(): Promise<void>;
 }
 
 const LockContext = createContext<LockContextValue | null>(null);
 
 export function LockProvider({ children }: { children: ReactNode }) {
-  // Restore a persisted manual lock on boot so a reload stays locked until the
-  // PIN is entered. Guest auth pages never carry a lock.
-  const [lockState, setLockState] = useState<LockState>(() =>
-    !isGuestAuthPath() && isManualLockPersisted() ? "pin_required" : "active",
-  );
+  const [lockState, setLockState] = useState<LockState>("active");
   const [lockedAt, setLockedAt] = useState<number>(0);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const pinVerifiedAtRef = useRef<number>(0);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lockStateRef = useRef<LockState>(lockState);
   lockStateRef.current = lockState;
-  const lockedAtRef = useRef<number>(lockedAt);
-  lockedAtRef.current = lockedAt;
 
-  // If we booted into a restored manual lock, seal the content immediately so it
-  // stays hidden behind the overlay (and against screenshots) from first paint.
-  useEffect(() => {
-    if (lockStateRef.current === "pin_required") sealContent(0);
-    // Mount-only: the restored lock is established before any user interaction.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    if (pinVerifiedAtRef.current === 0) return;
+    inactivityTimerRef.current = setTimeout(() => {
+      if (!isGuestAuthPath()) {
+        setLockState("pin_required");
+        setLockedAt(Date.now());
+        pinVerifiedAtRef.current = 0;
+      }
+    }, PIN_TIMEOUT_MS);
   }, []);
 
   const lock = useCallback((reason: Exclude<LockState, "active">) => {
     if (isGuestAuthPath()) return;
     const current = lockStateRef.current;
-    // A manual PIN lock is sticky; re-locking the same way is a no-op.
-    if (current === "pin_required") return;
     if (current === "screenshot_blocked" && reason === "screenshot_blocked") return;
-    // Never downgrade an existing lock to the lighter "away" screen.
     if (current !== "active" && reason === "away") return;
-    sealContent(0);
+    if (reason === "screenshot_blocked" || reason === "away") {
+      sealContent(0);
+    }
     setLockedAt(Date.now());
     setLockState(reason);
-    // Only a manual padlock lock persists; transient screens do not. Mirror it
-    // locally (instant restore) and push to the server (account-wide).
-    if (reason === "pin_required") {
-      persistManualLock(true);
-      void setScreenLock(true).catch(() => {});
-    }
   }, []);
 
   const unlock = useCallback(() => {
-    // Clear the lock locally first (so a reload mid-unlock can't re-lock), then
-    // on the server so every other device of the account unlocks too.
-    persistManualLock(false);
-    void setScreenLock(false).catch(() => {});
     explicitUnlock();
     setLockState("active");
     setLockedAt(0);
   }, []);
 
-  // Screenshot / print-capture attempts still flash a (click-to-dismiss) block.
+  const onPinSetup = useCallback(async (pin: string) => {
+    setPinError(null);
+    try {
+      await setupPin(pin);
+      pinVerifiedAtRef.current = Date.now();
+      setLockState("active");
+      setLockedAt(0);
+      resetInactivityTimer();
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setPinError(e.message);
+      } else {
+        setPinError("Failed to set PIN. Please try again.");
+      }
+    }
+  }, [resetInactivityTimer]);
+
+  const onPinVerify = useCallback(async (pin: string) => {
+    setPinError(null);
+    try {
+      await verifyPin(pin);
+      pinVerifiedAtRef.current = Date.now();
+      setLockState("active");
+      setLockedAt(0);
+      resetInactivityTimer();
+    } catch (e) {
+      if (e instanceof ApiError) {
+        const code = (e as ApiError).code;
+        if (code === "INVALID_PIN") {
+          setPinError("Incorrect PIN. Try again.");
+        } else {
+          setPinError(e.message);
+        }
+      } else {
+        setPinError("Failed to verify PIN. Please try again.");
+      }
+    }
+  }, [resetInactivityTimer]);
+
+  const lockSession = useCallback(async () => {
+    // Best-effort: tell the server to clear pin_verified_at on all sessions and
+    // push a WS event to other devices. Then lock locally regardless.
+    try { await lockSessionApi(); } catch { /* ignore — local lock still applies */ }
+    pinVerifiedAtRef.current = 0;
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    if (!isGuestAuthPath()) {
+      setLockState("pin_required");
+      setLockedAt(Date.now());
+    }
+  }, []);
+
+  // Cancel registration at the PIN-creation step. ONLY valid in pin_setup state
+  // (account never had a PIN — PENDING_PIN). Deletes the account, clears the
+  // session, and sends the user back to the landing/login page. Once a PIN
+  // exists (pin_required / ACTIVE) there is no cancel — only the PIN unlocks.
+  const onPinCancel = useCallback(async () => {
+    setPinError(null);
+    if (lockStateRef.current !== "pin_setup") return;
+    try {
+      await cancelPinSetup();
+    } finally {
+      pinVerifiedAtRef.current = 0;
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      setLockState("active");
+      setLockedAt(0);
+      // Hard redirect to fully reset app state (we deleted the account).
+      window.location.replace("/login");
+    }
+  }, []);
+
+  // On mount: check JWT claims to determine if PIN setup/verify is needed
+  useEffect(() => {
+    if (isGuestAuthPath()) return;
+    getPinStatus()
+      .then(({ pin_status, pin_verified }) => {
+        if (pin_status === "PENDING_PIN") {
+          setLockState("pin_setup");
+          setLockedAt(Date.now());
+        } else if (pin_status === "ACTIVE" && !pin_verified) {
+          setLockState("pin_required");
+          setLockedAt(Date.now());
+        } else {
+          // ACTIVE + verified
+          pinVerifiedAtRef.current = Date.now();
+          resetInactivityTimer();
+        }
+      })
+      .catch(() => {
+        // Not authenticated yet — guest path handles it
+      });
+  }, [resetInactivityTimer]);
+
+  // OAuth-registration exception: if the user is at the PIN-creation step
+  // (pin_setup = PENDING_PIN, no PIN ever saved) and navigates AWAY via browser
+  // back / cancel to a guest page, the whole registration is aborted and the
+  // just-created account is deleted. This exception ONLY applies to pin_setup —
+  // an ACTIVE account in pin_required state is strictly protected (no bypass).
+  useEffect(() => {
+    function onLocationChange() {
+      if (lockStateRef.current === "pin_setup" && isGuestAuthPath(window.location.pathname)) {
+        void onPinCancel();
+      }
+    }
+    window.addEventListener("nexa:locationchange", onLocationChange as EventListener);
+    window.addEventListener("popstate", onLocationChange);
+    return () => {
+      window.removeEventListener("nexa:locationchange", onLocationChange as EventListener);
+      window.removeEventListener("popstate", onLocationChange);
+    };
+  }, [onPinCancel]);
+
+  // On navigation to a protected route: proactively re-check PIN status if we
+  // haven't verified yet this session (e.g. right after OAuth callback or email
+  // login, before any protected API call fires). This ensures the overlay appears
+  // immediately on navigation rather than waiting for the first 403.
+  useEffect(() => {
+    function onNavigateToProtected() {
+      if (
+        !isGuestAuthPath(window.location.pathname) &&
+        lockStateRef.current === "active" &&
+        pinVerifiedAtRef.current === 0
+      ) {
+        getPinStatus()
+          .then(({ pin_status, pin_verified }) => {
+            if (pin_status === "PENDING_PIN") {
+              setLockState("pin_setup");
+              setLockedAt(Date.now());
+            } else if (pin_status === "ACTIVE" && !pin_verified) {
+              setLockState("pin_required");
+              setLockedAt(Date.now());
+            } else {
+              pinVerifiedAtRef.current = Date.now();
+              resetInactivityTimer();
+            }
+          })
+          .catch(() => {});
+      }
+    }
+    window.addEventListener("nexa:locationchange", onNavigateToProtected as EventListener);
+    return () => window.removeEventListener("nexa:locationchange", onNavigateToProtected as EventListener);
+  }, [resetInactivityTimer]);
+
+  // 403 PIN error interceptor: react to API responses that signal PIN needed.
+  // Guard against guest paths — a background request (e.g. stale fire-and-forget)
+  // can race with navigation and must not trigger the overlay on login/register.
+  useEffect(() => {
+    function handlePinRequired(e: Event) {
+      const detail = (e as CustomEvent<{ code: string }>).detail;
+      if (isGuestAuthPath(window.location.pathname)) return;
+      if (detail.code === "PIN_SETUP_REQUIRED") {
+        // If PIN was already verified this session, ignore stale 403s from
+        // in-flight requests that were sent before the new token arrived.
+        if (pinVerifiedAtRef.current > 0) return;
+        setLockState("pin_setup");
+        setLockedAt(Date.now());
+      } else if (detail.code === "PIN_REQUIRED") {
+        setLockState("pin_required");
+        setLockedAt(Date.now());
+        pinVerifiedAtRef.current = 0;
+      }
+    }
+    window.addEventListener("nexa:pin_blocked", handlePinRequired as EventListener);
+    return () => window.removeEventListener("nexa:pin_blocked", handlePinRequired as EventListener);
+  }, []);
+
+  // Cross-device lock: another device locked the account (via manual lock or new login).
+  // The WS frame "session.lock" is re-emitted as a DOM event by useRealtimeChat.
+  useEffect(() => {
+    function onSessionLock() {
+      if (isGuestAuthPath(window.location.pathname)) return;
+      pinVerifiedAtRef.current = 0;
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      setLockState("pin_required");
+      setLockedAt(Date.now());
+    }
+    window.addEventListener("nexa:session_lock", onSessionLock);
+    return () => window.removeEventListener("nexa:session_lock", onSessionLock);
+  }, []);
+
+  // User activity resets inactivity timer (but only if PIN is already verified)
+  useEffect(() => {
+    function onActivity() {
+      if (pinVerifiedAtRef.current > 0 && lockStateRef.current === "active") {
+        resetInactivityTimer();
+      }
+    }
+    const events = ["pointerdown", "keydown", "touchstart"] as const;
+    events.forEach(ev => window.addEventListener(ev, onActivity, { passive: true }));
+    return () => events.forEach(ev => window.removeEventListener(ev, onActivity));
+  }, [resetInactivityTimer]);
+
   useEffect(() => {
     setScreenshotCb(() => lock("screenshot_blocked"));
     return () => setScreenshotCb(null);
   }, [lock]);
 
-  // Account-wide sync: the server is the source of truth. On boot — and whenever
-  // the session (re)hydrates — fetch the flag and make THIS device match it, so
-  // opening the account in any other browser/OS/device reflects the lock, and a
-  // PIN-unlock on one device clears it everywhere.
-  useEffect(() => {
-    let cancelled = false;
-    async function reconcile() {
-      if (isGuestAuthPath()) return;
-      let serverLocked: boolean;
-      try {
-        serverLocked = await fetchScreenLock();
-      } catch {
-        return; // offline / not authenticated yet — keep the optimistic local state
-      }
-      if (cancelled) return;
-      if (serverLocked) {
-        if (lockStateRef.current === "active") {
-          sealContent(0);
-          setLockedAt(Date.now());
-          setLockState("pin_required");
-        }
-        persistManualLock(true);
-      } else if (lockStateRef.current === "pin_required") {
-        // Honour a server-side unlock — unless WE locked moments ago and our own
-        // write may still be in flight (avoids a rare refresh-race self-unlock).
-        if (Date.now() - lockedAtRef.current > 5000) {
-          explicitUnlock();
-          setLockState("active");
-          setLockedAt(0);
-          persistManualLock(false);
-        }
-      } else {
-        persistManualLock(false);
-      }
-    }
-    void reconcile();
-    const onSession = () => void reconcile();
-    window.addEventListener("securechat-session", onSession);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("securechat-session", onSession);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // NOTE: there is intentionally NO automatic lock on inactivity / tab-switch /
-  // returning from the background. The screen only locks when the user taps the
-  // padlock (manual pin_required) or on a screenshot attempt. (Removed the
-  // away/inactivity auto-lock per product decision.)
-
   return (
-    <LockContext.Provider value={{ lockState, lockedAt, lock, unlock }}>
+    <LockContext.Provider value={{ lockState, lockedAt, pinError, lock, unlock, onPinSetup, onPinVerify, onPinCancel, lockSession }}>
       {children}
     </LockContext.Provider>
   );

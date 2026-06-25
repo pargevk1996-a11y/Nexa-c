@@ -143,17 +143,25 @@
 
 .chat-folder-pill {
   flex-shrink: 0;
-  padding: 0.35rem 0.75rem;
-  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
   cursor: pointer;
   transition:
     background var(--dur) var(--ease),
     color var(--dur) var(--ease);
+}
+
+.chat-folder-pill svg {
+  flex-shrink: 0;
+  display: block;
 }
 
 .chat-folder-pill--active {
@@ -163,7 +171,8 @@
 }
 
 .chat-folders--categories .chat-folder-pill {
-  font-size: 0.78rem;
+  width: 28px;
+  height: 28px;
 }
 
 .chat-folders--labels .chat-folder-pill--sub {

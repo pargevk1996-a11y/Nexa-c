@@ -569,6 +569,22 @@
   padding: clamp(2rem, 6vh, 5rem) 1.25rem;
   background: var(--bg, #050508);
   color: var(--text, #f4f4f8);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS Safari / Android: position:fixed + overflow-y:auto is the only reliable
+   cross-browser pattern for scrolling a full-screen div on mobile. */
+@media (max-width: 768px) {
+  .legal-page {
+    position: fixed;
+    inset: 0;
+    min-height: unset;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    align-items: flex-start;
+  }
 }
 
 .legal-page__card {
@@ -644,3 +660,101 @@
   color: var(--text-faint, #555570);
   font-size: 0.78rem;
 }
+
+/* Security doc page extras */
+.sec-doc h1 {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  margin-bottom: 0.4rem;
+}
+.sec-doc h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 2rem 0 0.5rem;
+  color: var(--text, #f4f4f8);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding-bottom: 0.3rem;
+}
+.sec-doc h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.2rem 0 0.4rem;
+  color: var(--accent-light, #7eaaff);
+}
+.sec-doc p, .sec-doc li {
+  line-height: 1.7;
+  color: var(--text-muted, #a8a8c0);
+}
+.sec-doc ul, .sec-doc ol {
+  padding-left: 1.4rem;
+  margin: 0.5rem 0 0.8rem;
+}
+.sec-doc li {
+  margin-bottom: 0.4rem;
+}
+.sec-doc li::marker {
+  color: var(--accent, #4d7fff);
+}
+.sec-doc pre {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  font-family: "Fira Code", "JetBrains Mono", Consolas, monospace;
+  font-size: 0.8rem;
+  color: #b8d4ff;
+  overflow-x: auto;
+  margin: 0.8rem 0;
+  line-height: 1.55;
+}
+.sec-doc code {
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.82em;
+  font-family: "Fira Code", Consolas, monospace;
+  color: #b8d4ff;
+}
+.sec-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0 1.2rem;
+  font-size: 0.85rem;
+}
+.sec-doc th {
+  text-align: left;
+  color: var(--text, #f4f4f8);
+  border-bottom: 2px solid rgba(255,255,255,0.12);
+  padding: 0.4rem 0.6rem;
+  font-weight: 600;
+}
+.sec-doc td {
+  color: var(--text-muted, #a8a8c0);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+}
+.sec-doc nav {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin: 1.5rem 0 2rem;
+}
+.sec-doc nav h2 {
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint, #555570);
+  border: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+}
+.sec-doc nav ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.sec-doc nav li { margin-bottom: 0.25rem; }
+.sec-doc nav a { color: #6aa3ff; text-decoration: none; font-size: 0.88rem; }
+.sec-doc nav a:hover { text-decoration: underline; }
+.sec-doc section { margin-bottom: 0.5rem; }
+.sec-doc strong { color: var(--text, #f4f4f8); }

@@ -788,6 +788,7 @@ html:has(.auth-layout) body {
   font-size: 0.95rem;
 }
 
+
 .auth-divider {
   display: flex;
   align-items: center;

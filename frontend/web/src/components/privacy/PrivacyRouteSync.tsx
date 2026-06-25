@@ -8,6 +8,10 @@ export function PrivacyRouteSync() {
 
   useEffect(() => {
     tryUnsealContent();
+    // LockOverlay/LockProvider live OUTSIDE <Router>, so they can't use
+    // useLocation(). Bridge route changes out to them via a window event so the
+    // PIN overlay can hide itself on guest auth pages (e.g. after browser back).
+    window.dispatchEvent(new CustomEvent("nexa:locationchange", { detail: { pathname } }));
   }, [pathname]);
 
   return null;

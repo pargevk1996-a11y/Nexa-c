@@ -23,12 +23,14 @@ import type { PublicProfile } from "@/types/profile";
 import type { Conversation } from "@/types";
 import { conversationMatchesSearch } from "@/utils/userSearch";
 import { createConversation } from "@/api/chat";
+import { useSettings } from "@/store/SettingsContext";
 
 type ProfileWithStatus = PublicProfile & { contactStatus?: ContactStatus; requestId?: string; conversationId?: string };
 
 export function ContactsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { settings } = useSettings();
   const session = getCachedSession();
   const { visibleConversations, selectConversation, refreshConversations } = useChat();
   const [query, setQuery] = useState("");
@@ -41,10 +43,11 @@ export function ContactsPage() {
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
   const pageRef = useRef<HTMLDivElement>(null);
 
-  // Mobile: two-finger horizontal swipe → blocked / all contacts
+  // Mobile: two-finger horizontal swipe → blocked / all contacts.
+  // Disabled when showNavButtons is on (double-tap nav button replaces it).
   useEffect(() => {
     const el = pageRef.current;
-    if (!el) return;
+    if (!el || settings.showNavButtons) return;
     let startX = 0;
     let lastX = 0;
     let two = false;
@@ -72,7 +75,7 @@ export function ContactsPage() {
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, [setSearchParams]);
+  }, [setSearchParams, settings.showNavButtons]);
 
   // Load the blocked list whenever the blocked view is opened.
   useEffect(() => {

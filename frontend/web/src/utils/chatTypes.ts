@@ -20,10 +20,11 @@ export type ChatFolderId = "personal" | "work" | "groups" | "channels" | "unread
 
 export const SAVED_MESSAGES_ID = "saved";
 
-export const CHAT_CATEGORIES: { id: ChatCategory; label: string }[] = [
-  { id: "all",      label: "All" },
-  { id: "groups",   label: "Groups" },
-  { id: "channels", label: "Channels" },
+export const CHAT_CATEGORIES: { id: ChatCategory; label: string; icon: string }[] = [
+  { id: "all",      label: "ALL",      icon: "all" },
+  { id: "private",  label: "Chats",   icon: "private" },
+  { id: "groups",   label: "Groups",   icon: "groups" },
+  { id: "channels", label: "Channels", icon: "channels" },
 ];
 
 export const CHAT_FOLDERS: { id: ChatFolderId; label: string }[] = [
@@ -41,7 +42,7 @@ const TYPE_META: Record<
   secret: { label: "Secret chat", short: "Secret", icon: "🔒", className: "chat-type--secret" },
   group: { label: "Group", short: "Group", icon: "👥", className: "chat-type--group" },
   supergroup: { label: "Supergroup", short: "Super", icon: "👥", className: "chat-type--supergroup" },
-  channel: { label: "Channel", short: "Channel", icon: "📢", className: "chat-type--channel" },
+  channel: { label: "Announcements", short: "News", icon: "📰", className: "chat-type--channel" },
   saved: { label: "Saved Messages", short: "Saved", icon: "🔖", className: "chat-type--saved" },
 };
 
@@ -90,7 +91,7 @@ export function matchesFolder(c: Conversation, folder: ChatFolderId | "all"): bo
 
 export function canSendMessages(c: Conversation): boolean {
   const type = resolveChatType(c);
-  if (type === "channel") return c.canPost !== false && c.isChannelAdmin === true;
+  if (type === "channel") return c.isChannelAdmin === true;
   if (type === "saved") return true;
   return true;
 }

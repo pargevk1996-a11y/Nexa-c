@@ -233,6 +233,7 @@ async def webauthn_login_finish(
         user.email,
         device_label="Biometric sign-in",
         request=request,
+        pin_status=user.pin_status,
     )
     _set_refresh_cookie(response, raw_refresh)
     from app.schemas.auth import UserResponse

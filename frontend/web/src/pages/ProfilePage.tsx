@@ -21,10 +21,12 @@ import {
   IconStar,
   IconSun,
 } from "@/components/icons/Icons";
+import { useSettings } from "@/store/SettingsContext";
 
 export function ProfilePage() {
   const session = getCachedSession();
   const { profile, loading, save, refresh } = useProfile();
+  const { settings } = useSettings();
   const fileRef = useRef<HTMLInputElement>(null);
   const animRef = useRef<HTMLInputElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -55,10 +57,10 @@ export function ProfilePage() {
     setSecureMode(p.secure_mode ?? false);
   }, [profile]);
 
-  // Mobile: two-finger swipe → open edit mode
+  // Mobile: two-finger swipe → open edit mode. Disabled when showNavButtons on.
   useEffect(() => {
     const el = pageRef.current;
-    if (!el) return;
+    if (!el || settings.showNavButtons) return;
     let startX = 0;
     let lastX = 0;
     let two = false;
@@ -87,7 +89,7 @@ export function ProfilePage() {
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, []);
+  }, [settings.showNavButtons]);
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();

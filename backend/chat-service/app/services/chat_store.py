@@ -257,6 +257,14 @@ class ChatStore:
                 conv.members[1].role = ROLE_OWNER
         conv.members = [m for m in conv.members if m.user_id != user_id]
 
+    async def ensure_member(self, conv_id: str, user_id: str, *, role: str = "member") -> None:
+        """Idempotently add user to a conversation (no-op if already a member or conv missing)."""
+        conv = self._conversations.get(conv_id)
+        if not conv:
+            return
+        if not self._member(conv, user_id) and user_id not in conv.banned_user_ids:
+            conv.members.append(Member(user_id=user_id, role=role, is_verified=self.is_user_verified(user_id)))
+
     async def add_members(self, conv_id: str, user_ids: list[str]) -> None:
         conv = self._conversations.get(conv_id)
         if not conv:
@@ -440,12 +448,13 @@ class ChatStore:
             return None
         return m
 
-    async def edit_message(self, msg_id: str, user_id: str, body: str) -> Message | None:
+    async def edit_message(self, msg_id: str, user_id: str, body: str, *, silent: bool = False) -> Message | None:
         m = await self.get_message(msg_id, user_id)
         if not m or m.sender_id != user_id:
             return None
         m.body = maybe_encrypt_body(body)
-        m.edited_at = datetime.now(UTC)
+        if not silent:
+            m.edited_at = datetime.now(UTC)
         return m
 
     async def delete_message(

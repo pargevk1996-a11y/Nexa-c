@@ -17,7 +17,6 @@ from app.schemas.groups import (
 )
 from app.services.chat_store import SpaceSettings, chat_store
 from app.services.group_service import group_service
-from app.services.realtime_publisher import publish_message_event
 
 router = APIRouter(prefix="/api/v1/spaces", tags=["spaces"])
 
@@ -138,20 +137,6 @@ async def join_space(space_id: str, user_id: str = Depends(get_current_user_id))
     return await _space_detail(c, user_id)
 
 
-async def _clear_group_key_packages(conv_id: str) -> None:
-    """Delete all Redis key packages for a conversation, forcing re-key on next send."""
-    from app.core.redis import get_redis
-    redis = await get_redis()
-    pattern = f"kp:{conv_id}:*"
-    cursor = 0
-    while True:
-        cursor, keys = await redis.scan(cursor, match=pattern, count=100)
-        if keys:
-            await redis.delete(*keys)
-        if cursor == 0:
-            break
-
-
 @router.post("/{space_id}/leave")
 async def leave_space(space_id: str, user_id: str = Depends(get_current_user_id)) -> dict:
     try:
@@ -160,12 +145,6 @@ async def leave_space(space_id: str, user_id: str = Depends(get_current_user_id)
         if str(e) == "NOT_FOUND":
             raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Not found"}}) from e
         raise
-    await _clear_group_key_packages(space_id)
-    await publish_message_event(
-        name="member.changed",
-        conversation_id=space_id,
-        payload={"conversation_id": space_id, "action": "left", "user_id": user_id},
-    )
     return {"ok": True}
 
 
@@ -192,12 +171,6 @@ async def invite_members(
     if new_ids:
         await chat_store.add_members(space_id, new_ids)
         conv = await chat_store.get_conversation_member(space_id, user_id)
-        await _clear_group_key_packages(space_id)
-        await publish_message_event(
-            name="member.changed",
-            conversation_id=space_id,
-            payload={"conversation_id": space_id, "action": "joined", "user_ids": new_ids},
-        )
     return [
         MemberResponse(
             user_id=m.user_id,
@@ -298,12 +271,6 @@ async def ban_user(
         if str(e) == "FORBIDDEN":
             raise HTTPException(status_code=403, detail={"error": {"code": "FORBIDDEN", "message": "Forbidden"}}) from e
         raise
-    await _clear_group_key_packages(space_id)
-    await publish_message_event(
-        name="member.changed",
-        conversation_id=space_id,
-        payload={"conversation_id": space_id, "action": "banned", "user_id": body.user_id},
-    )
     return {"ok": True}
 
 

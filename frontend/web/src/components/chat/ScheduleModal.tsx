@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   cancelScheduledMessage,
   createScheduledMessage,
@@ -37,6 +38,14 @@ export function ScheduleModal({ conversationId, text, onClose, onScheduled }: Sc
   const [items, setItems] = useState<ScheduledMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prevent immediate close from click-through: the click/touch that opened
+  // the modal must not land on the backdrop once it mounts.
+  const readyRef = useRef(false);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => { readyRef.current = true; });
+    return () => { cancelAnimationFrame(t); readyRef.current = false; };
+  }, []);
 
   const refresh = useMemo(
     () => () => {
@@ -96,8 +105,12 @@ export function ScheduleModal({ conversationId, text, onClose, onScheduled }: Sc
     }
   };
 
-  return (
-    <div className="schedule-modal__backdrop" onClick={onClose} role="presentation">
+  return createPortal(
+    <div
+      className="schedule-modal__backdrop"
+      onClick={() => { if (readyRef.current) onClose(); }}
+      role="presentation"
+    >
       <div
         className="schedule-modal"
         role="dialog"
@@ -152,6 +165,7 @@ export function ScheduleModal({ conversationId, text, onClose, onScheduled }: Sc
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
