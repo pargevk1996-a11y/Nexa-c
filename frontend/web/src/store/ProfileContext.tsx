@@ -21,7 +21,11 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
-function deriveNickname(email?: string | null, username?: string | null): string {
+function deriveNickname(username?: string | null, email?: string | null): string {
+  // OAuth users get their display name stored as username (e.g. "John Smith" from Google).
+  // If it already contains a space it's a proper display name — use it as-is.
+  if (username?.includes(" ")) return username.trim();
+  // For username-only logins, derive a readable name from the email local part.
   if (email) {
     const local = email.split("@")[0];
     return local
@@ -30,7 +34,7 @@ function deriveNickname(email?: string | null, username?: string | null): string
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   }
-  return username ?? "";
+  return username?.trim() ?? "";
 }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
@@ -39,20 +43,32 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!session?.user?.id || session?.demoMode) {
+    const s = getCachedSession();
+    if (!s?.user?.id || s?.demoMode) {
       setProfile(null);
       return;
     }
     setLoading(true);
     try {
       const p = await fetchMyProfile();
+      // If the profile exists but has no nickname yet (e.g. older OAuth account),
+      // silently patch it so the profile page and chat list show a real name.
+      if (!p.nickname?.trim() && (s.user.username || s.user.email)) {
+        const nickname = deriveNickname(s.user.username, s.user.email);
+        if (nickname) {
+          const patched = await updateMyProfile({ nickname }).catch(() => p);
+          setProfile({ ...patched, privacy: patched.privacy ?? DEFAULT_PROFILE_PRIVACY });
+          return;
+        }
+      }
       setProfile({ ...p, privacy: p.privacy ?? DEFAULT_PROFILE_PRIVACY });
     } catch {
-      // Profile doesn't exist yet — bootstrap it (first login only)
-      if (session.user.username) {
+      // Profile doesn't exist yet — bootstrap it (first login only).
+      const username = s.user.username;
+      if (username) {
         try {
-          const nickname = deriveNickname(session.user.email, session.user.username);
-          const p = await bootstrapProfile(session.user.username, nickname || session.user.username);
+          const nickname = deriveNickname(username, s.user.email);
+          const p = await bootstrapProfile(username, nickname || username);
           setProfile({ ...p, privacy: p.privacy ?? DEFAULT_PROFILE_PRIVACY });
         } catch {
           setProfile(null);
@@ -63,7 +79,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id, session?.demoMode]);
+  }, []);
+
+  // Re-run after any login event (OAuth redirect sets session AFTER first render).
+  useEffect(() => {
+    const onSession = () => void refresh();
+    window.addEventListener("securechat-session", onSession);
+    return () => window.removeEventListener("securechat-session", onSession);
+  }, [refresh]);
 
   useEffect(() => {
     void refresh();

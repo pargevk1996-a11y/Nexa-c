@@ -558,7 +558,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     markRead: liveMarkRead,
     markDelivered: liveMarkDelivered,
   } = useRealtimeChat({
-    enabled: liveChatEnabled && vaultReady,
+    enabled: liveChatEnabled,
     activeId,
     onConversations: onLiveConversations,
     onMessages: onLiveMessages,
@@ -778,30 +778,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
-    void loadChatVault(userId).then((vault) => {
-      if (cancelled || !vault) {
+    void loadChatVault(userId)
+      .then((vault) => {
+        if (cancelled || !vault) {
+          setVaultReady(true);
+          return;
+        }
+        const legacyHidden = new Set(vault.hiddenChatIds);
+        const merged = migrateLegacyHidden(
+          ensureSavedInList(vault.conversations.map((c) => ({ ...c }))),
+          legacyHidden,
+        );
+        setConversations(merged);
+        setExtraMessages(vault.extraMessages);
+        setMutations((prev) => {
+          const loaded = deserializeMutations(vault.mutations);
+          const pins = { ...DEMO_PINNED_BY_CONV, ...loaded.pinnedByConversation };
+          return { ...loaded, pinnedByConversation: pins };
+        });
+        setHiddenChatIds(new Set(hiddenIdsFromConversations(merged)));
+        if (vault.activeId) {
+          const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+          if (!isMobile) setActiveId(vault.activeId);
+        }
         setVaultReady(true);
-        return;
-      }
-      const legacyHidden = new Set(vault.hiddenChatIds);
-      const merged = migrateLegacyHidden(
-        ensureSavedInList(vault.conversations.map((c) => ({ ...c }))),
-        legacyHidden,
-      );
-      setConversations(merged);
-      setExtraMessages(vault.extraMessages);
-      setMutations((prev) => {
-        const loaded = deserializeMutations(vault.mutations);
-        const pins = { ...DEMO_PINNED_BY_CONV, ...loaded.pinnedByConversation };
-        return { ...loaded, pinnedByConversation: pins };
+      })
+      .catch(() => {
+        if (!cancelled) setVaultReady(true);
       });
-      setHiddenChatIds(new Set(hiddenIdsFromConversations(merged)));
-      if (vault.activeId) {
-        const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
-        if (!isMobile) setActiveId(vault.activeId);
-      }
-      setVaultReady(true);
-    });
     return () => {
       cancelled = true;
     };
