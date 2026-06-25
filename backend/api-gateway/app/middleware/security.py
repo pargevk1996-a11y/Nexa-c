@@ -1,4 +1,4 @@
-"""Gateway security: rate limits, CSRF, request ID."""
+"""Gateway security: rate limits, CSRF, request ID, PIN enforcement."""
 
 from __future__ import annotations
 
@@ -15,6 +15,47 @@ from redis.asyncio import Redis
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 
+# Paths that are always accessible regardless of PIN state
+_PIN_EXEMPT = frozenset(
+    {
+        "/api/v1/auth/login",
+        "/api/v1/auth/login/2fa",
+        "/api/v1/auth/register",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/verify-email",
+        "/api/v1/auth/resend-verification",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/pin/setup",
+        "/api/v1/auth/pin/verify",
+        "/api/v1/auth/pin/status",
+        "/api/v1/auth/pin/cancel",
+        "/api/v1/auth/pin/lock",
+        "/api/v1/auth/qr/start",
+        "/api/v1/auth/oauth/",
+        "/api/v1/auth/webauthn/login/start",
+        "/api/v1/auth/webauthn/login/finish",
+        "/api/v1/security/capture-attempt",
+        "/api/v1/security/csp-report",
+        "/health",
+    }
+)
+
+
+def _decode_jwt_claims_unsafe(token: str) -> dict:
+    """Decode JWT payload without signature verification (gateway pre-check only).
+    Auth-service re-verifies all tokens — this is for fast PIN enforcement only."""
+    import base64, json
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return {}
+        padded = parts[1] + "=" * (-len(parts[1]) % 4)
+        return json.loads(base64.urlsafe_b64decode(padded))
+    except Exception:
+        return {}
+
 _EXEMPT_CSRF = frozenset(
     {
         "/api/v1/auth/login",
@@ -25,14 +66,18 @@ _EXEMPT_CSRF = frozenset(
         "/api/v1/auth/resend-verification",
         "/api/v1/auth/forgot-password",
         "/api/v1/auth/reset-password",
+        "/api/v1/auth/pin/setup",
+        "/api/v1/auth/pin/verify",
+        "/api/v1/auth/pin/cancel",
         "/api/v1/auth/qr/start",
         "/api/v1/auth/webauthn/login/start",
         "/api/v1/auth/webauthn/login/finish",
         "/api/v1/auth/oauth/",
-        # Fire-and-forget capture telemetry: sent via navigator.sendBeacon, which
-        # cannot attach a CSRF header. Stateless + sessionless (a forged call only
-        # writes a log line), so exempting it is safe.
+        # Fire-and-forget telemetry sent without auth headers (sendBeacon / browser
+        # CSP reporter). Stateless + sessionless — a forged call only writes a log
+        # line, so exempting both from CSRF is safe.
         "/api/v1/security/capture-attempt",
+        "/api/v1/security/csp-report",
         "/health",
     }
 )
@@ -110,12 +155,38 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # If the client did not send an Authorization header but has an httpOnly
         # access_token cookie, decrypt the AES-GCM blob back to the JWT and inject
         # Bearer so downstream microservices can verify without any changes.
+        jwt_token: str | None = None
         if not request.headers.get("authorization") and "access_token" in request.cookies:
             raw = request.cookies["access_token"]
             key = settings.cookie_encryption_key
-            jwt = decrypt_cookie_token(raw, key_b64=key) if key else raw
-            if jwt:
-                MutableHeaders(scope=request.scope)["Authorization"] = f"Bearer {jwt}"
+            jwt_token = decrypt_cookie_token(raw, key_b64=key) if key else raw
+            if jwt_token:
+                MutableHeaders(scope=request.scope)["Authorization"] = f"Bearer {jwt_token}"
+        else:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                jwt_token = auth_header.split(" ", 1)[1].strip()
+
+        # PIN enforcement: block access to protected routes if PIN not set/verified
+        if jwt_token and not any(path.startswith(p) for p in _PIN_EXEMPT):
+            claims = _decode_jwt_claims_unsafe(jwt_token)
+            pin_status = claims.get("pin_status", "PENDING_PIN")
+            pin_verified = bool(claims.get("pin_verified", False))
+
+            if pin_status == "PENDING_PIN":
+                return Response(
+                    status_code=403,
+                    content='{"error":{"code":"PIN_SETUP_REQUIRED","message":"You must set a PIN before accessing the app"}}',
+                    media_type="application/json",
+                    headers={"X-Request-Id": request_id},
+                )
+            if pin_status == "ACTIVE" and not pin_verified:
+                return Response(
+                    status_code=403,
+                    content='{"error":{"code":"PIN_REQUIRED","message":"PIN verification required"}}',
+                    media_type="application/json",
+                    headers={"X-Request-Id": request_id},
+                )
 
         if request.method in _MUTATING and not any(path.startswith(p) for p in _EXEMPT_CSRF):
             if not settings.csrf_enabled:

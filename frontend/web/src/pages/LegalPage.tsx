@@ -21,8 +21,8 @@ interface LegalDoc {
 const COPY: Record<LegalKind, LegalDoc> = {
   privacy: {
     title: "Privacy Policy",
-    effective: "2026-06-24",
-    version: "1.4",
+    effective: "2026-06-25",
+    version: "1.5",
     intro: `${BRAND_NAME} is built privacy-first. This policy explains in full detail what personal data we collect, why we collect it, how we protect it, and what rights you have over it. We operate under EU GDPR and California CCPA/CPRA.`,
     sections: [
       {
@@ -67,7 +67,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "5. Message encryption and server access",
-        p: `All message content and media files in both direct and group conversations are end-to-end encrypted (E2EE) with per-message forward secrecy. Direct messages (v3 envelope) use a fresh ephemeral ECDH P-256 keypair per message, discarded immediately after encryption — future compromise of a device key cannot decrypt past messages. Group messages (v4 envelope) use per-message multi-recipient ECIES: a random AES-256-GCM key is generated for each message, then individually ECIES-wrapped for every group member using their ECDH public key; the message key is discarded after encryption, giving equivalent per-message forward secrecy as DMs. Media files (images, video, voice messages, documents) are encrypted client-side with a separate per-file random AES-256-GCM key before upload; the file key is carried inside the encrypted message envelope and can only be recovered by conversation participants. Encryption and decryption happen exclusively on your device; ${BRAND_NAME} servers store only ciphertext and cannot read your messages or media. We commit to: (a) never accessing message or media content except under lawful legal compulsion; (b) publishing a transparency report for any such requests; and (c) never silently downgrading encryption. Current limitations: private keys are per-device and per-browser (clearing browser storage loses access to encrypted history); no break-in recovery (Double Ratchet DH step); no multi-device key synchronisation. The full technical architecture, threat model, and upgrade roadmap are published at /docs/security.`,
+        p: `All message content and media files in both direct and group conversations are end-to-end encrypted (E2EE) with per-message forward secrecy and break-in recovery for DMs. Direct messages (v5 envelope) use the Double Ratchet Algorithm: each message advances a symmetric chain key (HMAC-SHA256), and when the peer replies a DH ratchet step refreshes the root key — giving both forward secrecy (past messages are safe after compromise) and break-in recovery (the session self-heals after one round-trip). Group messages (v4 envelope) use per-message multi-recipient ECIES: a random AES-256-GCM key is generated for each message, then individually ECIES-wrapped for every group member; the message key is discarded after encryption, giving equivalent per-message forward secrecy as DMs. Media files (images, video, voice messages, documents) are encrypted client-side with a separate per-file random AES-256-GCM key before upload; the file key is carried inside the encrypted message envelope and can only be recovered by conversation participants. Encryption and decryption happen exclusively on your device; ${BRAND_NAME} servers store only ciphertext and cannot read your messages or media. We commit to: (a) never accessing message or media content except under lawful legal compulsion; (b) publishing a transparency report for any such requests; and (c) never silently downgrading encryption. Current limitations: private keys are per-device and per-browser (clearing browser storage loses access to encrypted history); group chats have no break-in recovery (DMs do); no multi-device key synchronisation. The full technical architecture, threat model, and upgrade roadmap are published at /docs/security.`,
       },
       {
         h: "6. How we use your data",
@@ -142,7 +142,7 @@ const COPY: Record<LegalKind, LegalDoc> = {
       },
       {
         h: "13. General security measures",
-        p: "Our technical and organisational security measures include: TLS 1.3 (TLS 1.2 fallback) with HSTS preload, strict Content Security Policy (no unsafe-inline or eval for scripts), HttpOnly + Secure + SameSite=Strict cookies, AES-GCM encrypted access-token cookies, Argon2id password hashing (memory 64 MB, 3 iterations), truncated-and-hashed (not raw) IP storage, per-service database isolation, brute-force rate limiting on all authentication endpoints, CSRF protection, optional TOTP 2FA, end-to-end encryption of all messages and media files with per-message forward secrecy (DMs: per-message ephemeral ECDH v3; groups: per-message multi-recipient ECIES v4; media: per-file AES-256-GCM key in encrypted envelope), screenshot and screen-recording deterrents on web and native clients, and single-session enforcement with reuse-detection token rotation. See /docs/security for the full technical architecture.",
+        p: "Our technical and organisational security measures include: TLS 1.3 (TLS 1.2 fallback) with HSTS preload (max-age 31536000, includeSubDomains, preload), strict Content Security Policy with no unsafe-inline or eval for scripts and SHA-256-hashed inline scripts only, CSP violation reporting (violations are automatically collected server-side for abuse detection), Cross-Origin-Opener-Policy (same-origin — prevents cross-origin windows from accessing our window object), Cross-Origin-Resource-Policy (same-origin — blocks cross-origin hotlinking of our assets), Cross-Origin-Embedder-Policy (require-corp — full cross-origin isolation; all fonts and assets are self-hosted to make this safe), HttpOnly + Secure + SameSite=Strict cookies, AES-GCM encrypted access-token cookies, Argon2id password hashing (memory 64 MB, 3 iterations), truncated-and-hashed (not raw) IP storage, per-service database isolation, brute-force rate limiting on all authentication endpoints, CSRF double-submit cookie protection, optional TOTP 2FA, end-to-end encryption of all messages and media files with per-message forward secrecy (DMs: Double Ratchet Algorithm v5; groups: per-message multi-recipient ECIES v4; media: per-file AES-256-GCM key in encrypted envelope), screenshot and screen-recording deterrents on web and native clients, and single-session enforcement with reuse-detection token rotation. See /docs/security for the full technical architecture.",
       },
       {
         h: "15. Children's privacy",
@@ -161,8 +161,8 @@ const COPY: Record<LegalKind, LegalDoc> = {
 
   terms: {
     title: "Terms of Service",
-    effective: "2026-06-24",
-    version: "1.2",
+    effective: "2026-06-25",
+    version: "1.3",
     intro: `By accessing or using ${BRAND_NAME} messenger you agree to be bound by these Terms of Service and our Privacy Policy. Please read them carefully before using the service. If you do not agree, do not create an account or use the service.`,
     sections: [
       {
@@ -243,11 +243,13 @@ const COPY: Record<LegalKind, LegalDoc> = {
         h: "9. Encryption and security disclosures",
         p: "We are committed to transparency about our security capabilities:",
         items: [
-          "All data is encrypted in transit using TLS 1.3 (TLS 1.2 fallback) with HSTS preload.",
+          "All data is encrypted in transit using TLS 1.3 (TLS 1.2 fallback) with HSTS preload (max-age 31536000, includeSubDomains, preload).",
           "Text messages in direct and group conversations are end-to-end encrypted (E2EE) using ECDH P-256 + AES-256-GCM. Encryption and decryption happen exclusively on your device; our servers store ciphertext only and cannot read text message content.",
           "Media files (images, video, voice messages, documents) are end-to-end encrypted. Each file is encrypted client-side with a per-file random AES-256-GCM key before upload; the key is wrapped inside the message envelope, encrypted with the conversation key. Our servers store and transmit only ciphertext and cannot access media content.",
           "E2EE private keys are stored per-device in your browser. Clearing browser storage or switching devices will result in loss of access to your encrypted message history. There is no key backup or multi-device sync at this time.",
-          "Both DMs and group messages have per-message forward secrecy. DMs (v3 envelope): a fresh ephemeral ECDH keypair is generated per message and discarded immediately — future device key compromise cannot decrypt past messages. Groups (v4 envelope): a fresh random AES-256-GCM key is generated per message and ECIES-wrapped individually for each member; the message key is discarded after encryption, giving the same per-message forward secrecy as DMs. Neither DMs nor groups have break-in recovery (Double Ratchet DH step) — if a long-term device key is actively compromised while in use, future messages in that session remain exposed until the device is replaced. Double Ratchet is on the roadmap.",
+          "Both DMs and group messages have per-message forward secrecy. DMs (v5 envelope) use the Double Ratchet Algorithm: each message derives a one-time key via HMAC-SHA256; when the peer replies, a DH ratchet step regenerates the root key — giving forward secrecy and break-in recovery (session self-heals after one round-trip). Groups (v4 envelope): a fresh random AES-256-GCM key is generated per message and ECIES-wrapped individually for each member; the message key is discarded after encryption, giving the same per-message forward secrecy as DMs. Group chats do not yet have break-in recovery (DH ratchet) — if a device key is actively compromised mid-session, future group messages in that session may be exposed until the device is replaced. Group break-in recovery (Sender Keys) is on the roadmap.",
+          "Browser-level cross-origin isolation: we apply Cross-Origin-Opener-Policy (same-origin), Cross-Origin-Resource-Policy (same-origin), and Cross-Origin-Embedder-Policy (require-corp) on all responses. This prevents cross-origin pages from accessing our window context and enables Spectre mitigations in supported browsers.",
+          "Content Security Policy violations are automatically collected server-side via a dedicated report endpoint, so policy violations are detected and remediated promptly.",
           "Screenshot and screen-recording deterrents on the web client are best-effort technical measures. Operating system-level screen capture cannot be blocked by a web application; users should be aware of this limitation.",
           "Native mobile and desktop applications provide stronger OS-level screen-capture protection.",
         ],
