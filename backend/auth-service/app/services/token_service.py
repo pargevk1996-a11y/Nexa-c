@@ -37,13 +37,25 @@ def _jwt_material() -> tuple[str, str | None, str | None, str | None]:
     return algorithm, hs, private, public
 
 
+PIN_TIMEOUT_SECONDS = 600  # 10 minutes
+
+
+def _is_pin_verified(session: "StoredSession") -> bool:
+    from datetime import UTC, datetime
+    if session.pin_verified_at is None:
+        return False
+    elapsed = (datetime.now(UTC) - session.pin_verified_at).total_seconds()
+    return elapsed < PIN_TIMEOUT_SECONDS
+
+
 async def issue_tokens_for_user(
     user_id: str,
-    email: str,
+    email: str | None,
     *,
     device_label: str = "Web browser",
     request: Request | None = None,
     revoke_others: bool = True,
+    pin_status: str = "PENDING_PIN",
 ) -> tuple[str, str, StoredSession, int]:
     raw_refresh = new_refresh_token()
     fp = fingerprint_request(request) if request else "unknown"
@@ -55,14 +67,25 @@ async def issue_tokens_for_user(
         ip_hint=ip_hint,
         device_fingerprint=fp,
     )
-    # SINGLE-SESSION POLICY: a fresh credentials login (password / 2FA / OAuth /
-    # WebAuthn — they all funnel through here) terminates every other session.
-    # The ONLY sanctioned way to hold two active devices is QR pairing
-    # ("Trusted Access Points"), which passes revoke_others=False and enforces
-    # its own max-2 invariant in qr_approve. Revoked sessions die at their next
-    # token refresh (access tokens are short-lived, jwt_access_ttl_seconds).
+    # MULTI-SESSION POLICY: allow up to 2 active sessions (current device + 1 other).
+    # On new login: lock all existing sessions (require PIN re-entry) and notify them
+    # via WebSocket. If there are already 2+ sessions, revoke the oldest to stay at 2.
+    # QR pairing (revoke_others=False) manages its own session count.
     if revoke_others:
-        await session_store.revoke_other_sessions(user_id, session.id)
+        existing = await session_store.list_user_sessions(user_id)
+        # Keep newest 2 (including this new session); revoke older surplus sessions.
+        if len(existing) > 2:
+            by_age = sorted(existing, key=lambda s: s.last_used_at)
+            for old in by_age[: len(existing) - 2]:
+                await session_store.revoke_session(old.id)
+        # Lock all OTHER active sessions — they must re-enter PIN.
+        await session_store.clear_pin_verified_all(user_id)
+        # Notify other devices via WebSocket (best-effort, ignore errors).
+        try:
+            from app.main import publish_session_lock
+            await publish_session_lock(user_id)
+        except Exception:
+            pass
     algorithm, hs_secret, private_pem, _public_pem = _jwt_material()
     ttl = settings.jwt_access_ttl_seconds
     access = create_access_token(
@@ -72,6 +95,8 @@ async def issue_tokens_for_user(
             "email": email,
             "typ": "access",
             "dfp": fp,
+            "pin_status": pin_status,
+            "pin_verified": False,  # newly issued session: PIN not yet verified
         },
         algorithm=algorithm,
         expires_seconds=ttl,
@@ -110,7 +135,8 @@ async def refresh_session(raw_refresh: str, *, request: Request | None = None) -
         )
 
     new_raw = new_refresh_token()
-    await session_store.rotate_refresh(session.id, new_raw)
+    updated_session = await session_store.rotate_refresh(session.id, new_raw)
+    final_session = updated_session if updated_session is not None else session
     algorithm, hs_secret, private_pem, _public_pem = _jwt_material()
     ttl = settings.jwt_access_ttl_seconds
     access = create_access_token(
@@ -120,6 +146,8 @@ async def refresh_session(raw_refresh: str, *, request: Request | None = None) -
             "email": user.email,
             "typ": "access",
             "dfp": session.device_fingerprint,
+            "pin_status": user.pin_status,
+            "pin_verified": _is_pin_verified(final_session),
         },
         algorithm=algorithm,
         expires_seconds=ttl,

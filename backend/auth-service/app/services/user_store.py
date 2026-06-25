@@ -12,13 +12,15 @@ from nexa_shared.utils.uid import generate_public_uid
 @dataclass
 class StoredUser:
     id: str
-    email: str
+    email: str | None
     username: str
     uid: str
     password_hash: str
     is_email_verified: bool = False
     phone: str | None = None
     is_phone_verified: bool = False
+    pin_hash: str | None = None
+    pin_status: str = "PENDING_PIN"
 
 
 @dataclass
@@ -26,19 +28,27 @@ class UserStore:
     _by_email: dict[str, StoredUser] = field(default_factory=dict)
     _by_id: dict[str, StoredUser] = field(default_factory=dict)
 
-    async def create(self, email: str, password: str, username: str, *, auto_verify: bool) -> StoredUser:
-        key = email.lower().strip()
-        if key in self._by_email:
-            raise ValueError("EMAIL_EXISTS")
+    async def create(self, email: str | None, password: str, username: str, *, auto_verify: bool) -> StoredUser:
+        ukey = username.strip().lower()
+        for u in self._by_id.values():
+            if u.username.lower() == ukey:
+                raise ValueError("USERNAME_EXISTS")
+        if email is not None:
+            ekey = email.lower().strip()
+            if ekey in self._by_email:
+                raise ValueError("EMAIL_EXISTS")
+        else:
+            ekey = None
         user = StoredUser(
             id=str(uuid4()),
-            email=key,
+            email=ekey,
             username=username.strip(),
             uid=generate_public_uid(),
             password_hash=hash_password(password),
-            is_email_verified=auto_verify,
+            is_email_verified=auto_verify or email is None,
         )
-        self._by_email[key] = user
+        if ekey is not None:
+            self._by_email[ekey] = user
         self._by_id[user.id] = user
         return user
 
@@ -49,7 +59,7 @@ class UserStore:
         key = username.strip().lstrip("$").lower()
         if not key:
             return None
-        for user in self._by_email.values():
+        for user in self._by_id.values():
             if user.username.lower() == key:
                 return user
         return None
@@ -104,16 +114,41 @@ class UserStore:
         user.is_phone_verified = verified
         return True
 
-    async def get_oauth_user(
+    async def get_or_create_oauth_user(
         self,
         provider: str,
         subject: str,
         email: str,
         username: str,
+        *,
+        mode: str = "login",
     ) -> StoredUser:
-        """Return existing user for OAuth login. Never creates a new account."""
+        """
+        Register (mode='register') or sign in (mode='login') via OAuth.
+        register: create account if new; raise ValueError('account_exists') if already registered.
+        login:    find existing account; raise ValueError('account_not_found') if none.
+        """
+        import secrets as _secrets
         key = email.lower().strip()
         existing = self._by_email.get(key)
+
+        if mode == "register":
+            if existing:
+                raise ValueError("account_exists")
+            safe_name = (username.strip()[:64] if username else "") or key.split("@")[0][:64]
+            user = StoredUser(
+                id=str(uuid4()),
+                email=key,
+                username=safe_name,
+                uid=generate_public_uid(),
+                password_hash=hash_password(_secrets.token_urlsafe(32)),
+                is_email_verified=True,
+            )
+            self._by_email[key] = user
+            self._by_id[user.id] = user
+            return user
+
+        # mode == "login"
         if not existing:
             raise ValueError("account_not_found")
         existing.is_email_verified = True
@@ -121,11 +156,20 @@ class UserStore:
             existing.username = username.strip()[:64]
         return existing
 
+    async def set_pin(self, user_id: str, pin_hash: str) -> bool:
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+        user.pin_hash = pin_hash
+        user.pin_status = "ACTIVE"
+        return True
+
     async def delete_user(self, user_id: str) -> bool:
         user = self._by_id.pop(user_id, None)
         if user is None:
             return False
-        self._by_email.pop(user.email, None)
+        if user.email is not None:
+            self._by_email.pop(user.email, None)
         return True
 
 

@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = None
     password: str = Field(min_length=8, max_length=128)
     username: str = Field(min_length=3, max_length=64)
 
@@ -43,7 +43,7 @@ class PhoneVerifyRequest(BaseModel):
 
 class UserResponse(BaseModel):
     id: str
-    email: str
+    email: str | None
     username: str
     uid: str
 

@@ -623,25 +623,17 @@ h3,
 
 /* ===== Mobile: section content centered/padded + unified bottom nav ===== */
 @media (max-width: 768px) {
-  /* Section content must not stick to the side walls — comfortable gutters. */
+  /* Section content: same glass as chat-left-panel.
+     position:relative is required for backdrop-filter to work on iOS WebKit. */
   .app-shell:not(.app-shell--nexa-chats) .page-shell__inner {
-    padding-left: 18px;
-    padding-right: 18px;
+    position: relative;
+    background: var(--glass-bg) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.5) !important;
+    padding: 1rem 18px;
   }
 
-  /* Make the Chats bottom nav and the sections bottom bar visually IDENTICAL
-     (same surface, border, height, padding) so switching Chats↔sections shows
-     no "jump"/transition of the nav buttons. */
-  .chat-left-panel__app-nav,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav {
-    background: var(--bg-elevated) !important;
-    border-top: 1px solid var(--border) !important;
-    border-radius: 0 !important;
-    padding: 0.5rem 0.5rem calc(0.5rem + var(--safe-bottom, 0px)) !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-    box-shadow: none !important;
-  }
+  /* Non-chats SideNav: no extra overrides — side-nav.css already matches Chats. */
   /* Match the two nav items so icons/labels line up across the switch. */
   .chat-left-panel__app-nav-item,
   .app-shell:not(.app-shell--nexa-chats) .side-nav__item {
@@ -651,59 +643,20 @@ h3,
   }
 }
 
-/* ===== Mobile: section bottom-bar items spread exactly like the Chats nav ===== */
-/* Sections split the 5 nav items into two groups (4 + Settings) with max-width
-   caps + center justify, so their positions differ from the Chats app-nav (one
-   even flex row). Switching Chats→section then shifts the buttons right. Flatten
-   the groups (display:contents) and let all 5 items flex:1 = identical layout. */
-@media (max-width: 768px) {
-  .app-shell:not(.app-shell--nexa-chats) .side-nav {
-    justify-content: stretch !important;
-    gap: 0 !important;
-  }
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__group--main,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__group--bottom {
-    display: contents !important;
-  }
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__item {
-    flex: 1 1 0 !important;
-    max-width: none !important;
-  }
-}
 
-/* ===== Mobile: make Chats nav buttons identical to section nav buttons ===== */
+/* ===== Mobile bottom nav: swipe-only by default, button bar when enabled ===== */
 @media (max-width: 768px) {
-  /* Same icon size (Chats used 18, sections 20). */
-  .chat-left-panel__app-nav-item svg,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__item svg {
-    width: 20px !important;
-    height: 20px !important;
-  }
-  /* Same label size/weight. */
-  .chat-left-panel__app-nav-item,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__item {
-    font-size: 0.7rem !important;
-    font-weight: 600 !important;
-  }
-  /* Same active state — flat (Apple): bg + color only, no glow/drop-shadow
-     (sections had box-shadow glow + an icon drop-shadow that Chats didn't). */
-  .chat-left-panel__app-nav-item--active,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active {
-    background: var(--accent-muted) !important;
-    color: var(--accent) !important;
-    box-shadow: none !important;
-  }
-  .app-shell:not(.app-shell--nexa-chats) .side-nav__item--active .side-nav__icon,
-  .chat-left-panel__app-nav-item--active .chat-left-panel__nav-icon-wrap {
-    filter: none !important;
-  }
-}
-
-/* ===== Mobile: no bottom nav bar — sections switched by horizontal swipe ===== */
-@media (max-width: 768px) {
-  .chat-left-panel__app-nav,
-  .app-shell:not(.app-shell--nexa-chats) .side-nav {
+  /* chat-left-panel__app-nav always hidden — unified SideNav replaces it. */
+  .chat-left-panel__app-nav {
     display: none !important;
+  }
+  /* Non-chats SideNav: hidden by default (swipe-only mode). */
+  .app-shell:not(.app-shell--nexa-chats):not(.app-shell--show-nav) .side-nav {
+    display: none !important;
+  }
+  /* showNavButtons ON → show SideNav in non-chats sections. */
+  .app-shell--show-nav:not(.app-shell--nexa-chats) .side-nav {
+    display: flex !important;
   }
   /* Remove the selected sub-section marker/highlight in the Settings list. */
   .settings-nav__item--active {
@@ -831,9 +784,9 @@ body {
   place-items: center;
 }
 
-/* Mobile: hide the All / Groups / Channels pills (switched via two-finger swipe). */
+/* Mobile: hide folder pills when swipe-mode is active; show them when nav buttons on. */
 @media (max-width: 768px) {
-  .chat-folders--categories {
+  .app-shell:not(.app-shell--show-nav) .chat-folders--categories {
     display: none !important;
   }
 }
@@ -1766,4 +1719,129 @@ body {
 }
 .home-modal__close {
   border-radius: 10px !important;
+}
+
+/* ===== Safety Numbers modal ===== */
+.sn-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.sn-modal {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.sn-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sn-modal__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.sn-modal__close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.sn-modal__close:hover { background: var(--bg-hover); }
+.sn-modal__subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.sn-modal__code {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  border: 2px solid var(--border);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.sn-modal__code--verified {
+  border-color: var(--success, #34c759);
+}
+.sn-modal__row {
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  word-break: break-all;
+}
+.sn-modal__verified-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success, #34c759) 18%, transparent);
+  color: var(--success, #34c759);
+  font-size: 0.85rem;
+  font-weight: 600;
+  align-self: center;
+}
+.sn-modal__verified-badge::before { content: "✓  "; }
+.sn-modal__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.sn-modal__warning {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning, #ff9f0a) 14%, transparent);
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.sn-modal__warning p { margin: 0 0 4px; }
+.sn-modal__status {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.sn-modal__status--error { color: var(--danger); }
+.sn-modal__btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.sn-modal__btn:hover { opacity: 0.88; }
+.sn-modal__btn--secondary {
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }

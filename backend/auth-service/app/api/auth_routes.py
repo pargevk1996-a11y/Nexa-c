@@ -81,15 +81,19 @@ async def register(body: RegisterRequest) -> MessageResponse:
             body.email,
             body.password,
             body.username,
-            auto_verify=settings.auto_verify_email,
+            auto_verify=settings.auto_verify_email or body.email is None,
         )
     except ValueError as e:
-        if str(e) == "EMAIL_EXISTS":
-            raise HTTPException(
-                status_code=409,
-                detail={"error": {"code": "EMAIL_EXISTS", "message": "Email already registered"}},
-            ) from e
+        code_map = {
+            "EMAIL_EXISTS": (409, "EMAIL_EXISTS", "Email already registered"),
+            "USERNAME_EXISTS": (409, "USERNAME_EXISTS", "Username already taken"),
+        }
+        if str(e) in code_map:
+            status, code, message = code_map[str(e)]
+            raise HTTPException(status_code=status, detail={"error": {"code": code, "message": message}}) from e
         raise
+    if body.email is None:
+        return MessageResponse(message="Account created! You can sign in now.")
     if not settings.auto_verify_email:
         code = await verification_store.issue_email_code(user.email)
         from app.services.email_service import send_verification_email
@@ -224,6 +228,7 @@ async def login(body: LoginRequest, request: Request, response: Response) -> Aut
         user.email,
         device_label=request.headers.get("user-agent", "Web")[:80],
         request=request,
+        pin_status=user.pin_status,
     )
     _set_refresh_cookie(response, raw_refresh)
     _set_access_cookie(response, access)
@@ -277,6 +282,7 @@ async def login_2fa(body: Login2faRequest, request: Request, response: Response)
         user.email,
         device_label=pending.device_label,
         request=request,
+        pin_status=user.pin_status,
     )
     _set_refresh_cookie(response, raw_refresh)
     _set_access_cookie(response, access)

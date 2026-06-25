@@ -13,9 +13,13 @@ export type ChatMenuAction =
   | { type: "archive" }
   | { type: "unarchive" }
   | { type: "set_folder"; folderId: Conversation["folderId"] }
+  | { type: "clear_chat" }
   | { type: "delete"; scope: "me" | "both" }
+  | { type: "mute" }
+  | { type: "unmute" }
   | { type: "remove_contact" }
-  | { type: "block" };
+  | { type: "block" }
+  | { type: "verify_safety" };
 
 interface ChatContextMenuProps {
   conversation: Conversation;
@@ -35,6 +39,7 @@ export function ChatContextMenu({
   const type = resolveChatType(conversation);
   const isSaved = conversation.id === SAVED_MESSAGES_ID;
   const isDm = type === "private" || type === "secret";
+  const isBroadcast = type === "channel" && !conversation.isChannelAdmin;
 
   useLayoutEffect(() => {
     const el = menuRef.current;
@@ -84,11 +89,19 @@ export function ChatContextMenu({
       });
     }
   }
-  if (!isSaved) {
+  if (isBroadcast) {
+    // Broadcast channel: users can only mute, not delete or leave.
+    if (conversation.muted) {
+      items.push({ label: "Unmute notifications", action: { type: "unmute" } });
+    } else {
+      items.push({ label: "Mute notifications", action: { type: "mute" } });
+    }
+  } else if (!isSaved) {
     items.push(
+      { label: "Clear chat", action: { type: "clear_chat" }, danger: true },
       { label: "Delete for me", action: { type: "delete", scope: "me" }, danger: true },
       {
-        label: type === "group" || type === "supergroup" || type === "channel" ? "Delete for everyone" : "Delete for both",
+        label: isDm ? "Delete for both" : "Delete for everyone",
         action: { type: "delete", scope: "both" },
         danger: true,
       },
@@ -96,6 +109,7 @@ export function ChatContextMenu({
   }
   if (isDm && !isSaved) {
     items.push(
+      { label: "Verify safety numbers", action: { type: "verify_safety" } },
       { label: "Remove from contacts", action: { type: "remove_contact" } },
       { label: "Block user", action: { type: "block" }, danger: true },
     );

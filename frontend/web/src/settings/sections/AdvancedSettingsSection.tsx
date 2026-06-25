@@ -43,7 +43,7 @@ export function AdvancedSettingsSection() {
             <button
               type="button"
               className="settings-nav-link"
-              onClick={() => console.log("Network diagnostics")}
+              onClick={() => { /* placeholder — diagnostics UI coming */ }}
             >
               <span>Network diagnostics</span>
               <span className="settings-nav-link__chevron">›</span>
@@ -51,7 +51,7 @@ export function AdvancedSettingsSection() {
             <button
               type="button"
               className="settings-nav-link"
-              onClick={() => console.log("Performance monitor")}
+              onClick={() => { /* placeholder — diagnostics UI coming */ }}
             >
               <span>Performance monitor</span>
               <span className="settings-nav-link__chevron">›</span>

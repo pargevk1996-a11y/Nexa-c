@@ -18,13 +18,15 @@ class UserRow(Base):
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
-    email: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
     username: Mapped[str] = mapped_column(Text, nullable=False)
     uid: Mapped[str] = mapped_column(Text, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     phone: Mapped[str | None] = mapped_column(Text)
     is_phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    pin_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pin_status: Mapped[str] = mapped_column(Text, nullable=False, default="PENDING_PIN")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -44,6 +46,7 @@ class SessionRow(Base):
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     ip_hint: Mapped[str | None] = mapped_column(Text)
     device_fingerprint: Mapped[str] = mapped_column(Text, default="")
+    pin_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class QrSessionRow(Base):

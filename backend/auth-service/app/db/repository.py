@@ -38,23 +38,34 @@ class PostgresUserStore:
             is_email_verified=row.is_email_verified,
             phone=row.phone,
             is_phone_verified=row.is_phone_verified,
+            pin_hash=row.pin_hash,
+            pin_status=row.pin_status,
         )
 
-    async def create(self, email: str, password: str, username: str, *, auto_verify: bool) -> StoredUser:
-        key = email.lower().strip()
+    async def create(self, email: str | None, password: str, username: str, *, auto_verify: bool) -> StoredUser:
+        ukey = username.strip().lower()
         async with self._sm() as session:
-            existing = await session.scalar(
-                select(UserRow).where(func.lower(UserRow.email) == key)
+            dup_username = await session.scalar(
+                select(UserRow).where(func.lower(UserRow.username) == ukey)
             )
-            if existing is not None:
-                raise ValueError("EMAIL_EXISTS")
+            if dup_username is not None:
+                raise ValueError("USERNAME_EXISTS")
+            if email is not None:
+                ekey = email.lower().strip()
+                dup_email = await session.scalar(
+                    select(UserRow).where(func.lower(UserRow.email) == ekey)
+                )
+                if dup_email is not None:
+                    raise ValueError("EMAIL_EXISTS")
+            else:
+                ekey = None
             row = UserRow(
                 id=uuid.uuid4(),
-                email=key,
+                email=ekey,
                 username=username.strip(),
                 uid=generate_public_uid(),
                 password_hash=hash_password(password),
-                is_email_verified=auto_verify,
+                is_email_verified=auto_verify or email is None,
             )
             session.add(row)
             await session.commit()
@@ -151,17 +162,43 @@ class PostgresUserStore:
             await session.commit()
             return result.scalar_one_or_none() is not None
 
-    async def get_oauth_user(
+    async def get_or_create_oauth_user(
         self,
         provider: str,
         subject: str,
         email: str,
         username: str,
+        *,
+        mode: str = "login",
     ) -> StoredUser:
-        """Return existing user for OAuth login. Never creates a new account."""
+        """
+        Register (mode='register') or sign in (mode='login') via OAuth.
+        register: create account if new; raise ValueError('account_exists') if already registered.
+        login:    find existing account; raise ValueError('account_not_found') if none.
+        """
+        import secrets as _secrets
         key = email.lower().strip()
         async with self._sm() as session:
             row = await session.scalar(select(UserRow).where(func.lower(UserRow.email) == key))
+
+            if mode == "register":
+                if row:
+                    raise ValueError("account_exists")
+                safe_name = (username.strip()[:64] if username else "") or key.split("@")[0][:64]
+                row = UserRow(
+                    id=uuid.uuid4(),
+                    email=key,
+                    username=safe_name,
+                    uid=generate_public_uid(),
+                    password_hash=hash_password(_secrets.token_urlsafe(32)),
+                    is_email_verified=True,
+                )
+                session.add(row)
+                await session.commit()
+                await session.refresh(row)
+                return self._to_stored(row)
+
+            # mode == "login"
             if not row:
                 raise ValueError("account_not_found")
             row.is_email_verified = True
@@ -171,6 +208,17 @@ class PostgresUserStore:
             await session.commit()
             await session.refresh(row)
             return self._to_stored(row)
+
+    async def set_pin(self, user_id: str, pin_hash: str) -> bool:
+        async with self._sm() as session:
+            result = await session.execute(
+                update(UserRow)
+                .where(UserRow.id == uuid.UUID(user_id))
+                .values(pin_hash=pin_hash, pin_status="ACTIVE")
+                .returning(UserRow.id)
+            )
+            await session.commit()
+            return result.scalar_one_or_none() is not None
 
     async def delete_user(self, user_id: str) -> bool:
         async with self._sm() as session:
@@ -197,7 +245,29 @@ class PostgresSessionStore:
             revoked=row.revoked,
             ip_hint=row.ip_hint,
             device_fingerprint=row.device_fingerprint,
+            pin_verified_at=row.pin_verified_at,
         )
+
+    async def set_pin_verified_at(self, session_id: str) -> None:
+        async with self._sm() as session:
+            await session.execute(
+                update(SessionRow)
+                .where(SessionRow.id == uuid.UUID(session_id))
+                .values(pin_verified_at=datetime.now(UTC))
+            )
+            await session.commit()
+
+    async def clear_pin_verified_all(self, user_id: str) -> None:
+        async with self._sm() as session:
+            await session.execute(
+                update(SessionRow)
+                .where(
+                    SessionRow.user_id == uuid.UUID(user_id),
+                    SessionRow.revoked.is_(False),
+                )
+                .values(pin_verified_at=None)
+            )
+            await session.commit()
 
     async def create_session(
         self,

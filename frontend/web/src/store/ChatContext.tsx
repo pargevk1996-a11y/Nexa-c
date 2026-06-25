@@ -467,9 +467,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
     });
     setActiveId((prev) => {
-      // Never change active conversation during background refreshes/reconnects.
-      // Only auto-select on initial desktop load when nothing is open yet.
-      if (prev !== null) return prev;
+      // Keep the current conversation only if it exists in the server list.
+      // If it's null or a stale mock ID, auto-select the first real conv on desktop.
+      const inList = prev !== null && base.some((c) => c.id === prev);
+      if (inList) return prev;
       const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
       if (isMobile) return null;
       return base.find((c) => c.id !== SAVED_MESSAGES_ID)?.id ?? null;
@@ -1592,10 +1593,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           }));
           break;
         case "delete":
-          setConversations((prev) =>
-            prev.map((c) => (c.id === conversation.id ? { ...c, hidden: true } : c)),
-          );
-          // Also clear all messages when deleting
+          setConversations((prev) => prev.filter((c) => c.id !== conversation.id));
+          setApiMessages((prev) => {
+            const next = { ...prev };
+            delete next[conversation.id];
+            return next;
+          });
           setExtraMessages((prev) => {
             const next = { ...prev };
             delete next[conversation.id];
@@ -1668,6 +1671,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             const muted = JSON.parse(localStorage.getItem("nexa-muted-chats") ?? "[]") as string[];
             localStorage.setItem("nexa-muted-chats", JSON.stringify(muted.filter((id) => id !== conversation.id)));
           } catch { /* ignore */ }
+          break;
+        case "verify_safety":
+          // Handled at ChatPage level — opens SafetyNumberModal
           break;
       }
     },
@@ -1894,7 +1900,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const ui = msgs.map((m) => apiMessageToUi(m, userId));
       setApiMessages((prev) => ({ ...prev, [conversationId]: ui }));
     } catch {
-      // ignore
+      // On failure clear the undefined sentinel so messagesLoading becomes false
+      // (prevents infinite loading spinner for mock / unreachable conversations).
+      setApiMessages((prev) =>
+        prev[conversationId] === undefined ? { ...prev, [conversationId]: [] } : prev,
+      );
     }
   }, [liveChatEnabled, userId]);
 

@@ -1,7 +1,6 @@
 import { FormEvent, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerAccount, resendVerificationEmail, verifyEmail } from "@/api/auth";
-import { storePendingSignatureForEmail, validateSignatureFormat } from "@/security/signaturePin";
+import { registerAccount, resendVerificationEmail, verifyEmail, loginWithPassword, setupPin } from "@/api/auth";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthAlert } from "@/components/auth/AuthAlert";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
@@ -21,12 +20,14 @@ export function RegisterPage() {
   const [username, setUsername]             = useState("");
   const [password, setPassword]             = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [signature, setSignature]           = useState("");
 
   // Multi-step state
   const [step, setStep]     = useState<Step>("form");
   const [code, setCode]     = useState("");
   const codeInputRef        = useRef<HTMLInputElement>(null);
+
+  // PIN state (collected in step 1, applied after verify)
+  const [pin, setPin]           = useState("");
 
   // Status
   const [loading, setLoading]     = useState(false);
@@ -38,8 +39,8 @@ export function RegisterPage() {
   const [consentGiven, setConsentGiven]   = useState(false);
   const [consentError, setConsentError]   = useState(false);
 
-  // ── Step 1: validate form → go to confirm screen ─────────────────────────
-  function handleFormSubmit(e: FormEvent) {
+  // ── Step 1: validate form → go to confirm screen (or direct register if no email) ──
+  async function handleFormSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setFieldErrors({});
@@ -53,7 +54,6 @@ export function RegisterPage() {
     const trimmedUsername = username.trim();
     const errors: Record<string, string> = {};
 
-    if (!trimmedEmail)    errors.email    = "Email is required";
     if (!trimmedUsername) errors.username = "Username is required";
     if (!password) {
       errors.password = "Password is required";
@@ -64,11 +64,33 @@ export function RegisterPage() {
     if (password && password !== confirmPassword) {
       errors.confirmPassword = "Passwords do not match";
     }
-    const sigErr = validateSignatureFormat(signature);
-    if (sigErr) errors.signature = sigErr;
-
+    if (!pin || !/^\d{1,6}$/.test(pin)) {
+      errors.pin = "PIN must be 1–6 digits";
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
+      return;
+    }
+
+    // Anonymous path: no email → register + login directly, skip email steps
+    if (!trimmedEmail) {
+      setLoading(true);
+      const result = await registerAccount(null, password, trimmedUsername);
+      if (!result.ok) {
+        setError(result.message);
+        if (result.details?.length) setFieldErrors((p) => ({ ...p, password: result.details!.join(" ") }));
+        setLoading(false);
+        return;
+      }
+      const loginResult = await loginWithPassword(trimmedUsername, password);
+      if (!loginResult.ok) {
+        navigate("/login", { replace: true });
+        setLoading(false);
+        return;
+      }
+      await setupPin(pin);
+      setLoading(false);
+      navigate("/app/chats", { replace: true });
       return;
     }
 
@@ -83,7 +105,6 @@ export function RegisterPage() {
     setLoading(false);
 
     if (result.ok) {
-      storePendingSignatureForEmail(email.trim(), signature);
       setCode("");
       setStep("verify-code");
       setTimeout(() => codeInputRef.current?.focus(), 80);
@@ -95,12 +116,11 @@ export function RegisterPage() {
       if (result.details?.length) {
         setFieldErrors((prev) => ({ ...prev, password: result.details!.join(" ") }));
       }
-      // Go back to form on any server-side validation error
       setStep("form");
     }
   }
 
-  // ── Step 3: verify the 6-digit code ──────────────────────────────────────
+  // ── Step 3: verify the 6-digit email code → auto-login → setupPin ────────
   async function handleVerifyCode(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -113,7 +133,13 @@ export function RegisterPage() {
     setLoading(true);
     try {
       await verifyEmail(email.trim(), code.trim());
-      navigate("/login", { replace: true, state: { verified: true } });
+      const loginResult = await loginWithPassword(email.trim(), password);
+      if (!loginResult.ok) {
+        navigate("/login", { replace: true, state: { verified: true } });
+        return;
+      }
+      await setupPin(pin);
+      navigate("/app/chats", { replace: true });
     } catch {
       setError("Invalid or expired code. Try again or request a new one.");
     } finally {
@@ -173,18 +199,19 @@ export function RegisterPage() {
 
         <OAuthButtons
           alwaysShow
+          mode="register"
           consentGiven={consentGiven}
           onConsentMissing={() => setConsentError(true)}
           onError={(msg) => setError(msg || null)}
         />
 
         <p className="auth-divider" role="separator">
-          <span>or sign up with email or username</span>
+          <span>or sign up with username</span>
         </p>
 
-        <form className="auth-form" onSubmit={handleFormSubmit} noValidate>
+        <form className="auth-form" onSubmit={(e) => void handleFormSubmit(e)} noValidate>
           <Input
-            label="Email"
+            label="Email (optional)"
             name="email"
             type="email"
             autoComplete="email"
@@ -192,6 +219,7 @@ export function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             error={fieldErrors.email}
+            hint={!email.trim() ? "No email — you won't be able to recover your password" : undefined}
             disabled={loading}
           />
           <Input
@@ -225,19 +253,20 @@ export function RegisterPage() {
             error={fieldErrors.confirmPassword}
             disabled={loading}
           />
-          <PasswordInput
-            label="PIN Code"
-            name="signature"
+          <Input
+            label="PIN (1–6 digits)"
+            name="pin"
+            type="password"
             inputMode="numeric"
-            autoComplete="off"
+            autoComplete="new-password"
             enterKeyHint="done"
-            value={signature}
-            onChange={(e) => setSignature(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            error={fieldErrors.signature}
-            hint="4–6 digits. Used to unlock the app."
+            maxLength={6}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            error={fieldErrors.pin}
+            hint="You'll enter this PIN every time you open the app"
             disabled={loading}
           />
-
           <Button type="submit" fullWidth disabled={!consentGiven}>
             Create account
           </Button>
@@ -287,51 +316,56 @@ export function RegisterPage() {
   // ─────────────────────────────────────────────────────────────────────────
   // Step 3 — Enter verification code
   // ─────────────────────────────────────────────────────────────────────────
-  return (
-    <AuthCard title="Enter code">
-      <AuthAlert variant="error">{error}</AuthAlert>
+  if (step === "verify-code") {
+    return (
+      <AuthCard title="Enter code">
+        <AuthAlert variant="error">{error}</AuthAlert>
 
-      <p className="register-confirm-email__label" style={{ marginBottom: "1.25rem" }}>
-        A 6-digit code was sent to <strong>{email.trim()}</strong>
-      </p>
+        <p className="register-confirm-email__label" style={{ marginBottom: "1.25rem" }}>
+          A 6-digit code was sent to <strong>{email.trim()}</strong>
+        </p>
 
-      <form className="auth-form" onSubmit={(e) => void handleVerifyCode(e)} noValidate>
-        <Input
-          ref={codeInputRef}
-          label="Enter code"
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          enterKeyHint="done"
-          maxLength={6}
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          disabled={loading}
-        />
-        <Button type="submit" fullWidth loading={loading} disabled={loading || code.trim().length < 6}>
-          Verify
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          fullWidth
-          loading={resending}
-          disabled={loading || resending}
-          onClick={() => void handleResendCode()}
-        >
-          Resend code
-        </Button>
-      </form>
+        <form className="auth-form" onSubmit={(e) => void handleVerifyCode(e)} noValidate>
+          <Input
+            ref={codeInputRef}
+            label="Enter code"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            enterKeyHint="done"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            disabled={loading}
+          />
+          <Button type="submit" fullWidth loading={loading} disabled={loading || code.trim().length < 6}>
+            Verify
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            fullWidth
+            loading={resending}
+            disabled={loading || resending}
+            onClick={() => void handleResendCode()}
+          >
+            Resend code
+          </Button>
+        </form>
 
-      <p className="auth-footer">
-        <button
-          type="button"
-          className="auth-footer__link"
-          onClick={() => { setError(null); setCode(""); setStep("form"); }}
-        >
-          ← Back to registration
-        </button>
-      </p>
-    </AuthCard>
-  );
+        <p className="auth-footer">
+          <button
+            type="button"
+            className="auth-footer__link"
+            onClick={() => { setError(null); setCode(""); setStep("form"); }}
+          >
+            ← Back to registration
+          </button>
+        </p>
+      </AuthCard>
+    );
+  }
+
+  // Should never reach here (verify-code is last step)
+  return null;
 }

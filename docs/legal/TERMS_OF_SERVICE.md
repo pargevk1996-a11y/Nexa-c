@@ -103,7 +103,7 @@ Your use of the Service is governed by our [Privacy Policy](PRIVACY_POLICY.md), 
 
 We are committed to transparency about our security capabilities:
 
-- All data is encrypted in transit using TLS 1.3 (TLS 1.2 fallback) with HSTS preload (max-age 31536000, includeSubDomains, preload).
+- All data is encrypted in transit using TLS 1.3 exclusively (TLS 1.2 is not supported) with HSTS preload (max-age 31536000, includeSubDomains, preload).
 - Text messages in direct and group conversations are end-to-end encrypted (E2EE) using ECDH P-256 + AES-256-GCM. Encryption and decryption happen exclusively on your device; our servers store ciphertext only and cannot read text message content.
 - Media files (images, video, voice messages, documents) are end-to-end encrypted. Each file is encrypted client-side with a per-file random AES-256-GCM key before upload; the key is wrapped inside the encrypted message envelope. Our servers store only ciphertext and cannot access media content.
 - E2EE private keys are stored per-device in your browser. Clearing browser storage or switching devices will result in loss of access to encrypted message history. There is no key backup or multi-device sync at this time.

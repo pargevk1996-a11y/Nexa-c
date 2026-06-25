@@ -5,7 +5,6 @@ import {
   persistSession,
   refreshSessionCache,
 } from "@/security/sessionCache";
-import { linkPendingSignatureForEmail } from "@/security/signaturePin";
 import { clearUserSecureStorage } from "@/security/secureStorage";
 import type { AuthSession, LoginResult } from "@/types";
 
@@ -21,7 +20,6 @@ export function loadStoredSession(): AuthSession | null {
 export async function storeSession(session: AuthSession | null): Promise<void> {
   if (session) {
     await persistSession(session);
-    await linkPendingSignatureForEmail(session.user.email, session.user.id);
     return;
   }
   await clearSession();
@@ -35,12 +33,12 @@ function getApiPublicOrigin(): string {
   return window.location.origin;
 }
 
-export function getOAuthStartUrl(provider: OAuthProvider): string {
-  return `${getApiPublicOrigin()}/api/v1/auth/oauth/${provider}/start`;
+export function getOAuthStartUrl(provider: OAuthProvider, mode: "register" | "login" = "login"): string {
+  return `${getApiPublicOrigin()}/api/v1/auth/oauth/${provider}/start?mode=${mode}`;
 }
 
-export function startOAuthLogin(provider: OAuthProvider): void {
-  window.location.assign(getOAuthStartUrl(provider));
+export function startOAuthLogin(provider: OAuthProvider, mode: "register" | "login" = "login"): void {
+  window.location.assign(getOAuthStartUrl(provider, mode));
 }
 
 export async function loginWithPassword(identifier: string, password: string): Promise<LoginResult> {
@@ -67,7 +65,6 @@ export async function loginWithPassword(identifier: string, password: string): P
       demoMode: false,
     };
     await storeSession(session);
-    void revokeOtherSessions().catch(() => {});
     return { ok: true, session };
   } catch (e) {
     if (e instanceof ApiError) {
@@ -115,7 +112,6 @@ export async function completeLogin2fa(challengeId: string, code: string): Promi
       demoMode: false,
     };
     await storeSession(session);
-    void revokeOtherSessions().catch(() => {});
     return { ok: true, session };
   } catch (e) {
     if (e instanceof ApiError) {
@@ -133,7 +129,7 @@ export async function completeLogin2fa(challengeId: string, code: string): Promi
 }
 
 export async function registerAccount(
-  email: string,
+  email: string | null,
   password: string,
   username: string,
   phone?: string,
@@ -141,7 +137,12 @@ export async function registerAccount(
   try {
     const data = await apiFetch<{ message: string }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, username, ...(phone ? { phone } : {}) }),
+      body: JSON.stringify({
+        ...(email ? { email } : {}),
+        password,
+        username,
+        ...(phone ? { phone } : {}),
+      }),
     });
     return { ok: true, message: data.message };
   } catch (e) {
@@ -191,6 +192,13 @@ export async function completeOAuthCallback(params: URLSearchParams): Promise<Lo
         message: "Account not found. Please complete registration before signing in.",
       };
     }
+    if (error === "account_exists") {
+      return {
+        ok: false,
+        code: "ACCOUNT_EXISTS",
+        message: "An account with this email already exists. Please sign in instead.",
+      };
+    }
     const message =
       error === "access_denied"
         ? "Sign-in was cancelled."
@@ -235,6 +243,32 @@ export async function completeOAuthCallback(params: URLSearchParams): Promise<Lo
         code: "NETWORK",
         message: "Server unavailable. Start the gateway and auth-service (make dev-up).",
       };
+    }
+    return { ok: false, code: "NETWORK", message: "Network error. Check your connection and try again." };
+  }
+}
+
+/**
+ * Calls /auth/oauth/exchange and returns the session WITHOUT storing it.
+ * Use when the caller needs to inspect the session (e.g. check PIN) before
+ * committing it to storage and navigating into the app.
+ */
+export async function fetchOAuthSession(exchange: string): Promise<{ ok: true; session: AuthSession } | { ok: false; code: string; message: string }> {
+  try {
+    const data = await apiFetch<{
+      user: AuthSession["user"];
+      expires_in: number;
+    }>("/auth/oauth/exchange", {
+      method: "POST",
+      body: JSON.stringify({ exchange }),
+    });
+    return {
+      ok: true,
+      session: { user: data.user, expiresIn: data.expires_in, demoMode: false },
+    };
+  } catch (e) {
+    if (e instanceof ApiError) {
+      return { ok: false, code: e.code ?? "OAUTH_ERROR", message: e.message };
     }
     return { ok: false, code: "NETWORK", message: "Network error. Check your connection and try again." };
   }
@@ -507,7 +541,6 @@ export async function finishWebAuthnLogin(
       demoMode: false,
     };
     await storeSession(session);
-    void revokeOtherSessions().catch(() => {});
     return { ok: true, session };
   } catch (e) {
     if (e instanceof ApiError) {
@@ -515,4 +548,48 @@ export async function finishWebAuthnLogin(
     }
     return { ok: false, code: "NETWORK", message: "Biometric sign-in failed" };
   }
+}
+
+export interface PinStatusResult {
+  pin_status: "PENDING_PIN" | "ACTIVE";
+  pin_verified: boolean;
+}
+
+export async function setupPin(pin: string): Promise<PinStatusResult> {
+  return apiFetch<PinStatusResult>("/auth/pin/setup", {
+    method: "POST",
+    body: JSON.stringify({ pin }),
+  });
+}
+
+export async function verifyPin(pin: string): Promise<PinStatusResult> {
+  return apiFetch<PinStatusResult>("/auth/pin/verify", {
+    method: "POST",
+    body: JSON.stringify({ pin }),
+  });
+}
+
+export async function getPinStatus(): Promise<PinStatusResult> {
+  return apiFetch<PinStatusResult>("/auth/pin/status");
+}
+
+/** Lock all sessions — server clears pin_verified_at everywhere and fires a WS
+ *  event so every connected device immediately shows the PIN lock screen. */
+export async function lockSession(): Promise<void> {
+  await apiFetch("/auth/pin/lock", { method: "POST" });
+}
+
+/** Abort registration at the PIN-creation step (only while PENDING_PIN).
+ *  Deletes the just-created account and clears the local session. */
+export async function cancelPinSetup(): Promise<void> {
+  const session = getCachedSession();
+  try {
+    await apiFetch("/auth/pin/cancel", { method: "POST" });
+  } catch {
+    /* best-effort — clear locally regardless */
+  }
+  if (session?.user?.id) {
+    clearUserSecureStorage(session.user.id);
+  }
+  await clearSession();
 }

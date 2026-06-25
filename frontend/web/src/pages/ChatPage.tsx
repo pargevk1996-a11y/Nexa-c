@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   focusChatComposer,
@@ -15,6 +15,9 @@ import { ChatLeftPanel } from "@/components/chat/ChatLeftPanel";
 import { ResizableChatShell } from "@/components/chat/ResizableChatShell";
 import { ProfilePanel } from "@/components/chat/ProfilePanel";
 import { ScheduleModal } from "@/components/chat/ScheduleModal";
+import { SafetyNumberModal } from "@/components/chat/SafetyNumberModal";
+
+const ScheduleModalMemo = memo(ScheduleModal);
 import { MessageComposer } from "@/components/chat/MessageComposer";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageSelectionBar } from "@/components/chat/MessageSelectionBar";
@@ -39,11 +42,13 @@ export function ChatPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [schedulePendingText, setSchedulePendingText] = useState("");
+  const [safetyNumberConv, setSafetyNumberConv] = useState<{ peerId: string; peerName: string } | null>(null);
   const [contactRequestId, setContactRequestId] = useState<string | null>(null);
   const [contactRequestBusy, setContactRequestBusy] = useState(false);
   const {
     visibleConversations,
     hiddenConversations,
+    archivedConversations,
     savedConversation,
     activeId,
     selectConversation,
@@ -54,7 +59,6 @@ export function ChatPage() {
     setActiveCategory,
     activeFolder,
     setActiveFolder,
-    pinUnlocked,
     replyingTo,
     cancelReply,
     messagesForActive,
@@ -108,6 +112,19 @@ export function ChatPage() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  // On mobile, intercept the hardware back button while a chat is open so it
+  // returns to the chat list instead of jumping to the previous route in history.
+  const clearActiveRef = useRef(clearActiveConversation);
+  useEffect(() => { clearActiveRef.current = clearActiveConversation; }, [clearActiveConversation]);
+  useEffect(() => {
+    if (!activeId || !isNarrow) return;
+    // Push a dummy entry so the back button pops it (not a real route).
+    window.history.pushState({ _chatGuard: true }, "");
+    const onPop = () => { clearActiveRef.current(); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [activeId, isNarrow]);
 
   const chatMainRef = useRef<HTMLElement>(null);
 
@@ -274,6 +291,24 @@ export function ChatPage() {
     clearActiveConversation();
   }, [clearActiveConversation]);
 
+  const handleScheduleClose = useCallback(() => {
+    setScheduleOpen(false);
+    setSchedulePendingText("");
+  }, []);
+
+  const handleChatMenuActionWithSafety = useCallback(
+    (conversation: Parameters<typeof handleChatMenuAction>[0], action: Parameters<typeof handleChatMenuAction>[1]) => {
+      if (action.type === "verify_safety") {
+        const peerId = conversation.peerUserId;
+        if (!peerId) return;
+        setSafetyNumberConv({ peerId, peerName: conversation.name });
+        return;
+      }
+      handleChatMenuAction(conversation, action);
+    },
+    [handleChatMenuAction],
+  );
+
   useEffect(() => {
     if (!session) navigate("/login", { replace: true });
   }, [session, navigate]);
@@ -308,6 +343,7 @@ export function ChatPage() {
             savedConversation={savedConversation}
             conversations={visibleConversations}
             hiddenConversations={hiddenConversations}
+            archivedConversations={archivedConversations}
             activeId={activeId}
             search={search}
             onSearchChange={setSearch}
@@ -315,9 +351,8 @@ export function ChatPage() {
             onCategoryChange={setActiveCategory}
             folder={activeFolder}
             onFolderChange={setActiveFolder}
-            pinUnlocked={pinUnlocked}
             onSelect={selectConversation}
-            onChatMenuAction={handleChatMenuAction}
+            onChatMenuAction={handleChatMenuActionWithSafety}
             onCreateGroup={() => setCreateSpaceOpen(true)}
             drafts={drafts}
           />
@@ -394,6 +429,7 @@ export function ChatPage() {
                     loading={messagesLoading}
                     messages={messagesForActive}
                     isGroup={Boolean(active.isGroup)}
+                    isChannelAdmin={Boolean(active.isChannelAdmin)}
                     isSecret={isSecret}
                     isSuperSecret={isSuperSecret}
                     selectionMode={selectionMode}
@@ -423,43 +459,41 @@ export function ChatPage() {
                     onDeleteForEveryone={() => deleteSelectedMessages("everyone")}
                   />
                 ) : null}
-                <MessageComposer
-                  key={activeId}
-                  conversationId={activeId}
-                  isSecret={isSecret}
-                  secureMode={isSuperSecret}
-                  disabled={!canPost}
-                  readOnlyHint={
-                    !canPost && active.isChannel
-                      ? "Only channel admins can post in this broadcast channel."
-                      : undefined
-                  }
-                  recentMessages={[]}
-                  initialText={activeId ? (drafts[activeId] ?? "") : ""}
-                  onDraftChange={(text) => activeId && setDraft(activeId, text)}
-                  onSend={sendMessage}
-                  onScheduleRequest={(t) => {
-                    setSchedulePendingText(t);
-                    setScheduleOpen(true);
-                  }}
-                  onSendVoice={sendVoiceMessage}
-                  onSendFile={sendFileMessage}
-                  onSendGif={sendGifMessage}
-                  onSendSticker={sendStickerMessage}
-                  selectionMode={selectionMode}
-                  editingText={editingMessage?.text ?? null}
-                  onSaveEdit={saveEditMessage}
-                  onCancelEdit={cancelEditMessage}
-                  replyingTo={replyingTo}
-                  replyPeerName={active.name}
-                  onCancelReply={cancelReply}
-                />
+                {/* Broadcast channel read-only for non-admins — no composer at all */}
+                {active.isChannel && !active.isChannelAdmin ? null : (
+                  <MessageComposer
+                    key={activeId}
+                    conversationId={activeId}
+                    isSecret={isSecret}
+                    secureMode={isSuperSecret}
+                    disabled={!canPost}
+                    recentMessages={[]}
+                    initialText={activeId ? (drafts[activeId] ?? "") : ""}
+                    onDraftChange={(text) => activeId && setDraft(activeId, text)}
+                    onSend={sendMessage}
+                    onScheduleRequest={(t) => {
+                      setSchedulePendingText(t);
+                      setScheduleOpen(true);
+                    }}
+                    onSendVoice={sendVoiceMessage}
+                    onSendFile={sendFileMessage}
+                    onSendGif={sendGifMessage}
+                    onSendSticker={sendStickerMessage}
+                    selectionMode={selectionMode}
+                    editingText={editingMessage?.text ?? null}
+                    onSaveEdit={saveEditMessage}
+                    onCancelEdit={cancelEditMessage}
+                    replyingTo={replyingTo}
+                    replyPeerName={active.name}
+                    onCancelReply={cancelReply}
+                  />
+                )}
                 {scheduleOpen && activeId ? (
-                  <ScheduleModal
+                  <ScheduleModalMemo
                     conversationId={activeId}
                     text={schedulePendingText}
-                    onClose={() => { setScheduleOpen(false); setSchedulePendingText(""); }}
-                    onScheduled={() => { setScheduleOpen(false); setSchedulePendingText(""); }}
+                    onClose={handleScheduleClose}
+                    onScheduled={handleScheduleClose}
                   />
                 ) : null}
               </>
@@ -481,6 +515,13 @@ export function ChatPage() {
           />
         )}
       />
+      {safetyNumberConv && (
+        <SafetyNumberModal
+          peerUserId={safetyNumberConv.peerId}
+          peerName={safetyNumberConv.peerName}
+          onClose={() => setSafetyNumberConv(null)}
+        />
+      )}
     </div>
   );
 }
