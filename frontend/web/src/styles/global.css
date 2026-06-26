@@ -703,6 +703,28 @@ body.privacy-shield-active .privacy-shield--clickable {
   opacity: 0.9;
 }
 
+.lock-overlay__pin-biometric {
+  margin-top: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid rgba(167, 139, 250, 0.6);
+  background: rgba(124, 58, 237, 0.12);
+  color: #ddd6fe;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.lock-overlay__pin-biometric:hover:not(:disabled) {
+  background: rgba(124, 58, 237, 0.22);
+}
+
+.lock-overlay__pin-biometric:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .lock-overlay__pin-cancel {
   margin-top: 0.25rem;
   padding: 0.5rem;

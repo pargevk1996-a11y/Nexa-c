@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { AuthSecurityOverview } from "@/components/auth/AuthSecurityOverview";
+import { BiometricSettingsPanel } from "@/components/auth/BiometricSettingsPanel";
 import { ChangePasswordPanel } from "@/components/auth/ChangePasswordPanel";
 import { PhoneVerificationPanel } from "@/components/auth/PhoneVerificationPanel";
 import { QrLinkDevicePanel } from "@/components/auth/QrLinkDevicePanel";
 import { TwoFactorSetupPanel } from "@/components/auth/TwoFactorSetupPanel";
 import { SettingRow } from "@/components/settings/SettingRow";
 import { BRAND_NAME } from "@/config/brand";
-import { isQrLoginEnabled } from "@/config/features";
+import { biometricLabel, isBiometricUnlockSupported, isQrLoginEnabled } from "@/config/features";
 import { Button } from "@/components/ui/Button";
 
 export function SecuritySettingsSection() {
@@ -24,6 +25,14 @@ export function SecuritySettingsSection() {
         <SettingRow title="Two-factor authentication" description="Authenticator app (TOTP).">
           <TwoFactorSetupPanel />
         </SettingRow>
+        {isBiometricUnlockSupported() ? (
+          <SettingRow
+            title={`Unlock with ${biometricLabel()}`}
+            description="Open the app with biometrics instead of your PIN."
+          >
+            <BiometricSettingsPanel />
+          </SettingRow>
+        ) : null}
         <SettingRow title="Phone verification" description="Link and verify your phone number.">
           <PhoneVerificationPanel />
         </SettingRow>

@@ -504,6 +504,63 @@ export async function listWebAuthnDevices(): Promise<WebAuthnDevice[]> {
   return apiFetch<WebAuthnDevice[]>("/auth/webauthn/credentials");
 }
 
+// --- Opt-in biometric (Face ID / fingerprint) PIN unlock, mobile only -------
+
+/** Register this device's platform authenticator for biometric PIN unlock. */
+export async function registerBiometric(
+  credentialId: string,
+  publicKey: string,
+  deviceLabel?: string,
+): Promise<string> {
+  const data = await apiFetch<{ message: string }>("/auth/biometric/register", {
+    method: "POST",
+    body: JSON.stringify({
+      credential_id: credentialId,
+      public_key: publicKey,
+      device_label: deviceLabel,
+    }),
+  });
+  return data.message;
+}
+
+export async function getBiometricStatus(): Promise<{ enabled: boolean; count: number }> {
+  return apiFetch<{ enabled: boolean; count: number }>("/auth/biometric/status");
+}
+
+export async function removeBiometric(): Promise<string> {
+  const data = await apiFetch<{ message: string }>("/auth/biometric", { method: "DELETE" });
+  return data.message;
+}
+
+/** Begin a biometric PIN unlock: server issues a fresh single-use challenge. */
+export async function startBiometricUnlock(): Promise<{
+  challenge: string;
+  credential_ids: string[];
+}> {
+  return apiFetch("/auth/biometric/pin/start", { method: "POST", body: JSON.stringify({}) });
+}
+
+/** Finish a biometric PIN unlock — backend verifies the assertion and (on
+ *  success) reissues the access cookie with pin_verified=true. */
+export async function finishBiometricUnlock(input: {
+  credentialId: string;
+  challenge: string;
+  authenticatorData: string;
+  clientDataJSON: string;
+  signature: string;
+}): Promise<PinStatusResult> {
+  return apiFetch<PinStatusResult>("/auth/biometric/pin/verify", {
+    method: "POST",
+    body: JSON.stringify({
+      credential_id: input.credentialId,
+      challenge: input.challenge,
+      authenticator_data: input.authenticatorData,
+      client_data_json: input.clientDataJSON,
+      signature: input.signature,
+    }),
+  });
+}
+
 export async function deleteAccount(password: string, confirmText: string): Promise<string> {
   const data = await apiFetch<{ message: string }>("/auth/account/delete", {
     method: "POST",

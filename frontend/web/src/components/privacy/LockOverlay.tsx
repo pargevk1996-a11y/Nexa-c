@@ -2,6 +2,8 @@ import { createPortal } from "react-dom";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLock, type LockState } from "@/store/LockContext";
 import { isGuestAuthPath } from "@/security/authRoutes";
+import { biometricLabel, isBiometricUnlockSupported } from "@/config/features";
+import { isBiometricEnabledLocally } from "@/security/biometric";
 
 const CLICK_CONTENT: Record<"screenshot_blocked" | "away", { title: string; body: string }> = {
   screenshot_blocked: {
@@ -19,17 +21,33 @@ function PinForm({
   error,
   onSubmit,
   onCancel,
+  onBiometric,
 }: {
   mode: "setup" | "verify";
   error: string | null;
   onSubmit: (pin: string) => Promise<void>;
   onCancel?: () => Promise<void>;
+  onBiometric?: () => Promise<boolean>;
 }) {
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Show the biometric shortcut only on a mobile device that has opted in.
+  const showBiometric =
+    mode === "verify" && !!onBiometric && isBiometricUnlockSupported() && isBiometricEnabledLocally();
+
+  async function handleBiometric() {
+    if (!onBiometric) return;
+    setLocalError(null);
+    setBioBusy(true);
+    const ok = await onBiometric();
+    setBioBusy(false);
+    if (!ok) setLocalError("Biometric unlock failed. Enter your PIN.");
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -51,7 +69,7 @@ function PinForm({
   }
 
   const displayError = localError || error;
-  const busy = loading || cancelling;
+  const busy = loading || cancelling || bioBusy;
 
   return (
     <form className="lock-overlay__pin-form" onSubmit={handleSubmit}>
@@ -90,6 +108,17 @@ function PinForm({
         {loading ? "…" : mode === "setup" ? "Set PIN" : "Unlock"}
       </button>
 
+      {showBiometric && (
+        <button
+          type="button"
+          className="lock-overlay__pin-biometric"
+          onClick={() => void handleBiometric()}
+          disabled={busy}
+        >
+          {bioBusy ? "Waiting for biometrics…" : `Unlock with ${biometricLabel()}`}
+        </button>
+      )}
+
       {mode === "setup" && onCancel && (
         <button
           type="button"
@@ -104,8 +133,61 @@ function PinForm({
   );
 }
 
+function BiometricOffer({
+  busy,
+  onAccept,
+  onDecline,
+}: {
+  busy: boolean;
+  onAccept: () => Promise<void>;
+  onDecline: () => void;
+}) {
+  const label = biometricLabel();
+  return (
+    <div className="lock-overlay lock-overlay--pin">
+      <div className="lock-overlay__inner">
+        <div className="lock-overlay__pin-form">
+          <h2 className="lock-overlay__title">Enable {label}?</h2>
+          <p className="lock-overlay__body">
+            Unlock Nexa with {label} instead of typing your PIN every time. Your
+            biometrics stay on this device — Nexa never sees them.
+          </p>
+          <button
+            type="button"
+            className="lock-overlay__pin-btn"
+            onClick={() => void onAccept()}
+            disabled={busy}
+          >
+            {busy ? "Setting up…" : `Enable ${label}`}
+          </button>
+          <button
+            type="button"
+            className="lock-overlay__pin-cancel"
+            onClick={onDecline}
+            disabled={busy}
+          >
+            Not now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LockOverlay() {
-  const { lockState, unlock, pinError, onPinSetup, onPinVerify, onPinCancel } = useLock();
+  const {
+    lockState,
+    unlock,
+    pinError,
+    onPinSetup,
+    onPinVerify,
+    onPinCancel,
+    offerBiometric,
+    biometricBusy,
+    acceptBiometricOffer,
+    declineBiometricOffer,
+    onBiometricUnlock,
+  } = useLock();
   // This component renders OUTSIDE <Router>, so we can't use useLocation().
   // Track the path via the bridged "nexa:locationchange" event + popstate.
   const [pathname, setPathname] = useState<string>(window.location.pathname);
@@ -123,6 +205,19 @@ export function LockOverlay() {
   // PIN overlay must never cover guest pages (login, register, oauth, etc.)
   if (isGuestAuthPath(pathname)) return null;
 
+  // One-time opt-in offer shown right after PIN setup (mobile only). Renders on
+  // top even once the app is unlocked so data can load behind it.
+  if (offerBiometric) {
+    return createPortal(
+      <BiometricOffer
+        busy={biometricBusy}
+        onAccept={acceptBiometricOffer}
+        onDecline={declineBiometricOffer}
+      />,
+      document.body,
+    );
+  }
+
   if (lockState === "active") return null;
 
   if (lockState === "pin_setup" || lockState === "pin_required") {
@@ -134,6 +229,7 @@ export function LockOverlay() {
             error={pinError}
             onSubmit={lockState === "pin_setup" ? onPinSetup : onPinVerify}
             onCancel={lockState === "pin_setup" ? onPinCancel : undefined}
+            onBiometric={lockState === "pin_required" ? onBiometricUnlock : undefined}
           />
         </div>
       </div>,

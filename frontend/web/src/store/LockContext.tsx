@@ -10,8 +10,10 @@ import {
 import { sealContent, explicitUnlock } from "@/security/privacySeal";
 import { setScreenshotCb } from "@/security/screenshotEvent";
 import { isGuestAuthPath } from "@/security/authRoutes";
-import { cancelPinSetup, getPinStatus, lockSession as lockSessionApi, setupPin, verifyPin } from "@/api/auth";
+import { cancelPinSetup, getCachedSession, getPinStatus, lockSession as lockSessionApi, setupPin, verifyPin } from "@/api/auth";
 import { ApiError } from "@/api/client";
+import { isBiometricUnlockSupported } from "@/config/features";
+import { enableBiometric, isBiometricAvailable, unlockWithBiometric } from "@/security/biometric";
 
 // Clear legacy lock keys from old system.
 try {
@@ -35,6 +37,12 @@ interface LockContextValue {
   onPinVerify(pin: string): Promise<void>;
   onPinCancel(): Promise<void>;
   lockSession(): Promise<void>;
+  // Opt-in biometric (Face ID / fingerprint) — mobile only.
+  offerBiometric: boolean;
+  biometricBusy: boolean;
+  acceptBiometricOffer(): Promise<void>;
+  declineBiometricOffer(): void;
+  onBiometricUnlock(): Promise<boolean>;
 }
 
 const LockContext = createContext<LockContextValue | null>(null);
@@ -43,6 +51,8 @@ export function LockProvider({ children }: { children: ReactNode }) {
   const [lockState, setLockState] = useState<LockState>("active");
   const [lockedAt, setLockedAt] = useState<number>(0);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [offerBiometric, setOfferBiometric] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
   const pinVerifiedAtRef = useRef<number>(0);
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -91,6 +101,12 @@ export function LockProvider({ children }: { children: ReactNode }) {
       // app tried to fetch while locked got 403 PIN_REQUIRED — tell the data
       // contexts to reload now so chats/messages appear without a page refresh.
       try { window.dispatchEvent(new Event("securechat-unlocked")); } catch { /* ignore */ }
+      // On mobile, offer to enable biometric unlock for next time (opt-in).
+      if (isBiometricUnlockSupported()) {
+        try {
+          if (await isBiometricAvailable()) setOfferBiometric(true);
+        } catch { /* ignore */ }
+      }
     } catch (e) {
       if (e instanceof ApiError) {
         setPinError(e.message);
@@ -98,6 +114,38 @@ export function LockProvider({ children }: { children: ReactNode }) {
         setPinError("Failed to set PIN. Please try again.");
       }
     }
+  }, [resetInactivityTimer]);
+
+  // Register this device's platform authenticator (Face ID / fingerprint) so
+  // the user can unlock without the PIN next time. Dismisses the offer either way.
+  const acceptBiometricOffer = useCallback(async () => {
+    setBiometricBusy(true);
+    try {
+      const s = getCachedSession();
+      const uid = s?.user?.id;
+      const uname = s?.user?.username || s?.user?.email || "Nexa user";
+      if (uid) await enableBiometric(uid, uname);
+    } catch { /* best-effort — user can retry from Settings */ }
+    finally {
+      setBiometricBusy(false);
+      setOfferBiometric(false);
+    }
+  }, []);
+
+  const declineBiometricOffer = useCallback(() => setOfferBiometric(false), []);
+
+  // Clear the PIN gate with Face ID / fingerprint instead of typing the PIN.
+  const onBiometricUnlock = useCallback(async (): Promise<boolean> => {
+    setPinError(null);
+    const ok = await unlockWithBiometric();
+    if (ok) {
+      pinVerifiedAtRef.current = Date.now();
+      setLockState("active");
+      setLockedAt(0);
+      resetInactivityTimer();
+      try { window.dispatchEvent(new Event("securechat-unlocked")); } catch { /* ignore */ }
+    }
+    return ok;
   }, [resetInactivityTimer]);
 
   const onPinVerify = useCallback(async (pin: string) => {
@@ -282,7 +330,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
   }, [lock]);
 
   return (
-    <LockContext.Provider value={{ lockState, lockedAt, pinError, lock, unlock, onPinSetup, onPinVerify, onPinCancel, lockSession }}>
+    <LockContext.Provider value={{ lockState, lockedAt, pinError, lock, unlock, onPinSetup, onPinVerify, onPinCancel, lockSession, offerBiometric, biometricBusy, acceptBiometricOffer, declineBiometricOffer, onBiometricUnlock }}>
       {children}
     </LockContext.Provider>
   );

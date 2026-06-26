@@ -8,6 +8,7 @@ from nexa_shared.observability import setup_observability
 from nexa_shared.schemas.common import HealthResponse
 
 from app.api.auth_routes import router as auth_router
+from app.api.biometric_routes import biometric_router
 from app.api.oauth_routes import router as oauth_router
 from app.api.pin_routes import pin_router
 from app.api.routes import router
@@ -107,6 +108,7 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(oauth_router)
 app.include_router(pin_router)
+app.include_router(biometric_router)
 app.include_router(session_router)
 app.include_router(security_router)
 

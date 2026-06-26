@@ -36,6 +36,11 @@ _PIN_EXEMPT = frozenset(
         "/api/v1/auth/oauth/",
         "/api/v1/auth/webauthn/login/start",
         "/api/v1/auth/webauthn/login/finish",
+        # Biometric PIN-unlock: reachable while the session is PIN-locked so the
+        # user can clear the gate with Face ID / fingerprint instead of the PIN.
+        # Both endpoints require a valid (locked) access token and the verify
+        # step does real WebAuthn assertion verification.
+        "/api/v1/auth/biometric/pin",
         "/api/v1/security/capture-attempt",
         "/api/v1/security/csp-report",
         "/health",
@@ -73,6 +78,7 @@ _EXEMPT_CSRF = frozenset(
         "/api/v1/auth/qr/start",
         "/api/v1/auth/webauthn/login/start",
         "/api/v1/auth/webauthn/login/finish",
+        "/api/v1/auth/biometric/pin",
         "/api/v1/auth/oauth/",
         # Fire-and-forget telemetry sent without auth headers (sendBeacon / browser
         # CSP reporter). Stateless + sessionless — a forged call only writes a log
