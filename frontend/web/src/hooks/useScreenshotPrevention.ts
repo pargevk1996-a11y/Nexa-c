@@ -87,6 +87,19 @@ function showOverlayWithInputHole() {
   el.style.opacity = "1";
 }
 
+// Best-effort: overwrite the clipboard so an OS PrintScreen that already
+// captured the screen to the clipboard (e.g. some Windows paths fire the OS
+// capture before the page can react) is wiped to an empty value. Requires the
+// document to be focused (it is, right after PrintScreen) and may be blocked by
+// permissions — hence guarded. This is a deterrent, not a guarantee.
+function wipeClipboard() {
+  try {
+    void navigator.clipboard?.writeText?.("").catch(() => {});
+  } catch {
+    /* clipboard API unavailable or blocked */
+  }
+}
+
 function hideOverlay(delayMs = 0) {
   if (hideTimer) clearTimeout(hideTimer);
   const doHide = () => {
@@ -128,6 +141,7 @@ export function useScreenshotPrevention() {
         e.preventDefault();
         e.stopImmediatePropagation();
         showOverlay();
+        wipeClipboard();
         hideOverlay(700);
         return;
       }
@@ -195,6 +209,7 @@ export function useScreenshotPrevention() {
         e.preventDefault();
         e.stopImmediatePropagation();
         showOverlay();
+        wipeClipboard();
         hideOverlay(700);
       }
     };
